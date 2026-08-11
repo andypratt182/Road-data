@@ -1,902 +1,248 @@
 ======================================================================
-NATIONAL HIGHWAYS API TEST 4
+NATIONAL HIGHWAYS IMPORTER TEST
 ======================================================================
-
-DATEX II CLOSURE OVERLAP ANALYSIS
-
-THIS TEST MAKES EXACTLY ONE API REQUEST.
-NO RETRIES.
-NO SPLITTING.
-
-closureType is intentionally NOT supplied.
-
-REQUEST WINDOW
-----------------------------------------------------------------------
+This is an isolated importer test.
+Production workflow is NOT modified.
+Request window:
 Start: 2026-08-11T00:00:00
 End:   2026-08-18T23:59:59
-
-Parameters:
-{
-  "startDateTime": "2026-08-11T00:00:00",
-  "endDateTime": "2026-08-18T23:59:59"
-}
-
-Requesting API...
-
-HTTP status: 200
-
-Final URL:
-https://api.data.nationalhighways.co.uk/roads/v2.0/closures?startDateTime=2026-08-11T00%3A00%3A00&endDateTime=2026-08-18T23%3A59%3A59
-
-Response character count: 4583605
-
+closureType: NOT supplied
+Pagination: x-next
+PageCursor: NOT manually supplied
+Rate limiting: Retry-After
 ======================================================================
-DATEX II STRUCTURE
+National Highways request 1
+Page: 1
+URL: https://api.data.nationalhighways.co.uk/roads/v2.0/closures
+Records returned on page 1: 500
+x-next received.
+Next page URL: https://api.data.nationalhighways.co.uk/roads/v2.0/closures?startDateTime=2026-08-11T00%3A00%3A00&endDateTime=2026-08-18T23%3A59%3A59&PageCursor=448130660
+National Highways request 2
+Page: 2
+URL: https://api.data.nationalhighways.co.uk/roads/v2.0/closures?startDateTime=2026-08-11T00%3A00%3A00&endDateTime=2026-08-18T23%3A59%3A59&PageCursor=448130660
+Records returned on page 2: 500
+x-next received.
+Next page URL: https://api.data.nationalhighways.co.uk/roads/v2.0/closures?startDateTime=2026-08-11T00%3A00%3A00&endDateTime=2026-08-18T23%3A59%3A59&PageCursor=448132554
+National Highways request 3
+Page: 3
+URL: https://api.data.nationalhighways.co.uk/roads/v2.0/closures?startDateTime=2026-08-11T00%3A00%3A00&endDateTime=2026-08-18T23%3A59%3A59&PageCursor=448132554
+Records returned on page 3: 500
+x-next received.
+Next page URL: https://api.data.nationalhighways.co.uk/roads/v2.0/closures?startDateTime=2026-08-11T00%3A00%3A00&endDateTime=2026-08-18T23%3A59%3A59&PageCursor=448134620
+National Highways request 4
+Page: 4
+URL: https://api.data.nationalhighways.co.uk/roads/v2.0/closures?startDateTime=2026-08-11T00%3A00%3A00&endDateTime=2026-08-18T23%3A59%3A59&PageCursor=448134620
+Records returned on page 4: 500
+x-next received.
+Next page URL: https://api.data.nationalhighways.co.uk/roads/v2.0/closures?startDateTime=2026-08-11T00%3A00%3A00&endDateTime=2026-08-18T23%3A59%3A59&PageCursor=448136628
+National Highways request 5
+Page: 5
+URL: https://api.data.nationalhighways.co.uk/roads/v2.0/closures?startDateTime=2026-08-11T00%3A00%3A00&endDateTime=2026-08-18T23%3A59%3A59&PageCursor=448136628
+Records returned on page 5: 500
+x-next received.
+Next page URL: https://api.data.nationalhighways.co.uk/roads/v2.0/closures?startDateTime=2026-08-11T00%3A00%3A00&endDateTime=2026-08-18T23%3A59%3A59&PageCursor=448138713
+National Highways request 6
+Page: 6
+URL: https://api.data.nationalhighways.co.uk/roads/v2.0/closures?startDateTime=2026-08-11T00%3A00%3A00&endDateTime=2026-08-18T23%3A59%3A59&PageCursor=448138713
+HTTP 429 rate limit received.
+Retry-After: 36 seconds
+Waiting for Retry-After before retrying the same page.
+National Highways request 7
+Page: 6
+URL: https://api.data.nationalhighways.co.uk/roads/v2.0/closures?startDateTime=2026-08-11T00%3A00%3A00&endDateTime=2026-08-18T23%3A59%3A59&PageCursor=448138713
+Records returned on page 6: 500
+x-next received.
+Next page URL: https://api.data.nationalhighways.co.uk/roads/v2.0/closures?startDateTime=2026-08-11T00%3A00%3A00&endDateTime=2026-08-18T23%3A59%3A59&PageCursor=448140825
+National Highways request 8
+Page: 7
+URL: https://api.data.nationalhighways.co.uk/roads/v2.0/closures?startDateTime=2026-08-11T00%3A00%3A00&endDateTime=2026-08-18T23%3A59%3A59&PageCursor=448140825
+HTTP 429 rate limit received.
+Retry-After: 5 seconds
+Waiting for Retry-After before retrying the same page.
+National Highways request 9
+Page: 7
+URL: https://api.data.nationalhighways.co.uk/roads/v2.0/closures?startDateTime=2026-08-11T00%3A00%3A00&endDateTime=2026-08-18T23%3A59%3A59&PageCursor=448140825
+Records returned on page 7: 500
+x-next received.
+Next page URL: https://api.data.nationalhighways.co.uk/roads/v2.0/closures?startDateTime=2026-08-11T00%3A00%3A00&endDateTime=2026-08-18T23%3A59%3A59&PageCursor=448142631
+National Highways request 10
+Page: 8
+URL: https://api.data.nationalhighways.co.uk/roads/v2.0/closures?startDateTime=2026-08-11T00%3A00%3A00&endDateTime=2026-08-18T23%3A59%3A59&PageCursor=448142631
+HTTP 429 rate limit received.
+Retry-After: 4 seconds
+Waiting for Retry-After before retrying the same page.
+National Highways request 11
+Page: 8
+URL: https://api.data.nationalhighways.co.uk/roads/v2.0/closures?startDateTime=2026-08-11T00%3A00%3A00&endDateTime=2026-08-18T23%3A59%3A59&PageCursor=448142631
+Records returned on page 8: 500
+x-next received.
+Next page URL: https://api.data.nationalhighways.co.uk/roads/v2.0/closures?startDateTime=2026-08-11T00%3A00%3A00&endDateTime=2026-08-18T23%3A59%3A59&PageCursor=448144626
+National Highways request 12
+Page: 9
+URL: https://api.data.nationalhighways.co.uk/roads/v2.0/closures?startDateTime=2026-08-11T00%3A00%3A00&endDateTime=2026-08-18T23%3A59%3A59&PageCursor=448144626
+Records returned on page 9: 500
+x-next received.
+Next page URL: https://api.data.nationalhighways.co.uk/roads/v2.0/closures?startDateTime=2026-08-11T00%3A00%3A00&endDateTime=2026-08-18T23%3A59%3A59&PageCursor=448146525
+National Highways request 13
+Page: 10
+URL: https://api.data.nationalhighways.co.uk/roads/v2.0/closures?startDateTime=2026-08-11T00%3A00%3A00&endDateTime=2026-08-18T23%3A59%3A59&PageCursor=448146525
+HTTP 429 rate limit received.
+Retry-After: 1 seconds
+Waiting for Retry-After before retrying the same page.
+National Highways request 14
+Page: 10
+URL: https://api.data.nationalhighways.co.uk/roads/v2.0/closures?startDateTime=2026-08-11T00%3A00%3A00&endDateTime=2026-08-18T23%3A59%3A59&PageCursor=448146525
+Records returned on page 10: 500
+x-next received.
+Next page URL: https://api.data.nationalhighways.co.uk/roads/v2.0/closures?startDateTime=2026-08-11T00%3A00%3A00&endDateTime=2026-08-18T23%3A59%3A59&PageCursor=448148903
+National Highways request 15
+Page: 11
+URL: https://api.data.nationalhighways.co.uk/roads/v2.0/closures?startDateTime=2026-08-11T00%3A00%3A00&endDateTime=2026-08-18T23%3A59%3A59&PageCursor=448148903
+Records returned on page 11: 467
+x-next not present.
+Pagination complete.
+National Highways collection complete.
+Pages retrieved: 11
+Requests made: 15
+All processed records: 5467
+Target-road overlapping records: 743
 ======================================================================
-
-Situations returned: 160
-
-Situation records found: 500
-
+IMPORTER RESULT
 ======================================================================
-TIMESTAMP ANALYSIS
-======================================================================
-
-Earliest closure start:
-2025-01-19T19:54:00+00:00
-
-Latest closure start:
+Target-road closures returned: 743
+ROAD COUNTS
+----------------------------------------------------------------------
+M6: 366
+M57: 23
+M58: 5
+M62: 349
+VALIDITY RANGE
+----------------------------------------------------------------------
+Earliest start:
+2023-04-03T10:17:00+00:00
+Latest start:
 2026-08-18T22:00:00+00:00
-
-Earliest closure end:
-2026-08-11T00:45:00+00:00
-
-Latest closure end:
-2027-12-31T06:00:00+00:00
-
-======================================================================
-WINDOW CLASSIFICATION
-======================================================================
-
-Records whose validity ended BEFORE requested window:
-0
-
-Records OVERLAPPING requested window:
-500
-
-Records starting AFTER requested window:
-0
-
-Records with missing/invalid start or end:
-0
-
-======================================================================
-TARGET ROAD ANALYSIS
-======================================================================
-
-M6: 27 total records, 27 overlapping requested window
-M57: 2 total records, 2 overlapping requested window
-M58: 0 total records, 0 overlapping requested window
-M62: 28 total records, 28 overlapping requested window
-
-======================================================================
-ALL ROADS REPRESENTED
-======================================================================
-
-A1(M): 43 total, 43 overlapping
-M53: 42 total, 42 overlapping
-M25: 34 total, 34 overlapping
-M1: 30 total, 30 overlapping
-M4: 28 total, 28 overlapping
-M62: 28 total, 28 overlapping
-M6: 27 total, 27 overlapping
-M61: 25 total, 25 overlapping
-M40: 19 total, 19 overlapping
-M56: 17 total, 17 overlapping
-A14: 15 total, 15 overlapping
-M60: 14 total, 14 overlapping
-A120: 13 total, 13 overlapping
-A66: 13 total, 13 overlapping
-A303: 12 total, 12 overlapping
-A47: 10 total, 10 overlapping
-A30: 9 total, 9 overlapping
-A34: 9 total, 9 overlapping
-M3: 9 total, 9 overlapping
-A38: 8 total, 8 overlapping
-M11: 8 total, 8 overlapping
-A36: 6 total, 6 overlapping
-M20: 6 total, 6 overlapping
-M27: 6 total, 6 overlapping
-M42: 6 total, 6 overlapping
-M65: 6 total, 6 overlapping
-A1033: 5 total, 5 overlapping
-A27: 5 total, 5 overlapping
-A59: 5 total, 5 overlapping
-M621: 5 total, 5 overlapping
-A11: 4 total, 4 overlapping
-A3: 4 total, 4 overlapping
-A43: 4 total, 4 overlapping
-A628: 4 total, 4 overlapping
-M180: 4 total, 4 overlapping
-M66: 4 total, 4 overlapping
-A19: 3 total, 3 overlapping
-A414: 3 total, 3 overlapping
-M18: 3 total, 3 overlapping
-M67: 3 total, 3 overlapping
-A160: 2 total, 2 overlapping
-A162: 2 total, 2 overlapping
-A404(M): 2 total, 2 overlapping
-A417: 2 total, 2 overlapping
-A428: 2 total, 2 overlapping
-A5036: 2 total, 2 overlapping
-A56: 2 total, 2 overlapping
-A57: 2 total, 2 overlapping
-A5758: 2 total, 2 overlapping
-A590: 2 total, 2 overlapping
-A616: 2 total, 2 overlapping
-M275: 2 total, 2 overlapping
-M32: 2 total, 2 overlapping
-M5: 2 total, 2 overlapping
-M57: 2 total, 2 overlapping
-A1: 1 total, 1 overlapping
-A12: 1 total, 1 overlapping
-A174: 1 total, 1 overlapping
-A180: 1 total, 1 overlapping
-A282: 1 total, 1 overlapping
-A31: 1 total, 1 overlapping
-A333: 1 total, 1 overlapping
-A40: 1 total, 1 overlapping
-A45: 1 total, 1 overlapping
-A49: 1 total, 1 overlapping
-A500: 1 total, 1 overlapping
-A63: 1 total, 1 overlapping
-M23: 1 total, 1 overlapping
-M271: 1 total, 1 overlapping
-M50: 1 total, 1 overlapping
-M606: 1 total, 1 overlapping
-
-======================================================================
-SAMPLE OVERLAPPING CLOSURES
-======================================================================
-
+Earliest end:
+2026-08-11T00:08:00+00:00
+Latest end:
+2030-12-31T06:00:00+00:00
+FIELD AVAILABILITY
+----------------------------------------------------------------------
+road: 743/743 (100.0%)
+direction: 731/743 (98.4%)
+start: 743/743 (100.0%)
+end: 743/743 (100.0%)
+description: 743/743 (100.0%)
+location: 0/743 (0.0%)
+latitude: 0/743 (0.0%)
+longitude: 0/743 (0.0%)
+lanes: 371/743 (49.9%)
+SAMPLE NORMALISED RECORDS
+----------------------------------------------------------------------
 Record 1
---------------------------------------------------
-Situation index: 0
-Record index: 0
-Road(s): A45
-Direction(s): eastBound
-Start: 2026-08-03T08:00:00+00:00
-End: 2026-08-24T09:00:00+00:00
-Validity status: suspended
-Management type: carriagewayClosures
-Comment: A45 eastbound, East Way carriageway closure
-
+Road: M62
+Direction: eastbound
+Start: 2026-08-10T19:00:00.00Z
+End: 2026-08-11T05:00:00.00Z
+Description: M62 eastbound between J22 and J23
+Location: None
+Latitude: None
+Longitude: None
+Lanes: [{'number': 1, 'status': 'closed'}]
 Record 2
---------------------------------------------------
-Situation index: 1
-Record index: 0
-Road(s): M66
-Direction(s): southBound
-Start: 2026-08-10T20:00:00+00:00
-End: 2026-08-11T05:00:00+00:00
-Validity status: suspended
-Management type: carriagewayClosures
-Comment: M66 southbound jct 2 entry slip road closure 
-
+Road: M62
+Direction: westbound
+Start: 2026-08-12T20:00:00.00Z
+End: 2026-08-13T05:00:00.00Z
+Description: M62 J29 westbound exit
+Location: None
+Latitude: None
+Longitude: None
+Lanes: [{'number': 1, 'status': 'closed'}]
 Record 3
---------------------------------------------------
-Situation index: 1
-Record index: 1
-Road(s): M66
-Direction(s): southBound
-Start: 2026-08-11T20:00:00+00:00
-End: 2026-08-12T05:00:00+00:00
-Validity status: planned
-Management type: carriagewayClosures
-Comment: M66 southbound jct 2 entry slip road closure 
-
+Road: M6
+Direction: northbound
+Start: 2026-08-12T18:00:00.00Z
+End: 2026-08-13T05:00:00.00Z
+Description: M6 northbound between J35 and J36
+Location: None
+Latitude: None
+Longitude: None
+Lanes: [{'number': 3, 'status': 'closed'}]
 Record 4
---------------------------------------------------
-Situation index: 1
-Record index: 2
-Road(s): M66
-Direction(s): southBound
-Start: 2026-08-12T20:00:00+00:00
-End: 2026-08-13T05:00:00+00:00
-Validity status: planned
-Management type: carriagewayClosures
-Comment: M66 southbound jct 2 entry slip road closure 
-
+Road: M6
+Direction: northbound
+Start: 2026-08-10T18:00:00.00Z
+End: 2026-08-11T05:00:00.00Z
+Description: M6 northbound between J35 and J36
+Location: None
+Latitude: None
+Longitude: None
+Lanes: [{'number': 3, 'status': 'closed'}]
 Record 5
---------------------------------------------------
-Situation index: 1
-Record index: 3
-Road(s): M66
-Direction(s): southBound
-Start: 2026-08-13T20:00:00+00:00
-End: 2026-08-14T05:00:00+00:00
-Validity status: planned
-Management type: carriagewayClosures
-Comment: M66 southbound jct 2 entry slip road closure 
-
+Road: M6
+Direction: northbound
+Start: 2026-08-11T18:00:00.00Z
+End: 2026-08-12T05:00:00.00Z
+Description: M6 northbound between J35 and J36
+Location: None
+Latitude: None
+Longitude: None
+Lanes: [{'number': 3, 'status': 'closed'}]
 Record 6
---------------------------------------------------
-Situation index: 2
-Record index: 0
-Road(s): A616, A628
-Direction(s): clockwise, eastBound, westBound
-Start: 2026-08-08T05:00:00+00:00
-End: 2026-08-12T05:00:00+00:00
-Validity status: suspended
-Management type: carriagewayClosures
-Comment: A628 eastbound and westbound Flouch to Tintwistle carriageway closure
-
+Road: M6
+Direction: northbound
+Start: 2026-08-13T18:00:00.00Z
+End: 2026-08-14T05:00:00.00Z
+Description: M6 northbound between J35 and J36
+Location: None
+Latitude: None
+Longitude: None
+Lanes: [{'number': 3, 'status': 'closed'}]
 Record 7
---------------------------------------------------
-Situation index: 2
-Record index: 1
-Road(s): A628, A616
-Direction(s): eastBound, clockwise, westBound
-Start: 2026-08-08T05:00:00+00:00
-End: 2026-08-12T05:00:00+00:00
-Validity status: suspended
-Management type: carriagewayClosures
-Comment: A628 eastbound and westbound Flouch to Tintwistle carriageway closure
-
+Road: M6
+Direction: northbound
+Start: 2026-08-11T18:00:00.00Z
+End: 2026-08-12T05:00:00.00Z
+Description: M6 northbound between J36 and J37
+Location: None
+Latitude: None
+Longitude: None
+Lanes: [{'number': 1, 'status': 'closed'}]
 Record 8
---------------------------------------------------
-Situation index: 3
-Record index: 0
-Road(s): M56
-Direction(s): westBound
-Start: 2026-08-10T20:00:00+00:00
-End: 2026-08-11T04:00:00+00:00
-Validity status: suspended
-Management type: carriagewayClosures
-Comment: M56 Westbound Jct 14 entry slip road closure 
-
+Road: M6
+Direction: northbound
+Start: 2026-08-12T18:00:00.00Z
+End: 2026-08-13T05:00:00.00Z
+Description: M6 northbound between J36 and J37
+Location: None
+Latitude: None
+Longitude: None
+Lanes: [{'number': 1, 'status': 'closed'}]
 Record 9
---------------------------------------------------
-Situation index: 3
-Record index: 1
-Road(s): M56
-Direction(s): eastBound
-Start: 2026-08-10T19:00:00+00:00
-End: 2026-08-11T04:00:00+00:00
-Validity status: suspended
-Management type: other
-Comment: M56 Eastbound Lane 3 closure (MP 54/2 to 51/0) 
-
+Road: M6
+Direction: northbound
+Start: 2026-08-10T18:00:00.00Z
+End: 2026-08-11T05:00:00.00Z
+Description: M6 northbound between J36 and J37
+Location: None
+Latitude: None
+Longitude: None
+Lanes: [{'number': 1, 'status': 'closed'}]
 Record 10
---------------------------------------------------
-Situation index: 3
-Record index: 2
-Road(s): M56
-Direction(s): westBound
-Start: 2026-08-10T20:00:00+00:00
-End: 2026-08-11T04:00:00+00:00
-Validity status: suspended
-Management type: carriagewayClosures
-Comment: M56 Westbound to M53 Southbound link road closure 
-
-Record 11
---------------------------------------------------
-Situation index: 4
-Record index: 0
-Road(s): M62
-Direction(s): eastBound
-Start: 2026-08-10T19:00:00+00:00
-End: 2026-08-11T05:00:00+00:00
-Validity status: suspended
-Management type: other
-Comment: M62 eastbound Jct 22 to Jct 23 Lane 1 closure (78/5 81/0)
-
-Record 12
---------------------------------------------------
-Situation index: 5
-Record index: 0
-Road(s): M1
-Direction(s): southBound
-Start: 2026-08-11T21:00:00+00:00
-End: 2026-08-12T05:00:00+00:00
-Validity status: suspended
-Management type: carriagewayClosures
-Comment: M1 southbound Jct 35 to Jct 34, carriageway closure 
-
-Record 13
---------------------------------------------------
-Situation index: 5
-Record index: 1
-Road(s): M1
-Direction(s): southBound
-Start: 2026-08-10T21:00:00+00:00
-End: 2026-08-11T05:00:00+00:00
-Validity status: suspended
-Management type: carriagewayClosures
-Comment: M1 southbound Jct 35 to Jct 34, carriageway closure 
-
-Record 14
---------------------------------------------------
-Situation index: 5
-Record index: 2
-Road(s): M1
-Direction(s): southBound
-Start: 2026-08-11T21:00:00+00:00
-End: 2026-08-12T05:00:00+00:00
-Validity status: suspended
-Management type: carriagewayClosures
-Comment: M1 southbound Jct 35 entry slip road closure 
-
-Record 15
---------------------------------------------------
-Situation index: 5
-Record index: 3
-Road(s): M1
-Direction(s): southBound
-Start: 2026-08-10T21:00:00+00:00
-End: 2026-08-11T05:00:00+00:00
-Validity status: suspended
-Management type: carriagewayClosures
-Comment: M1 southbound Jct 34 exit slip road closure 
-
-Record 16
---------------------------------------------------
-Situation index: 5
-Record index: 4
-Road(s): M1
-Direction(s): southBound
-Start: 2026-08-10T21:00:00+00:00
-End: 2026-08-11T05:00:00+00:00
-Validity status: suspended
-Management type: carriagewayClosures
-Comment: M1 southbound Jct 35 entry slip road closure 
-
-Record 17
---------------------------------------------------
-Situation index: 5
-Record index: 5
-Road(s): M1
-Direction(s): southBound
-Start: 2026-08-11T21:00:00+00:00
-End: 2026-08-12T05:00:00+00:00
-Validity status: suspended
-Management type: carriagewayClosures
-Comment: M1 southbound Jct 34 exit slip road closure 
-
-Record 18
---------------------------------------------------
-Situation index: 5
-Record index: 6
-Road(s): M1
-Direction(s): southBound
-Start: 2026-08-11T21:00:00+00:00
-End: 2026-08-12T05:00:00+00:00
-Validity status: planned
-Management type: carriagewayClosures
-Comment: M1 southbound Jct 34 exit slip road closure 
-
-Record 19
---------------------------------------------------
-Situation index: 5
-Record index: 7
-Road(s): M1
-Direction(s): southBound
-Start: 2026-08-10T21:00:00+00:00
-End: 2026-08-11T05:00:00+00:00
-Validity status: planned
-Management type: carriagewayClosures
-Comment: M1 southbound Jct 34 exit slip road closure 
-
-Record 20
---------------------------------------------------
-Situation index: 6
-Record index: 0
-Road(s): A43
-Direction(s): eastBound
-Start: 2026-08-10T19:00:00+00:00
-End: 2026-08-11T05:00:00+00:00
-Validity status: suspended
-Management type: carriagewayClosures
-Comment: M1 both directions A43 roundabout to Rothersthorpe services carriageway closure
-
-======================================================================
-TARGET ROAD OVERLAPPING SAMPLES
-======================================================================
-
-M6: 27 overlapping records
-
-  Sample 1
-    Start: 2026-08-12T18:00:00+00:00
-    End: 2026-08-13T05:00:00+00:00
-    Direction: northBound
-    Comment: M6 Northbound jct 36 Lane 3 closure (401/3A to 405/0A)
-
-  Sample 2
-    Start: 2026-08-10T18:00:00+00:00
-    End: 2026-08-11T05:00:00+00:00
-    Direction: northBound
-    Comment: M6 Northbound jct 36 Lane 3 closure (MP398/6A - MP403/0A)
-
-  Sample 3
-    Start: 2026-08-11T18:00:00+00:00
-    End: 2026-08-12T05:00:00+00:00
-    Direction: northBound
-    Comment: M6 Northbound jct 36 Lane 3 closure (400/0A - MP404/0A)
-
-  Sample 4
-    Start: 2026-08-13T18:00:00+00:00
-    End: 2026-08-14T05:00:00+00:00
-    Direction: northBound
-    Comment: M6 Northbound jct 36 Lane 3 closure (402/0A to 406/0A)
-
-  Sample 5
-    Start: 2026-08-11T18:00:00+00:00
-    End: 2026-08-12T05:00:00+00:00
-    Direction: northBound
-    Comment: M6 Northbound Junction 36 to 37 lane 1 closure (413/0A to 418/1A)
-
-M57: 2 overlapping records
-
-  Sample 1
-    Start: 2026-08-13T19:00:00+00:00
-    End: 2026-08-14T04:00:00+00:00
-    Direction: northBound, westBound
-    Comment: M57 Northbound to A5036 link road closure
-
-  Sample 2
-    Start: 2026-08-14T19:00:00+00:00
-    End: 2026-08-15T04:00:00+00:00
-    Direction: northBound, westBound
-    Comment: M57 Northbound to A5036 link road closure
-
-M62: 28 overlapping records
-
-  Sample 1
-    Start: 2026-08-10T19:00:00+00:00
-    End: 2026-08-11T05:00:00+00:00
-    Direction: eastBound
-    Comment: M62 eastbound Jct 22 to Jct 23 Lane 1 closure (78/5 81/0)
-
-  Sample 2
-    Start: 2026-08-12T20:00:00+00:00
-    End: 2026-08-13T05:00:00+00:00
-    Direction: westBound
-    Comment: M62 westbound Jct 29 exit slip lane 1 closure
-
-  Sample 3
-    Start: 2026-08-13T19:00:00+00:00
-    End: 2026-08-14T05:00:00+00:00
-    Direction: eastBound
-    Comment: M62 eastbound Jct 33 exit slip lane 1 closure
-
-  Sample 4
-    Start: 2026-08-13T19:00:00+00:00
-    End: 2026-08-14T05:00:00+00:00
-    Direction: westBound
-    Comment: M62 westbound Jct 33 exit slip lane 2 closure
-
-  Sample 5
-    Start: 2026-08-12T19:00:00+00:00
-    End: 2026-08-13T05:00:00+00:00
-    Direction: eastBound
-    Comment: M62 eastbound Jct 36 to Jct 37 lane 3 and 2 closure ( 158/1 161/3)
-
-======================================================================
-RAW FIRST SITUATION RECORD
-======================================================================
-{
-  "sitRoadOrCarriagewayOrLaneManagement": {
-    "idG": "1-1784547906-35770704-bc52-4e32-822a-64a330fda8a5",
-    "versionG": "14",
-    "situationRecordCreationTime": "2026-07-19T03:29:10.10Z",
-    "situationRecordVersionTime": "2026-07-28T00:16:10.10Z",
-    "probabilityOfOccurrence": "certain",
-    "complianceOption": "mandatory",
-    "roadOrCarriagewayOrLaneManagementType": {
-      "value": "carriagewayClosures"
-    },
-    "source": {
-      "sourceIdentification": "roadworks"
-    },
-    "validity": {
-      "validityStatus": "suspended",
-      "validityTimeSpecification": {
-        "overallStartTime": "2026-08-03T08:00:00.00Z",
-        "overallEndTime": "2026-08-24T09:00:00.00Z"
-      }
-    },
-    "cause": {
-      "causeType": "constructionWork",
-      "detailedCauseType": {
-        "constructionWorkType": "roadImprovementOrUpgrading"
-      }
-    },
-    "generalPublicComment": [
-      {
-        "comment": "A45 eastbound, East Way carriageway closure"
-      }
-    ],
-    "locationReference": {
-      "locLocationGroupByList": {
-        "locationContainedInGroup": [
-          {
-            "locLinearLocation": {
-              "gmlLineString": {
-                "locGmlLineString": {
-                  "srsDimension": 2,
-                  "srsName": "EPSG::4326",
-                  "posList": "52.445727 -1.689701 52.445717 -1.68941 52.445718 -1.688906 52.445749 -1.688464 52.445794 -1.688123 52.445831 -1.687938 52.445866 -1.687858"
-                }
-              },
-              "supplementaryPositionalDescription": {
-                "locationDescription": "A45 eastbound exit for A452",
-                "carriageway": [
-                  {
-                    "carriageway": {
-                      "value": "slipRoads",
-                      "extendedValueG": ""
-                    },
-                    "carriagewayExtensionG": {
-                      "impactOnCarriageway": {
-                        "numberOfLanesRestricted": 2,
-                        "numberOfOperationalLanes": 0
-                      }
-                    }
-                  }
-                ]
-              }
-            },
-            "locSingleRoadLinearLocation": {
-              "linearWithinLinearElement": [
-                {
-                  "directionOnLinearSection": "eastBound",
-                  "directionRelativeOnLinearSection": "aligned",
-                  "heightGradeOfLinearSection": {
-                    "value": "extendedG",
-                    "extendedValueG": "start1End1"
-                  },
-                  "linearElement": {
-                    "locLinearElementByCode": {
-                      "roadName": "A45",
-                      "linearElementReferenceModel": "The Network Model",
-                      "linearElementIdentifier": "{84CA1B20-E2E0-4DF7-85CD-F56B43F4A67C}",
-                      "linearElementByCodeExtensionG": {
-                        "linearElementType": "bCarriagewayExitSlip"
-                      }
-                    }
-                  },
-                  "fromPoint": {
-                    "locDistanceFromLinearElementStart": {
-                      "distanceAlong": 0.0
-                    }
-                  },
-                  "toPoint": {
-                    "locDistanceFromLinearElementStart": {
-                      "distanceAlong": 127.0
-                    }
-                  }
-                }
-              ]
-            }
-          },
-          {
-            "locLinearLocation": {
-              "gmlLineString": {
-                "locGmlLineString": {
-                  "srsDimension": 2,
-                  "srsName": "EPSG::4326",
-                  "posList": "52.445838 -1.699363 52.445951 -1.697705 52.446011 -1.696704 52.446028 -1.696336 52.446036 -1.696012 52.446036 -1.695659 52.446034 -1.695012 52.446015 -1.694526"
-                }
-              },
-              "supplementaryPositionalDescription": {
-                "locationDescription": "A45 eastbound between M42 and A452",
-                "carriageway": [
-                  {
-                    "carriageway": {
-                      "value": "extendedG",
-                      "extendedValueG": "dualCarriageway"
-                    },
-                    "carriagewayExtensionG": {
-                      "impactOnCarriageway": {
-                        "numberOfLanesRestricted": 2,
-                        "numberOfOperationalLanes": 0
-                      }
-                    }
-                  }
-                ]
-              }
-            },
-            "locSingleRoadLinearLocation": {
-              "linearWithinLinearElement": [
-                {
-                  "directionOnLinearSection": "eastBound",
-                  "directionRelativeOnLinearSection": "aligned",
-                  "heightGradeOfLinearSection": {
-                    "value": "extendedG",
-                    "extendedValueG": "start2End1"
-                  },
-                  "linearElement": {
-                    "locLinearElementByCode": {
-                      "roadName": "A45",
-                      "linearElementReferenceModel": "The Network Model",
-                      "linearElementIdentifier": "{E8E9191F-1783-4CD5-AA40-2A1865FA3390}",
-                      "linearElementByCodeExtensionG": {
-                        "linearElementType": "bCarriageway"
-                      }
-                    }
-                  },
-                  "fromPoint": {
-                    "locDistanceFromLinearElementStart": {
-                      "distanceAlong": 0.0
-                    }
-                  },
-                  "toPoint": {
-                    "locDistanceFromLinearElementStart": {
-                      "distanceAlong": 329.0
-                    }
-                  }
-                }
-              ]
-            }
-          },
-          {
-            "locLinearLocation": {
-              "gmlLineString": {
-                "locGmlLineString": {
-                  "srsDimension": 2,
-                  "srsName": "EPSG::4326",
-                  "posList": "52.446015 -1.694526 52.446002 -1.693261 52.445955 -1.692452 52.445817 -1.691202 52.445773 -1.69066"
-                }
-              },
-              "supplementaryPositionalDescription": {
-                "locationDescription": "A45 eastbound exit for A452",
-                "carriageway": [
-                  {
-                    "carriageway": {
-                      "value": "slipRoads",
-                      "extendedValueG": ""
-                    },
-                    "carriagewayExtensionG": {
-                      "impactOnCarriageway": {
-                        "numberOfLanesRestricted": 2,
-                        "numberOfOperationalLanes": 0
-                      }
-                    }
-                  }
-                ]
-              }
-            },
-            "locSingleRoadLinearLocation": {
-              "linearWithinLinearElement": [
-                {
-                  "directionOnLinearSection": "eastBound",
-                  "directionRelativeOnLinearSection": "aligned",
-                  "heightGradeOfLinearSection": {
-                    "value": "extendedG",
-                    "extendedValueG": "start1End1"
-                  },
-                  "linearElement": {
-                    "locLinearElementByCode": {
-                      "roadName": "A45",
-                      "linearElementReferenceModel": "The Network Model",
-                      "linearElementIdentifier": "{2073AA5F-4012-4C2F-ACF6-E8ED99C61423}",
-                      "linearElementByCodeExtensionG": {
-                        "linearElementType": "bCarriagewayExitSlip"
-                      }
-                    }
-                  },
-                  "fromPoint": {
-                    "locDistanceFromLinearElementStart": {
-                      "distanceAlong": 0.0
-                    }
-                  },
-                  "toPoint": {
-                    "locDistanceFromLinearElementStart": {
-                      "distanceAlong": 264.0
-                    }
-                  }
-                }
-              ]
-            }
-          },
-          {
-            "locLinearLocation": {
-              "gmlLineString": {
-                "locGmlLineString": {
-                  "srsDimension": 2,
-                  "srsName": "EPSG::4326",
-                  "posList": "52.446015 -1.694514 52.446002 -1.693261 52.445955 -1.692452 52.445817 -1.691202 52.445771 -1.690629 52.445743 -1.690188"
-                }
-              },
-              "supplementaryPositionalDescription": {
-                "locationDescription": "A45 eastbound exit for A452",
-                "carriageway": [
-                  {
-                    "carriageway": {
-                      "value": "slipRoads",
-                      "extendedValueG": ""
-                    },
-                    "carriagewayExtensionG": {
-                      "impactOnCarriageway": {
-                        "numberOfLanesRestricted": 2,
-                        "numberOfOperationalLanes": 0
-                      }
-                    }
-                  }
-                ]
-              }
-            },
-            "locSingleRoadLinearLocation": {
-              "linearWithinLinearElement": [
-                {
-                  "directionOnLinearSection": "eastBound",
-                  "directionRelativeOnLinearSection": "aligned",
-                  "heightGradeOfLinearSection": {
-                    "value": "extendedG",
-                    "extendedValueG": "start1End1"
-                  },
-                  "linearElement": {
-                    "locLinearElementByCode": {
-                      "roadName": "A45",
-                      "linearElementReferenceModel": "The Network Model",
-                      "linearElementIdentifier": "{2073AA5F-4012-4C2F-ACF6-E8ED99C61423}",
-                      "linearElementByCodeExtensionG": {
-                        "linearElementType": "bCarriagewayExitSlip"
-                      }
-                    }
-                  },
-                  "fromPoint": {
-                    "locDistanceFromLinearElementStart": {
-                      "distanceAlong": 0.0
-                    }
-                  },
-                  "toPoint": {
-                    "locDistanceFromLinearElementStart": {
-                      "distanceAlong": 297.0
-                    }
-                  }
-                }
-              ]
-            }
-          },
-          {
-            "locLinearLocation": {
-              "gmlLineString": {
-                "locGmlLineString": {
-                  "srsDimension": 2,
-                  "srsName": "EPSG::4326",
-                  "posList": "52.445743 -1.690188 52.445729 -1.689774 52.445727 -1.689701"
-                }
-              },
-              "supplementaryPositionalDescription": {
-                "locationDescription": "A45 eastbound exit for A452",
-                "carriageway": [
-                  {
-                    "carriageway": {
-                      "value": "slipRoads",
-                      "extendedValueG": ""
-                    },
-                    "carriagewayExtensionG": {
-                      "impactOnCarriageway": {
-                        "numberOfLanesRestricted": 2,
-                        "numberOfOperationalLanes": 0
-                      }
-                    }
-                  }
-                ]
-              }
-            },
-            "locSingleRoadLinearLocation": {
-              "linearWithinLinearElement": [
-                {
-                  "directionOnLinearSection": "eastBound",
-                  "directionRelativeOnLinearSection": "aligned",
-                  "heightGradeOfLinearSection": {
-                    "value": "extendedG",
-                    "extendedValueG": "start1End1"
-                  },
-                  "linearElement": {
-                    "locLinearElementByCode": {
-                      "roadName": "A45",
-                      "linearElementReferenceModel": "The Network Model",
-                      "linearElementIdentifier": "{618BD5BD-E08B-4485-97E1-BF5BC86CCA74}",
-                      "linearElementByCodeExtensionG": {
-                        "linearElementType": "bCarriagewayExitSlip"
-                      }
-                    }
-                  },
-                  "fromPoint": {
-                    "locDistanceFromLinearElementStart": {
-                      "distanceAlong": 0.0
-                    }
-                  },
-                  "toPoint": {
-                    "locDistanceFromLinearElementStart": {
-                      "distanceAlong": 33.0
-                    }
-                  }
-                }
-              ]
-            }
-          },
-          {
-            "locLinearLocation": {
-              "gmlLineString": {
-                "locGmlLineString": {
-                  "srsDimension": 2,
-                  "srsName": "EPSG::4326",
-                  "posList": "52.445691 -1.701983 52.445706 -1.701666"
-                }
-              },
-              "supplementaryPositionalDescription": {
-                "locationDescription": "A45 eastbound access from M42 J6",
-                "carriageway": [
-                  {
-                    "carriageway": {
-                      "value": "slipRoads",
-                      "extendedValueG": ""
-                    },
-                    "carriagewayExtensionG": {
-                      "impactOnCarriageway": {
-                        "numberOfLanesRestricted": 1,
-                        "numberOfOperationalLanes": 0
-                      }
-                    }
-                  }
-                ]
-              }
-            },
-            "locSingleRoadLinearLocation": {
-              "linearWithinLinearElement": [
-                {
-                  "directionOnLinearSection": "eastBound",
-                  "directionRelativeOnLinearSection": "aligned",
-                  "heightGradeOfLinearSection": {
-                    "value": "extendedG",
-                    "extendedValueG": "start1End1"
-                  },
-                  "linearElement": {
-                    "locLinearElementByCode": {
-                      "roadName": "A45",
-                      "linearElementReferenceModel": "The Network Model",
-                      "linearElementIdentifier": "{A8346EB0-E06B-6B88-4A84-62A3898250F4}",
-                      "linearElementByCodeExtensionG": {
-                        "linearElementType": "bCarriagewayEntrySlip"
-                      }
-                    }
-                  },
-                  "fromPoint": {
-                    "locDistanceFromLinearElementStart": {
-                      "distanceAlong": 167.0
-                    }
-                  },
-                  "toPoint": {
-                    "locDistanceFromLinearElementStart": {
-                      "distanceAlong": 189.0
-                    }
-                  }
-                }
-              ]
-            }
-          },
-          {
-            "locLinearLocation": {
-              "gmlLineString": {
- 
-
-======================================================================
-TEST 4 RESULT
-======================================================================
-
-HTTP 200 records parsed: 500
-Records overlapping requested window: 500
-
-RESULT: OVERLAPPING CLOSURES WERE FOUND.
-
-The National Highways response contains closures whose validity period intersects the requested window.
-
-This supports using validity-period overlap rather than simply requiring overallStartTime to fall inside the requested window.
-
+Road: M6
+Direction: northbound
+Start: 2026-08-13T18:00:00.00Z
+End: 2026-08-14T05:00:00.00Z
+Description: M6 northbound between J36 and J37
+Location: None
+Latitude: None
+Longitude: None
+Lanes: [{'number': 1, 'status': 'closed'}]
 ======================================================================
 TEST COMPLETE
 ======================================================================
+The existing production workflow was not modified.
+The existing fetch_closures.py was not modified.
+No database writes were performed.
+No EPG/XMLTV processing was performed.
