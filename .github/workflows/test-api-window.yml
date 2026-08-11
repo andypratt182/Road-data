@@ -1,0 +1,242 @@
+name: Test National Highways API Window Limits
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare-windows:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Compare 7-day and two 3.5-day windows
+        env:
+          NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
+        run: |
+          python - <<'PY'
+          import json
+          from datetime import datetime, timedelta, timezone
+
+          from fetch_closures import fetch_closures
+
+          UTC = timezone.utc
+
+          now = datetime.now(UTC).replace(microsecond=0)
+          seven_days = now + timedelta(days=7)
+          midpoint = now + timedelta(days=3, hours=12)
+
+          def iso(dt):
+              return dt.isoformat().replace("+00:00", "Z")
+
+          def fingerprint(record):
+              return json.dumps(
+                  record,
+                  sort_keys=True,
+                  ensure_ascii=False,
+              )
+
+          windows = {
+              "7-day": (now, seven_days),
+              "first-3.5-day": (now, midpoint),
+              "second-3.5-day": (midpoint, seven_days),
+          }
+
+          results = {}
+
+          for closure_type in ("planned", "unplanned"):
+
+              print()
+              print("=" * 70)
+              print(f"CLOSURE TYPE: {closure_type.upper()}")
+              print("=" * 70)
+
+              for name, (start, end) in windows.items():
+
+                  print()
+                  print(name)
+                  print(f"  Start: {iso(start)}")
+                  print(f"  End:   {iso(end)}")
+
+                  records = fetch_closures(
+                      closure_type=closure_type,
+                      start_datetime=iso(start),
+                      end_datetime=iso(end),
+                  )
+
+                  results[
+                      (closure_type, name)
+                  ] = records
+
+                  print(
+                      f"  Records returned: {len(records)}"
+                  )
+
+              full = results[
+                  (closure_type, "7-day")
+              ]
+
+              first = results[
+                  (closure_type, "first-3.5-day")
+              ]
+
+              second = results[
+                  (closure_type, "second-3.5-day")
+              ]
+
+              full_set = {
+                  fingerprint(record)
+                  for record in full
+              }
+
+              first_set = {
+                  fingerprint(record)
+                  for record in first
+              }
+
+              second_set = {
+                  fingerprint(record)
+                  for record in second
+              }
+
+              split_union = (
+                  first_set | second_set
+              )
+
+              overlap = (
+                  first_set & second_set
+              )
+
+              only_in_full = (
+                  full_set - split_union
+              )
+
+              only_in_split = (
+                  split_union - full_set
+              )
+
+              print()
+              print("COMPARISON")
+              print("-" * 70)
+
+              print(
+                  f"  7-day result:           {len(full_set)}"
+              )
+
+              print(
+                  f"  First 3.5-day result:   {len(first_set)}"
+              )
+
+              print(
+                  f"  Second 3.5-day result:  {len(second_set)}"
+              )
+
+              print(
+                  f"  Split union:             {len(split_union)}"
+              )
+
+              print(
+                  f"  Split overlap:           {len(overlap)}"
+              )
+
+              print(
+                  f"  Split total:             "
+                  f"{len(first_set) + len(second_set)}"
+              )
+
+              print(
+                  f"  Only in 7-day request:   "
+                  f"{len(only_in_full)}"
+              )
+
+              print(
+                  f"  Only in split requests:  "
+                  f"{len(only_in_split)}"
+              )
+
+              print()
+
+              if (
+                  len(full_set) == 500
+                  and len(split_union) > 500
+              ):
+                  print(
+                      "RESULT: STRONG EVIDENCE OF A "
+                      "500-RECORD CAP."
+                  )
+
+                  print(
+                      "The 7-day request reached exactly "
+                      "500 records, while the split "
+                      "requests retrieved more unique "
+                      "records."
+                  )
+
+              elif len(full_set) < 500:
+
+                  print(
+                      "RESULT: 7-day request did not "
+                      "hit 500 records."
+                  )
+
+                  print(
+                      "No 500-record cap was demonstrated "
+                      "for this closure type."
+                  )
+
+              elif (
+                  len(full_set) == len(split_union)
+                  and full_set == split_union
+              ):
+
+                  print(
+                      "RESULT: 7-day and split requests "
+                      "returned the same records."
+                  )
+
+                  print(
+                      "No evidence of record loss from "
+                      "the 7-day request."
+                  )
+
+              else:
+
+                  print(
+                      "RESULT: DIFFERENCE DETECTED."
+                  )
+
+                  print(
+                      "The split requests returned a "
+                      "different record set from the "
+                      "single 7-day request."
+                  )
+
+          print()
+          print("=" * 70)
+          print("TEST COMPLETE")
+          print("=" * 70)
+          print()
+          print(
+              "The production update-road-data workflow "
+              "was not modified."
+          )
+          print(
+              "This workflow only runs when manually "
+              "dispatched."
+          )
+          PY
+          
