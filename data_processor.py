@@ -1,4 +1,5 @@
 from typing import Any
+import re
 
 
 def get_situations(
@@ -92,9 +93,7 @@ def get_linear_locations(
     )
 
     if single:
-        locations.append(
-            single
-        )
+        locations.append(single)
 
     grouped = (
         location_reference
@@ -115,9 +114,7 @@ def get_linear_locations(
         )
 
         if location:
-            locations.append(
-                location
-            )
+            locations.append(location)
 
     return locations
 
@@ -125,7 +122,9 @@ def get_linear_locations(
 def get_road_name(
     location: dict[str, Any],
 ) -> str | None:
-    """Extract the road name from a linear location."""
+    """
+    Extract the road name from a DATEX II linear location.
+    """
 
     linear_location = location.get(
         "locSingleRoadLinearLocation",
@@ -147,7 +146,7 @@ def get_road_name(
         )
 
         if road_name:
-            return road_name
+            return str(road_name).strip().upper()
 
     return None
 
@@ -155,7 +154,9 @@ def get_road_name(
 def get_direction(
     location: dict[str, Any],
 ) -> str | None:
-    """Extract the direction of travel."""
+    """
+    Extract the direction of travel from a DATEX II location.
+    """
 
     linear_location = location.get(
         "locSingleRoadLinearLocation",
@@ -174,7 +175,7 @@ def get_direction(
         )
 
         if direction:
-            return direction
+            return str(direction).strip()
 
     return None
 
@@ -184,7 +185,7 @@ def get_location_description(
 ) -> str | None:
     """Extract the human-readable location description."""
 
-    return (
+    description = (
         location
         .get(
             "supplementaryPositionalDescription",
@@ -194,6 +195,11 @@ def get_location_description(
             "locationDescription"
         )
     )
+
+    if description:
+        return str(description).strip()
+
+    return None
 
 
 def get_coordinates(
@@ -230,7 +236,7 @@ def get_coordinates(
     if not pos_list:
         return []
 
-    values = pos_list.split()
+    values = str(pos_list).split()
 
     coordinates = []
 
@@ -250,7 +256,7 @@ def get_coordinates(
                 values[index + 1]
             )
 
-        except ValueError:
+        except (TypeError, ValueError):
 
             continue
 
@@ -262,6 +268,141 @@ def get_coordinates(
         )
 
     return coordinates
+
+
+def extract_road_from_description(
+    description: str | None,
+) -> str | None:
+    """
+    Extract a road number from a human-readable description.
+
+    Examples:
+
+        M6 southbound between J18 and J19
+        A45 eastbound between M42 and A452
+        roundabout at A616/A628
+    """
+
+    if not description:
+        return None
+
+    matches = re.findall(
+        r"\b(?:M|A|B)\d+[A-Z]?\b",
+        description.upper(),
+    )
+
+    if not matches:
+        return None
+
+    return matches[0]
+
+
+def extract_direction_from_description(
+    description: str | None,
+) -> str | None:
+    """
+    Extract a travel direction from a human-readable description.
+    """
+
+    if not description:
+        return None
+
+    description_lower = description.lower()
+
+    directions = (
+        ("northbound", "northbound"),
+        ("southbound", "southbound"),
+        ("eastbound", "eastbound"),
+        ("westbound", "westbound"),
+    )
+
+    for search_value, result in directions:
+
+        if search_value in description_lower:
+            return result
+
+    return None
+
+
+def get_lane_information(
+    location: dict[str, Any],
+) -> dict[str, Any]:
+    """
+    Extract lane and carriageway information from a location.
+    """
+
+    supplementary = location.get(
+        "supplementaryPositionalDescription",
+        {}
+    )
+
+    carriageways = supplementary.get(
+        "carriageway",
+        []
+    )
+
+    result = {
+        "lanes": [],
+        "number_of_restricted_lanes": 0,
+        "number_of_operational_lanes": None,
+    }
+
+    for carriageway_item in carriageways:
+
+        carriageway = carriageway_item.get(
+            "carriageway",
+            {}
+        )
+
+        lanes = carriageway_item.get(
+            "lane",
+            []
+        )
+
+        for lane_item in lanes:
+
+            lane_number = lane_item.get(
+                "laneNumber"
+            )
+
+            lane_status = (
+                lane_item
+                .get("laneExtensionG", {})
+                .get("impactOnLanes", {})
+                .get("impactExtensionG", {})
+                .get("lanesStatus")
+            )
+
+            result["lanes"].append(
+                {
+                    "number": lane_number,
+                    "status": lane_status,
+                }
+            )
+
+        impact = (
+            carriageway_item
+            .get("carriagewayExtensionG", {})
+            .get("impactOnCarriageway", {})
+        )
+
+        restricted = impact.get(
+            "numberOfLanesRestricted"
+        )
+
+        operational = impact.get(
+            "numberOfOperationalLanes"
+        )
+
+        if restricted is not None:
+            result["number_of_restricted_lanes"] += int(
+                restricted
+            )
+
+        if operational is not None:
+            result["number_of_operational_lanes"] = operational
+
+    return result
 
 
 def get_comments(
@@ -283,7 +424,7 @@ def get_comments(
         if comment:
 
             comments.append(
-                comment.strip()
+                str(comment).strip()
             )
 
     return comments
@@ -313,18 +454,38 @@ def process_record(
         management
     ):
 
+        description = get_location_description(
+            location
+        )
+
+        road = get_road_name(
+            location
+        )
+
+        direction = get_direction(
+            location
+        )
+
+        # Fallback to the human-readable description.
+        if not road:
+            road = extract_road_from_description(
+                description
+            )
+
+        if not direction:
+            direction = extract_direction_from_description(
+                description
+            )
+
         locations.append(
             {
-                "road": get_road_name(
-                    location
-                ),
-                "direction": get_direction(
-                    location
-                ),
-                "description": get_location_description(
-                    location
-                ),
+                "road": road,
+                "direction": direction,
+                "description": description,
                 "coordinates": get_coordinates(
+                    location
+                ),
+                "lane_information": get_lane_information(
                     location
                 ),
             }
@@ -333,6 +494,11 @@ def process_record(
     road = None
     direction = None
     description = None
+    lane_information = {
+        "lanes": [],
+        "number_of_restricted_lanes": 0,
+        "number_of_operational_lanes": None,
+    }
 
     if locations:
 
@@ -348,6 +514,22 @@ def process_record(
             "description"
         )
 
+        lane_information = locations[0].get(
+            "lane_information",
+            lane_information,
+        )
+
+    # Final fallback from any available description.
+    if not road:
+        road = extract_road_from_description(
+            description
+        )
+
+    if not direction:
+        direction = extract_direction_from_description(
+            description
+        )
+
     cause = management.get(
         "cause",
         {}
@@ -358,10 +540,14 @@ def process_record(
         {}
     )
 
+    # The ID belongs to the management object,
+    # not directly to the situationRecord wrapper.
+    record_id = management.get(
+        "idG"
+    )
+
     return {
-        "id": record.get(
-            "idG"
-        ),
+        "id": record_id,
 
         "situation_id": situation.get(
             "idG"
@@ -398,6 +584,26 @@ def process_record(
         ),
 
         "locations": locations,
+
+        "coordinates": (
+            locations[0].get("coordinates", [])
+            if locations
+            else []
+        ),
+
+        "lanes": lane_information.get(
+            "lanes",
+            []
+        ),
+
+        "number_of_restricted_lanes": lane_information.get(
+            "number_of_restricted_lanes",
+            0
+        ),
+
+        "number_of_operational_lanes": lane_information.get(
+            "number_of_operational_lanes"
+        ),
 
         "situation_version": situation.get(
             "situationVersionTime"
@@ -448,16 +654,19 @@ def filter_closures(
     filtered = closures
 
     if road:
-        road = road.upper()
+
+        road = road.strip().upper()
 
         filtered = [
             closure
             for closure in filtered
-            if (closure.get("road") or "").upper() == road
+            if (closure.get("road") or "").upper()
+            == road
         ]
 
     if direction:
-        direction = direction.lower()
+
+        direction = direction.strip().lower()
 
         filtered = [
             closure
@@ -467,7 +676,8 @@ def filter_closures(
         ]
 
     if status:
-        status = status.lower()
+
+        status = status.strip().lower()
 
         filtered = [
             closure
