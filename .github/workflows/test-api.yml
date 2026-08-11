@@ -1,13 +1,16 @@
-name: Test National Highways API
+name: Test Road Data
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
-  test-api:
+  test:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,10 +27,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Run API test
+      - name: Test API
         env:
           NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
-          NATIONAL_HIGHWAYS_API_BASE_URL: https://api.data.nationalhighways.co.uk/roads/v2.0
         run: |
           python test_api.py
 
@@ -36,51 +38,15 @@ jobs:
           NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
         run: |
           python -c "from app import app; print('Flask application imported successfully')"
-          
+
       - name: Test Flask homepage
         env:
           NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
         run: |
-          python - <<'PY'
-          from app import app
+          python -c "from app import app; response = app.test_client().get('/'); print('HTTP status:', response.status_code); raise SystemExit(0 if response.status_code == 200 else 1)"
 
-          client = app.test_client()
-
-          response = client.get("/")
-
-          print("HTTP status:", response.status_code)
-
-          if response.status_code != 200:
-              print(response.data.decode("utf-8", errors="replace"))
-              raise SystemExit(1)
-
-          print("Flask homepage loaded successfully")
-          PY
-       - name: Test Flask filters
-         env:
-            NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
-          run: |
-            python - <<'PY'
-            from app import app
-
-            client = app.test_client()
-
-            tests = [
-                ("/?road=M6", "M6 road filter"),
-                ("/?road=M1", "M1 road filter"),
-                ("/?road=M62", "M62 road filter"),
-                ("/?direction=northbound", "Northbound filter"),
-                ("/?status=active", "Active status filter"),
-                ]
-
-            for url, name in tests:
-                response = client.get(url)
-                
-                print(f"{name}: HTTP {response.status_code}")
-
-        if response.status_code != 200:
-            print(response.data.decode("utf-8", errors="replace"))
-            raise SystemExit(1)
-
-            print("All Flask filters loaded successfully")
-            PY
+      - name: Test Flask filters
+        env:
+          NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
+        run: |
+          python -c "from app import app; client = app.test_client(); tests = ['/ ?road=M6', '/?road=M1', '/?road=M62', '/?direction=northbound', '/?status=active']; tests = [url.replace('/ ?', '/?') for url in tests]; results = [(url, client.get(url).status_code) for url in tests]; print(*results, sep='\n'); raise SystemExit(0 if all(status == 200 for _, status in results) else 1)"
