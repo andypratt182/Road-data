@@ -3,9 +3,6 @@ name: Test National Highways Importer
 on:
   workflow_dispatch:
 
-permissions:
-  contents: write
-
 jobs:
   test-national-highways-importer:
     runs-on: ubuntu-latest
@@ -13,8 +10,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -31,450 +26,461 @@ jobs:
           NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
         run: |
           python - <<'PY'
-          from pprint import pformat
-          from pathlib import Path
+          import json
           import os
           import requests
-          import sys
+          from pprint import pprint
 
           START = "2026-08-11T00:00:00"
           END = "2026-08-18T23:59:59"
-          OUTPUT = Path("auditlog_test5.txt")
 
-          lines = []
+          print("=" * 80)
+          print("NATIONAL HIGHWAYS TEST 5")
+          print("RAW API PAYLOAD INSPECTION")
+          print("=" * 80)
+          print()
+          print("Purpose:")
+          print("Determine the actual structure returned by the")
+          print("National Highways closures endpoint when closureType")
+          print("is NOT supplied.")
+          print()
+          print("Request:")
+          print("  startDateTime:", START)
+          print("  endDateTime:  ", END)
+          print("  closureType:  NOT SUPPLIED")
+          print()
+          print("No production parser is being used.")
+          print("No data_processor.py processing is being performed.")
+          print("No database writes are being performed.")
+          print()
 
-          def log(*args):
-              text = " ".join(str(arg) for arg in args)
-              print(text)
-              lines.append(text)
+          api_key = os.environ.get("NATIONAL_HIGHWAYS_API_KEY")
 
-          def dump(value):
-              text = pformat(
-                  value,
-                  sort_dicts=False,
-                  width=160,
-              )
-              print(text)
-              lines.append(text)
-
-          def save():
-              OUTPUT.write_text(
-                  "\n".join(lines) + "\n",
-                  encoding="utf-8",
-              )
-
-          try:
-              log("=" * 70)
-              log("NATIONAL HIGHWAYS TEST 5 - RAW PAYLOAD INSPECTION")
-              log("=" * 70)
-              log()
-              log("One raw API request.")
-              log("closureType: NOT supplied")
-              log(f"Start: {START}")
-              log(f"End:   {END}")
-              log()
-              log("This test deliberately bypasses the normalised importer")
-              log("processing so that the actual D2Payload structure can")
-              log("be inspected.")
-              log()
-
-              api_key = os.environ.get(
-                  "NATIONAL_HIGHWAYS_API_KEY"
+          if not api_key:
+              raise RuntimeError(
+                  "NATIONAL_HIGHWAYS_API_KEY is not configured."
               )
 
-              if not api_key:
-                  raise RuntimeError(
-                      "NATIONAL_HIGHWAYS_API_KEY is not configured."
-                  )
+          url = (
+              "https://api.data.nationalhighways.co.uk"
+              "/roads/v2.0/closures"
+          )
 
-              url = (
-                  "https://api.data.nationalhighways.co.uk"
-                  "/roads/v2.0/closures"
+          params = {
+              "startDateTime": START,
+              "endDateTime": END,
+          }
+
+          # These match the authentication / DATEX II headers
+          # used by the existing National Highways parser.
+          headers = {
+              "Ocp-Apim-Subscription-Key": api_key,
+              "X-Response-MediaType": "application/json",
+              "X-Data-Format": "DATEXII",
+          }
+
+          print("=" * 80)
+          print("REQUEST")
+          print("=" * 80)
+          print("URL:", url)
+          print()
+          print("Parameters:")
+          pprint(params)
+          print()
+          print("Headers:")
+          print("  Ocp-Apim-Subscription-Key: [REDACTED]")
+          print("  X-Response-MediaType: application/json")
+          print("  X-Data-Format: DATEXII")
+          print()
+
+          print("Sending request...")
+          print()
+
+          response = requests.get(
+              url,
+              params=params,
+              headers=headers,
+              timeout=60,
+          )
+
+          print("HTTP STATUS:", response.status_code)
+          print()
+
+          if response.status_code != 200:
+              print("=" * 80)
+              print("API ERROR")
+              print("=" * 80)
+              print()
+              print("Response headers:")
+              pprint(dict(response.headers))
+              print()
+              print("Response body:")
+              print(response.text[:10000])
+              print()
+
+              raise RuntimeError(
+                  f"National Highways API returned "
+                  f"HTTP {response.status_code}"
               )
 
-              params = {
-                  "startDateTime": START,
-                  "endDateTime": END,
-              }
+          payload = response.json()
 
-              # These are the same authentication and DATEX II
-              # headers used by the existing National Highways parser.
-              headers = {
-                  "Ocp-Apim-Subscription-Key": api_key,
-                  "X-Response-MediaType": "application/json",
-                  "X-Data-Format": "DATEXII",
-              }
+          print("=" * 80)
+          print("RAW RESPONSE SUMMARY")
+          print("=" * 80)
+          print()
 
-              log("REQUEST URL:")
-              log(url)
-              log()
+          print("Python payload type:")
+          print(type(payload).__name__)
+          print()
 
-              log("REQUEST PARAMETERS:")
-              dump(params)
-              log()
-
-              log("REQUEST HEADERS:")
-              log("Ocp-Apim-Subscription-Key: [REDACTED]")
-              log("X-Response-MediaType: application/json")
-              log("X-Data-Format: DATEXII")
-              log()
-
-              log("Sending request...")
-              log()
-
-              response = requests.get(
-                  url,
-                  params=params,
-                  headers=headers,
-                  timeout=60,
+          if not isinstance(payload, dict):
+              raise RuntimeError(
+                  "Expected top-level JSON object."
               )
 
-              log("HTTP STATUS:")
-              log(response.status_code)
-              log()
+          print("Top-level keys:")
+          pprint(list(payload.keys()))
+          print()
 
-              if response.status_code != 200:
-                  log("=" * 70)
-                  log("API REQUEST FAILED")
-                  log("=" * 70)
-                  log()
-                  log("Response headers:")
-                  dump(dict(response.headers))
-                  log()
-                  log("Response body:")
-                  log(response.text[:10000])
-                  log()
+          # ------------------------------------------------------------
+          # D2Payload
+          # ------------------------------------------------------------
 
-                  save()
+          d2_payload = payload.get("D2Payload")
 
-                  raise RuntimeError(
-                      f"National Highways API returned "
-                      f"HTTP {response.status_code}"
-                  )
+          print("=" * 80)
+          print("D2Payload")
+          print("=" * 80)
+          print()
 
-              payload = response.json()
+          print("D2Payload type:")
+          print(type(d2_payload).__name__)
+          print()
 
-              log("=" * 70)
-              log("RAW TOP-LEVEL STRUCTURE")
-              log("=" * 70)
-              log()
-
-              if isinstance(payload, dict):
-                  log("Top-level keys:")
-                  dump(list(payload.keys()))
-              else:
-                  log("Unexpected payload type:")
-                  log(type(payload).__name__)
-
-              log()
-
-              d2_payload = (
-                  payload.get("D2Payload", {})
-                  if isinstance(payload, dict)
-                  else {}
+          if not isinstance(d2_payload, dict):
+              print("D2Payload:")
+              pprint(d2_payload)
+              raise RuntimeError(
+                  "D2Payload is not a dictionary."
               )
 
-              log("D2Payload type:")
-              log(type(d2_payload).__name__)
-              log()
+          print("D2Payload keys:")
+          pprint(list(d2_payload.keys()))
+          print()
 
-              if not isinstance(d2_payload, dict):
-                  raise RuntimeError(
-                      "D2Payload is not a dictionary."
-                  )
+          # ------------------------------------------------------------
+          # situation[]
+          # ------------------------------------------------------------
 
-              log("D2Payload keys:")
-              dump(list(d2_payload.keys()))
-              log()
+          situations = d2_payload.get(
+              "situation",
+              []
+          )
 
-              situations = d2_payload.get(
-                  "situation",
+          print("=" * 80)
+          print("D2Payload.situation[]")
+          print("=" * 80)
+          print()
+
+          print("Type:")
+          print(type(situations).__name__)
+
+          print("Count:")
+          print(len(situations))
+          print()
+
+          if not isinstance(situations, list):
+              raise RuntimeError(
+                  "D2Payload.situation is not a list."
+              )
+
+          # Inspect enough records to understand the actual schema,
+          # while avoiding an enormous Actions log.
+          MAX_SITUATIONS = 5
+          MAX_RECORDS_PER_SITUATION = 5
+
+          for situation_index, situation in enumerate(
+              situations[:MAX_SITUATIONS],
+              start=1,
+          ):
+
+              print("=" * 80)
+              print(
+                  f"SITUATION {situation_index}"
+              )
+              print("=" * 80)
+              print()
+
+              print("Situation type:")
+              print(type(situation).__name__)
+              print()
+
+              if not isinstance(situation, dict):
+                  pprint(situation)
+                  print()
+                  continue
+
+              print("Situation keys:")
+              pprint(list(situation.keys()))
+              print()
+
+              records = situation.get(
+                  "situationRecord",
                   []
               )
 
-              log("Situation type:")
-              log(type(situations).__name__)
+              print("situationRecord type:")
+              print(type(records).__name__)
 
-              log("Situation count:")
-              log(len(situations))
-              log()
+              print("situationRecord count:")
+              print(len(records))
+              print()
 
-              if not isinstance(situations, list):
-                  raise RuntimeError(
-                      "D2Payload.situation is not a list."
-                  )
+              if not isinstance(records, list):
+                  pprint(records)
+                  print()
+                  continue
 
-              # Inspect the first three situations.
-              for situation_number, situation in enumerate(
-                  situations[:3],
+              for record_index, record in enumerate(
+                  records[:MAX_RECORDS_PER_SITUATION],
                   start=1,
               ):
 
-                  log("=" * 70)
-                  log(
-                      f"SITUATION {situation_number}"
+                  print("-" * 80)
+                  print(
+                      f"SITUATION {situation_index} "
+                      f"/ situationRecord {record_index}"
                   )
-                  log("=" * 70)
-                  log()
+                  print("-" * 80)
+                  print()
 
-                  if not isinstance(situation, dict):
-                      log(
-                          "Unexpected situation type:",
-                          type(situation).__name__,
-                      )
-                      log()
+                  if not isinstance(record, dict):
+                      print("Record type:")
+                      print(type(record).__name__)
+                      print()
+                      pprint(record)
+                      print()
                       continue
 
-                  log("Situation keys:")
-                  dump(list(situation.keys()))
-                  log()
+                  # --------------------------------------------------
+                  # Complete raw record
+                  # --------------------------------------------------
 
-                  records = situation.get(
-                      "situationRecord",
-                      []
+                  print("RAW RECORD:")
+                  print(
+                      json.dumps(
+                          record,
+                          indent=2,
+                          ensure_ascii=False,
+                      )
+                  )
+                  print()
+
+                  # --------------------------------------------------
+                  # Record keys
+                  # --------------------------------------------------
+
+                  print("RECORD KEYS:")
+                  pprint(list(record.keys()))
+                  print()
+
+                  # --------------------------------------------------
+                  # Road / carriageway management
+                  # --------------------------------------------------
+
+                  management = record.get(
+                      "sitRoadOrCarriagewayOrLaneManagement"
                   )
 
-                  log("situationRecord type:")
-                  log(type(records).__name__)
-
-                  log("situationRecord count:")
-                  log(len(records))
-                  log()
-
-                  if not isinstance(records, list):
-                      log(
-                          "Unexpected situationRecord type:",
-                          type(records).__name__,
+                  print(
+                      "sitRoadOrCarriagewayOrLaneManagement:"
+                  )
+                  print(
+                      json.dumps(
+                          management,
+                          indent=2,
+                          ensure_ascii=False,
                       )
-                      log()
-                      continue
+                  )
+                  print()
 
-                  # Inspect the first three records from each situation.
-                  for record_number, record in enumerate(
-                      records[:3],
-                      start=1,
+                  if not isinstance(
+                      management,
+                      dict,
                   ):
+                      continue
 
-                      log("-" * 70)
-                      log(
-                          f"RAW situationRecord "
-                          f"{record_number}"
+                  print("MANAGEMENT KEYS:")
+                  pprint(list(management.keys()))
+                  print()
+
+                  # --------------------------------------------------
+                  # VALIDITY
+                  # --------------------------------------------------
+
+                  validity = management.get(
+                      "validity"
+                  )
+
+                  print("=" * 80)
+                  print("VALIDITY")
+                  print("=" * 80)
+                  print()
+
+                  print(
+                      json.dumps(
+                          validity,
+                          indent=2,
+                          ensure_ascii=False,
                       )
-                      log("-" * 70)
-                      log()
+                  )
+                  print()
 
-                      if not isinstance(record, dict):
-                          log(
-                              "Unexpected record type:",
-                              type(record).__name__,
-                          )
-                          log()
-                          continue
+                  if isinstance(validity, dict):
 
-                      log("Record keys:")
-                      dump(list(record.keys()))
-                      log()
-
-                      log("FULL RAW RECORD:")
-                      dump(record)
-                      log()
-
-                      management = record.get(
-                          "sitRoadOrCarriagewayOrLaneManagement",
-                          {},
-                      )
-
-                      log("MANAGEMENT TYPE:")
-                      log(type(management).__name__)
-                      log()
-
-                      if not isinstance(management, dict):
-                          log(
-                              "Unexpected management structure."
-                          )
-                          log()
-                          continue
-
-                      log("MANAGEMENT KEYS:")
-                      dump(list(management.keys()))
-                      log()
-
-                      # ------------------------------------------------
-                      # VALIDITY
-                      # ------------------------------------------------
-
-                      validity = management.get(
-                          "validity",
-                          {},
+                      validity_spec = validity.get(
+                          "validityTimeSpecification"
                       )
 
-                      log("VALIDITY:")
-                      dump(validity)
-                      log()
-
-                      if isinstance(validity, dict):
-                          validity_spec = validity.get(
-                              "validityTimeSpecification",
-                              {},
-                          )
-                      else:
-                          validity_spec = {}
-
-                      log(
+                      print(
                           "VALIDITY TIME SPECIFICATION:"
                       )
-                      dump(validity_spec)
-                      log()
-
-                      # ------------------------------------------------
-                      # LOCATION
-                      # ------------------------------------------------
-
-                      location_reference = management.get(
-                          "locationReference",
-                          {},
+                      print(
+                          json.dumps(
+                              validity_spec,
+                              indent=2,
+                              ensure_ascii=False,
+                          )
                       )
+                      print()
 
-                      log("LOCATION REFERENCE:")
-                      dump(location_reference)
-                      log()
+                  # --------------------------------------------------
+                  # LOCATION REFERENCE
+                  # --------------------------------------------------
 
-                      if isinstance(
+                  location_reference = management.get(
+                      "locationReference"
+                  )
+
+                  print("=" * 80)
+                  print("LOCATION REFERENCE")
+                  print("=" * 80)
+                  print()
+
+                  print(
+                      json.dumps(
                           location_reference,
-                          dict,
-                      ):
+                          indent=2,
+                          ensure_ascii=False,
+                      )
+                  )
+                  print()
 
-                          log(
-                              "LOCATION REFERENCE KEYS:"
-                          )
-                          dump(
-                              list(
-                                  location_reference.keys()
-                              )
-                          )
-                          log()
+                  if isinstance(
+                      location_reference,
+                      dict,
+                  ):
 
-                          log(
-                              "locLinearLocation:"
+                      print(
+                          "LOCATION REFERENCE KEYS:"
+                      )
+                      pprint(
+                          list(
+                              location_reference.keys()
                           )
-                          dump(
+                      )
+                      print()
+
+                      print(
+                          "locLinearLocation:"
+                      )
+                      print(
+                          json.dumps(
                               location_reference.get(
                                   "locLinearLocation"
-                              )
+                              ),
+                              indent=2,
+                              ensure_ascii=False,
                           )
-                          log()
+                      )
+                      print()
 
-                          log(
-                              "locLocationGroupByList:"
-                          )
-                          dump(
+                      print(
+                          "locLocationGroupByList:"
+                      )
+                      print(
+                          json.dumps(
                               location_reference.get(
                                   "locLocationGroupByList"
+                              ),
+                              indent=2,
+                              ensure_ascii=False,
+                          )
+                      )
+                      print()
+
+                  # --------------------------------------------------
+                  # Any useful top-level record fields
+                  # --------------------------------------------------
+
+                  print("=" * 80)
+                  print("IMPORTANT RECORD FIELDS")
+                  print("=" * 80)
+                  print()
+
+                  interesting_fields = [
+                      "id",
+                      "situationRecordType",
+                      "recordVersion",
+                      "recordVersionTime",
+                      "situationRecordCreationTime",
+                      "situationRecordObservationTime",
+                      "situationRecordStatus",
+                      "overallSeverity",
+                      "probabilityOfOccurrence",
+                      "roadMaintenance",
+                      "roadworks",
+                      "impact",
+                      "publicEvent",
+                  ]
+
+                  for field in interesting_fields:
+                      if field in record:
+                          print(f"{field}:")
+                          print(
+                              json.dumps(
+                                  record[field],
+                                  indent=2,
+                                  ensure_ascii=False,
                               )
                           )
-                          log()
+                          print()
 
-                      # ------------------------------------------------
-                      # RECORD IDENTIFIERS
-                      # ------------------------------------------------
+          # ------------------------------------------------------------
+          # Summary
+          # ------------------------------------------------------------
 
-                      log(
-                          "TOP-LEVEL RECORD IDENTIFIERS:"
-                      )
-
-                      for field in (
-                          "situationRecordType",
-                          "id",
-                          "recordVersion",
-                          "recordVersionTime",
-                          "situationRecordCreationTime",
-                          "situationRecordObservationTime",
-                      ):
-
-                          if field in record:
-                              log(f"{field}:")
-                              dump(record[field])
-
-                      log()
-
-              log("=" * 70)
-              log("TEST 5 COMPLETE")
-              log("=" * 70)
-              log()
-              log(
-                  "Raw API structure inspected directly."
-              )
-              log(
-                  "No data_processor.py processing performed."
-              )
-              log(
-                  "No production importer modification performed."
-              )
-              log(
-                  "No database writes performed."
-              )
-              log("=" * 70)
-
-              save()
-
-              print()
-              print(
-                  f"Audit log written to {OUTPUT}"
-              )
-
-          except Exception as exc:
-              log()
-              log("=" * 70)
-              log("TEST 5 FAILED")
-              log("=" * 70)
-              log()
-              log(
-                  "Exception:",
-                  type(exc).__name__,
-              )
-              log(str(exc))
-              log()
-
-              save()
-
-              print()
-              print(
-                  f"Failure details written to {OUTPUT}"
-              )
-
-              raise
+          print("=" * 80)
+          print("TEST 5 COMPLETE")
+          print("=" * 80)
+          print()
+          print(
+              "The Actions log above is the authoritative Test 5 output."
+          )
+          print()
+          print(
+              "No closureType parameter was supplied."
+          )
+          print(
+              "No normalised importer processing was performed."
+          )
+          print(
+              "No data_processor.py processing was performed."
+          )
+          print(
+              "No database writes were performed."
+          )
+          print("=" * 80)
 
           PY
-
-      - name: Display Test 5 audit log
-        if: always()
-        run: |
-          echo "========================================"
-          echo "NATIONAL HIGHWAYS TEST 5 AUDIT LOG"
-          echo "========================================"
-
-          if [ -f auditlog_test5.txt ]; then
-            cat auditlog_test5.txt
-          else
-            echo "auditlog_test5.txt was not created."
-          fi
-
-      - name: Commit Test 5 audit log to main
-        if: always()
-        run: |
-          if [ ! -f auditlog_test5.txt ]; then
-            echo "No audit log exists. Nothing to commit."
-            exit 0
-          fi
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          git add auditlog_test5.txt
-
-          if git diff --cached --quiet; then
-            echo "No changes to auditlog_test5.txt"
-          else
-            git commit -m "Update National Highways Test 5 audit log"
-            git push origin HEAD:main
-          fi
