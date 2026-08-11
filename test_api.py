@@ -1,20 +1,22 @@
 from datetime import datetime, timedelta
 
-
-from data_processor import process_payload
 from fetch_closures import fetch_closures
 
 
 def main():
-    now = datetime.now()
+    """
+    Test the National Highways Road and Lane Closures API.
+    """
 
-    start = now.strftime(
+    now = datetime.now().replace(microsecond=0)
+    start = now - timedelta(hours=6)
+    end = now
+
+    start_datetime = start.strftime(
         "%Y-%m-%dT%H:%M:%S"
     )
 
-    end = (
-        now + timedelta(days=1)
-    ).strftime(
+    end_datetime = end.strftime(
         "%Y-%m-%dT%H:%M:%S"
     )
 
@@ -22,106 +24,72 @@ def main():
     print("NATIONAL HIGHWAYS API TEST")
     print("=" * 60)
 
-    print()
-    print(f"Start: {start}")
-    print(f"End:   {end}")
-    print()
-
-    try:
-
-        payload = fetch_closures(
-            closure_type="planned",
-            start_datetime=start,
-            end_datetime=end,
-        )
-
-    except Exception as exc:
-
-        print(
-            f"API ERROR: {exc}"
-        )
-
-        return
-
-    print(
-        "API request successful"
-    )
-
-    d2payload = payload.get(
-        "D2Payload",
-        {}
-    )
-
-    situations = d2payload.get(
-        "situation",
-        []
-    )
-
-    print(
-        f"Situations returned: "
-        f"{len(situations)}"
-    )
-
+    print(f"Start: {start_datetime}")
+    print(f"End:   {end_datetime}")
     print()
 
-    closures = process_payload(
-        payload
-    )
+    for closure_type in ("planned", "unplanned"):
 
-    print(
-        f"Processed closures: "
-        f"{len(closures)}"
-    )
+        print("-" * 60)
+        print(f"Testing: {closure_type}")
+        print("-" * 60)
+
+        try:
+
+            closures = fetch_closures(
+                closure_type=closure_type,
+                start_datetime=start_datetime,
+                end_datetime=end_datetime,
+            )
+
+            print(
+                f"Closures returned: {len(closures)}"
+            )
+
+            for index, closure in enumerate(
+                closures[:10],
+                start=1,
+            ):
+
+                print()
+                print(f"{index}.")
+                print(
+                    f"   ID:          {closure.get('id')}"
+                )
+                print(
+                    f"   Road:        {closure.get('road')}"
+                )
+                print(
+                    f"   Direction:   {closure.get('direction')}"
+                )
+                print(
+                    f"   Status:      {closure.get('status')}"
+                )
+                print(
+                    f"   Start:       {closure.get('start')}"
+                )
+                print(
+                    f"   End:         {closure.get('end')}"
+                )
+                print(
+                    f"   Type:        {closure.get('type')}"
+                )
+                print(
+                    f"   Cause:       {closure.get('cause')}"
+                )
+                print(
+                    f"   Description: {closure.get('description')}"
+                )
+
+        except Exception as exc:
+
+            print(
+                f"ERROR: {exc}"
+            )
 
     print()
-    print("-" * 60)
-
-    for index, closure in enumerate(
-        closures[:20],
-        start=1
-    ):
-
-        print(
-            f"{index}. "
-            f"{closure.get('road') or 'Unknown road'} "
-            f"{closure.get('direction') or ''}"
-        )
-
-        print(
-            f"   Status: "
-            f"{closure.get('status')}"
-        )
-
-        print(
-            f"   Start: "
-            f"{closure.get('start')}"
-        )
-
-        print(
-            f"   End: "
-            f"{closure.get('end')}"
-        )
-
-        print(
-            f"   Location: "
-            f"{closure.get('description')}"
-        )
-
-        print(
-            f"   Cause: "
-            f"{closure.get('cause')}"
-        )
-
-        print()
-
-    if len(closures) > 20:
-
-        print(
-            f"... and "
-            f"{len(closures) - 20} more"
-        )
-
-    print()
+    print("=" * 60)
+    print("TEST COMPLETE")
     print("=" * 60)
 
 
