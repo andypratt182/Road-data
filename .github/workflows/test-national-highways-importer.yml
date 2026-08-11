@@ -1,10 +1,10 @@
-name: Test National Highways Importer
+name: Test Parser Against Live API
 
 on:
   workflow_dispatch:
 
 jobs:
-  test-national-highways-importer:
+  test-parser:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,729 +19,330 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests python-dotenv
+          pip install requests
 
-      - name: Run National Highways Test 5
+      - name: Run parser test
         env:
           NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
         run: |
           python - <<'PY'
           import os
-          import time
+          import sys
           import requests
 
-          API_URL = "https://api.data.nationalhighways.co.uk/roads/v2.0/closures"
-          API_KEY = os.environ["NATIONAL_HIGHWAYS_API_KEY"]
+          print("=" * 80)
+          print("PARSER TEST - LIVE API -> EXISTING DATA PROCESSOR")
+          print("=" * 80)
 
-          START = "2026-08-11T00:00:00"
-          END = "2026-08-18T23:59:59"
+          # ------------------------------------------------------------------
+          # Import existing production parser
+          # ------------------------------------------------------------------
 
-          MAX_REQUESTS = 5
+          import data_processor
 
-          headers = {
-              "Ocp-Apim-Subscription-Key": API_KEY,
-              "X-Response-MediaType": "application/json",
-              "X-Data-Format": "DATEXII",
-          }
+          print("data_processor.py imported successfully.")
+
+          required_functions = [
+              "extract_raw_records",
+              "parse_d2_payload",
+              "parse_situation_record",
+              "process_payload",
+              "process_records",
+              "process_data",
+          ]
+
+          print("\nExisting parser functions:")
+          for name in required_functions:
+              print(
+                  f"  {name}: "
+                  f"{'YES' if callable(getattr(data_processor, name, None)) else 'NO'}"
+              )
+
+          # ------------------------------------------------------------------
+          # API request
+          # ------------------------------------------------------------------
+
+          url = "https://api.data.nationalhighways.co.uk/roads/v2.0/closures"
 
           params = {
-              "startDateTime": START,
-              "endDateTime": END,
+              "startDateTime": "2026-08-11T00:00:00",
+              "endDateTime": "2026-08-18T23:59:59",
           }
 
-          print("=" * 80)
-          print("NATIONAL HIGHWAYS TEST 5")
-          print("COMPACT RAW RECORD SUMMARY")
-          print("=" * 80)
+          api_key = os.environ.get("NATIONAL_HIGHWAYS_API_KEY")
+
+          if not api_key:
+              raise RuntimeError(
+                  "NATIONAL_HIGHWAYS_API_KEY secret is not available."
+              )
+
+          headers = {
+              "Accept": "application/json",
+              "Ocp-Apim-Subscription-Key": api_key,
+          }
+
+          print("\n" + "-" * 80)
+          print("API REQUEST")
+          print("-" * 80)
+          print(f"URL: {url}")
+          print(f"Start: {params['startDateTime']}")
+          print(f"End:   {params['endDateTime']}")
           print("closureType: NOT supplied")
-          print("Pagination: NOT followed")
-          print("Request splitting: NOT used")
-          print(f"Start: {START}")
-          print(f"End:   {END}")
+          print("Authentication: NATIONAL_HIGHWAYS_API_KEY")
           print()
 
-          # ------------------------------------------------------------
-          # API REQUEST WITH EXISTING RATE-LIMIT HANDLING
-          # ------------------------------------------------------------
+          response = requests.get(
+              url,
+              params=params,
+              headers=headers,
+              timeout=60,
+          )
 
-          payload = None
+          print(f"HTTP STATUS: {response.status_code}")
 
-          for attempt in range(1, MAX_REQUESTS + 1):
+          response.raise_for_status()
 
-              print(f"REQUEST ATTEMPT {attempt}/{MAX_REQUESTS}")
+          payload = response.json()
 
-              response = requests.get(
-                  API_URL,
-                  params=params,
-                  headers=headers,
-                  timeout=60,
+          print("JSON response received successfully.")
+
+          # ------------------------------------------------------------------
+          # Payload structure
+          # ------------------------------------------------------------------
+
+          print("\n" + "-" * 80)
+          print("PAYLOAD STRUCTURE")
+          print("-" * 80)
+
+          if isinstance(payload, dict):
+              print("Top-level type: dict")
+              print("Top-level keys:")
+
+              for key in payload.keys():
+                  print(f"  {key}")
+          else:
+              print(f"Top-level type: {type(payload).__name__}")
+
+          # ------------------------------------------------------------------
+          # Extract records using existing parser
+          # ------------------------------------------------------------------
+
+          print("\n" + "-" * 80)
+          print("EXTRACT RAW RECORDS")
+          print("-" * 80)
+
+          extract_raw_records = getattr(
+              data_processor,
+              "extract_raw_records",
+              None,
+          )
+
+          if not callable(extract_raw_records):
+              raise RuntimeError(
+                  "data_processor.extract_raw_records() was not found."
               )
 
-              print(f"HTTP STATUS: {response.status_code}")
+          raw_records = extract_raw_records(payload)
 
-              if response.status_code == 429:
+          if raw_records is None:
+              raw_records = []
 
-                  retry_after = response.headers.get("Retry-After")
+          if not isinstance(raw_records, list):
+              raw_records = list(raw_records)
 
-                  if not retry_after:
-                      raise RuntimeError(
-                          "HTTP 429 received without Retry-After header."
+          print(f"Raw records extracted: {len(raw_records)}")
+
+          # ------------------------------------------------------------------
+          # Parse individual records
+          # ------------------------------------------------------------------
+
+          parse_record = getattr(
+              data_processor,
+              "parse_situation_record",
+              None,
+          )
+
+          if not callable(parse_record):
+              raise RuntimeError(
+                  "data_processor.parse_situation_record() was not found."
+              )
+
+          successful = 0
+          failed = 0
+          missing_counts = {}
+
+          print("\n" + "=" * 80)
+          print("COMPACT PARSER RESULTS")
+          print("=" * 80)
+
+          for index, raw_record in enumerate(raw_records, start=1):
+
+              try:
+                  parsed = parse_record(raw_record)
+
+                  if parsed is None:
+                      failed += 1
+                      print(f"\nRECORD {index}: PARSE RETURNED NONE")
+                      continue
+
+                  successful += 1
+
+                  def get_value(obj, *keys):
+                      if not isinstance(obj, dict):
+                          return None
+
+                      for key in keys:
+                          if key in obj:
+                              return obj[key]
+
+                      return None
+
+                  road = get_value(
+                      parsed,
+                      "road",
+                      "roadName",
+                      "road_number",
+                      "roadNumber",
+                  )
+
+                  direction = get_value(
+                      parsed,
+                      "direction",
+                      "directionName",
+                  )
+
+                  start = get_value(
+                      parsed,
+                      "start",
+                      "startTime",
+                      "start_datetime",
+                      "startDateTime",
+                  )
+
+                  end = get_value(
+                      parsed,
+                      "end",
+                      "endTime",
+                      "end_datetime",
+                      "endDateTime",
+                  )
+
+                  description = get_value(
+                      parsed,
+                      "description",
+                      "comment",
+                      "locationDescription",
+                      "location",
+                  )
+
+                  management = get_value(
+                      parsed,
+                      "management_type",
+                      "managementType",
+                      "type",
+                  )
+
+                  print(f"\nRECORD {index}: OK")
+                  print(f"  road:        {road!r}")
+                  print(f"  direction:   {direction!r}")
+                  print(f"  start:       {start!r}")
+                  print(f"  end:         {end!r}")
+                  print(f"  type:        {management!r}")
+                  print(f"  description: {description!r}")
+
+                  fields = {
+                      "road": road,
+                      "direction": direction,
+                      "start": start,
+                      "end": end,
+                      "description": description,
+                      "managementType": management,
+                  }
+
+                  for field, value in fields.items():
+                      if value in (None, "", []):
+                          missing_counts[field] = (
+                              missing_counts.get(field, 0) + 1
+                          )
+
+              except Exception as exc:
+                  failed += 1
+
+                  print(f"\nRECORD {index}: PARSE ERROR")
+                  print(f"  {type(exc).__name__}: {exc}")
+
+          # ------------------------------------------------------------------
+          # Test high-level process_payload()
+          # ------------------------------------------------------------------
+
+          print("\n" + "=" * 80)
+          print("HIGH-LEVEL PARSER TEST")
+          print("=" * 80)
+
+          process_payload = getattr(
+              data_processor,
+              "process_payload",
+              None,
+          )
+
+          if callable(process_payload):
+              try:
+                  processed = process_payload(payload)
+
+                  if processed is None:
+                      print("process_payload(): returned None")
+
+                  elif isinstance(processed, list):
+                      print(
+                          "process_payload(): returned "
+                          f"{len(processed)} records"
                       )
 
-                  if attempt >= MAX_REQUESTS:
-                      raise RuntimeError(
-                          "Maximum Test 5 request attempts reached after HTTP 429."
+                  else:
+                      print(
+                          "process_payload(): returned "
+                          f"{type(processed).__name__}"
                       )
 
-                  try:
-                      wait_seconds = int(retry_after)
-                  except ValueError:
-                      wait_seconds = 5
-
-                  print(f"Retry-After: {wait_seconds}")
+              except Exception as exc:
                   print(
-                      f"Waiting {wait_seconds} seconds "
-                      "before retrying the same request..."
+                      "process_payload(): ERROR "
+                      f"{type(exc).__name__}: {exc}"
                   )
-
-                  time.sleep(max(0, wait_seconds))
-                  continue
-
-              if response.status_code != 200:
-
-                  print("API RESPONSE:")
-                  print(response.text[:10000])
-
-                  raise RuntimeError(
-                      f"National Highways API returned HTTP "
-                      f"{response.status_code}"
-                  )
-
-              payload = response.json()
-              break
-
-          if payload is None:
-              raise RuntimeError(
-                  "Test 5 exhausted all request attempts without a successful response."
-              )
-
-          print()
-          print("SUCCESSFUL API REQUEST RECEIVED")
-          print()
-
-          # ------------------------------------------------------------
-          # D2 PAYLOAD
-          # ------------------------------------------------------------
-
-          d2payload = payload.get("D2Payload")
-
-          if not isinstance(d2payload, dict):
-              raise RuntimeError(
-                  "D2Payload was not a dictionary."
-              )
-
-          situations = d2payload.get("situation", [])
-
-          if not isinstance(situations, list):
-              raise RuntimeError(
-                  "D2Payload.situation was not a list."
-              )
-
-          # ------------------------------------------------------------
-          # HELPERS
-          # ------------------------------------------------------------
-
-          def unwrap_record(record):
-
-              if not isinstance(record, dict):
-                  return {}
-
-              return record.get(
-                  "sitRoadOrCarriagewayOrLaneManagement",
-                  record,
-              )
-
-
-          def first_location(record):
-
-              location_reference = record.get(
-                  "locationReference",
-                  {},
-              ) or {}
-
-              group = location_reference.get(
-                  "locLocationGroupByList",
-                  {},
-              ) or {}
-
-              locations = group.get(
-                  "locationContainedInGroup",
-                  [],
-              )
-
-              if not isinstance(locations, list):
-                  return {}
-
-              if not locations:
-                  return {}
-
-              if not isinstance(locations[0], dict):
-                  return {}
-
-              return locations[0]
-
-
-          def extract_summary(
-              record,
-              situation_index,
-              record_index,
-              total_number,
-          ):
-
-              r = unwrap_record(record)
-
-              # --------------------------------------------------------
-              # BASIC RECORD DATA
-              # --------------------------------------------------------
-
-              validity = r.get(
-                  "validity",
-                  {},
-              ) or {}
-
-              validity_time = validity.get(
-                  "validityTimeSpecification",
-                  {},
-              ) or {}
-
-              management_type = r.get(
-                  "roadOrCarriagewayOrLaneManagementType",
-                  {},
-              ) or {}
-
-              source = r.get(
-                  "source",
-                  {},
-              ) or {}
-
-              cause = r.get(
-                  "cause",
-                  {},
-              ) or {}
-
-              detailed_cause = cause.get(
-                  "detailedCauseType",
-                  {},
-              ) or {}
-
-              # --------------------------------------------------------
-              # COMMENT
-              # --------------------------------------------------------
-
-              comments = r.get(
-                  "generalPublicComment",
-                  [],
-              ) or []
-
-              comment = ""
-
-              if comments:
-                  if isinstance(comments[0], dict):
-                      comment = comments[0].get(
-                          "comment",
-                          "",
-                      )
-
-              # --------------------------------------------------------
-              # LOCATION
-              # --------------------------------------------------------
-
-              location = first_location(r)
-
-              linear_location = location.get(
-                  "locLinearLocation",
-                  {},
-              ) or {}
-
-              supplementary = linear_location.get(
-                  "supplementaryPositionalDescription",
-                  {},
-              ) or {}
-
-              location_description = supplementary.get(
-                  "locationDescription",
-                  "",
-              )
-
-              # --------------------------------------------------------
-              # CARRIAGEWAY
-              # --------------------------------------------------------
-
-              carriageways = supplementary.get(
-                  "carriageway",
-                  [],
-              ) or []
-
-              carriageway_value = ""
-              carriageway_extended = ""
-              lanes_restricted = ""
-              lanes_operational = ""
-
-              if carriageways:
-
-                  if isinstance(carriageways[0], dict):
-
-                      carriageway = carriageways[0].get(
-                          "carriageway",
-                          {},
-                      ) or {}
-
-                      carriageway_value = carriageway.get(
-                          "value",
-                          "",
-                      )
-
-                      carriageway_extended = carriageway.get(
-                          "extendedValueG",
-                          "",
-                      )
-
-                      carriageway_extension = (
-                          carriageways[0].get(
-                              "carriagewayExtensionG",
-                              {},
-                          )
-                          or {}
-                      )
-
-                      impact = (
-                          carriageway_extension.get(
-                              "impactOnCarriageway",
-                              {},
-                          )
-                          or {}
-                      )
-
-                      lanes_restricted = impact.get(
-                          "numberOfLanesRestricted",
-                          "",
-                      )
-
-                      lanes_operational = impact.get(
-                          "numberOfOperationalLanes",
-                          "",
-                      )
-
-              # --------------------------------------------------------
-              # ROAD / DIRECTION / LINEAR ELEMENT
-              # --------------------------------------------------------
-
-              single_road_location = location.get(
-                  "locSingleRoadLinearLocation",
-                  {},
-              ) or {}
-
-              linear_sections = single_road_location.get(
-                  "linearWithinLinearElement",
-                  [],
-              ) or []
-
-              road_name = ""
-              direction = ""
-              direction_relative = ""
-              linear_element_type = ""
-              from_distance = ""
-              to_distance = ""
-
-              if linear_sections:
-
-                  if isinstance(linear_sections[0], dict):
-
-                      section = linear_sections[0]
-
-                      direction = section.get(
-                          "directionOnLinearSection",
-                          "",
-                      )
-
-                      direction_relative = section.get(
-                          "directionRelativeOnLinearSection",
-                          "",
-                      )
-
-                      linear_element = section.get(
-                          "linearElement",
-                          {},
-                      ) or {}
-
-                      road_code = linear_element.get(
-                          "locLinearElementByCode",
-                          {},
-                      ) or {}
-
-                      road_name = road_code.get(
-                          "roadName",
-                          "",
-                      )
-
-                      extension = road_code.get(
-                          "linearElementByCodeExtensionG",
-                          {},
-                      ) or {}
-
-                      linear_element_type = extension.get(
-                          "linearElementType",
-                          "",
-                      )
-
-                      from_point = section.get(
-                          "fromPoint",
-                          {},
-                      ) or {}
-
-                      from_distance_data = from_point.get(
-                          "locDistanceFromLinearElementStart",
-                          {},
-                      ) or {}
-
-                      from_distance = from_distance_data.get(
-                          "distanceAlong",
-                          "",
-                      )
-
-                      to_point = section.get(
-                          "toPoint",
-                          {},
-                      ) or {}
-
-                      to_distance_data = to_point.get(
-                          "locDistanceFromLinearElementStart",
-                          {},
-                      ) or {}
-
-                      to_distance = to_distance_data.get(
-                          "distanceAlong",
-                          "",
-                      )
-
-              # --------------------------------------------------------
-              # RECORD EXTENSIONS
-              # --------------------------------------------------------
-
-              record_extension = r.get(
-                  "roadOrCarriagewayOrLaneManagementExtensionG",
-                  {},
-              ) or {}
-
-              return {
-                  "situation": situation_index,
-                  "record": record_index,
-                  "totalRecord": total_number,
-
-                  "idG": r.get(
-                      "idG",
-                      "",
-                  ),
-
-                  "versionG": r.get(
-                      "versionG",
-                      "",
-                  ),
-
-                  "managementType": management_type.get(
-                      "value",
-                      "",
-                  ),
-
-                  "validityStatus": validity.get(
-                      "validityStatus",
-                      "",
-                  ),
-
-                  "start": validity_time.get(
-                      "overallStartTime",
-                      "",
-                  ),
-
-                  "end": validity_time.get(
-                      "overallEndTime",
-                      "",
-                  ),
-
-                  "probability": r.get(
-                      "probabilityOfOccurrence",
-                      "",
-                  ),
-
-                  "compliance": r.get(
-                      "complianceOption",
-                      "",
-                  ),
-
-                  "source": source.get(
-                      "sourceIdentification",
-                      "",
-                  ),
-
-                  "causeType": cause.get(
-                      "causeType",
-                      "",
-                  ),
-
-                  "detailedCause": detailed_cause,
-
-                  "comment": comment,
-
-                  "roadName": road_name,
-
-                  "direction": direction,
-
-                  "directionRelative": direction_relative,
-
-                  "linearElementType": linear_element_type,
-
-                  "fromDistance": from_distance,
-
-                  "toDistance": to_distance,
-
-                  "locationDescription": location_description,
-
-                  "carriageway": carriageway_value,
-
-                  "carriagewayExtended": carriageway_extended,
-
-                  "lanesRestricted": lanes_restricted,
-
-                  "lanesOperational": lanes_operational,
-
-                  "widthRestriction": record_extension.get(
-                      "hasWidthRestrictionFlag",
-                      "",
-                  ),
-
-                  "heightRestriction": record_extension.get(
-                      "hasHeightRestrictionFlag",
-                      "",
-                  ),
-
-                  "weightRestriction": record_extension.get(
-                      "hasWeightRestrictionFlag",
-                      "",
-                  ),
-
-                  "contraFlow": record_extension.get(
-                      "hasContraFlow",
-                      "",
-                  ),
-              }
-
-          # ------------------------------------------------------------
-          # COLLECT RECORDS
-          # ------------------------------------------------------------
-
-          summaries = []
-
-          total = 0
-
-          for situation_index, situation in enumerate(
-              situations,
-              start=1,
-          ):
-
-              if not isinstance(situation, dict):
-                  continue
-
-              records = situation.get(
-                  "situationRecord",
-                  [],
-              )
-
-              if not isinstance(records, list):
-                  continue
-
-              for record_index, record in enumerate(
-                  records,
-                  start=1,
-              ):
-
-                  total += 1
-
-                  summaries.append(
-                      extract_summary(
-                          record,
-                          situation_index,
-                          record_index,
-                          total,
-                      )
-                  )
-
-          # ------------------------------------------------------------
-          # COMPACT OUTPUT
-          # ------------------------------------------------------------
-
-          print()
-          print("=" * 80)
-          print("COMPACT RECORD SUMMARIES")
+          else:
+              print("process_payload(): not available")
+
+          # ------------------------------------------------------------------
+          # Final summary
+          # ------------------------------------------------------------------
+
+          print("\n" + "=" * 80)
+          print("FINAL SUMMARY")
           print("=" * 80)
 
-          for summary in summaries:
+          print("API request:              SUCCESS")
+          print(f"Raw records extracted:    {len(raw_records)}")
+          print(f"Individual parses OK:     {successful}")
+          print(f"Individual parses failed: {failed}")
 
-              print()
-              print(
-                  f"RECORD {summary['totalRecord']}"
-              )
+          if missing_counts:
+              print("\nMissing parsed fields:")
 
-              print("-" * 80)
+              for field, count in sorted(missing_counts.items()):
+                  print(f"  {field}: {count}")
+          else:
+              print("\nMissing parsed fields:    NONE")
 
-              print(
-                  f"idG: {summary['idG']}"
-              )
-
-              print(
-                  f"versionG: {summary['versionG']}"
-              )
-
-              print(
-                  f"managementType: {summary['managementType']}"
-              )
-
-              print(
-                  f"validityStatus: {summary['validityStatus']}"
-              )
-
-              print(
-                  f"start: {summary['start']}"
-              )
-
-              print(
-                  f"end: {summary['end']}"
-              )
-
-              print(
-                  f"probability: {summary['probability']}"
-              )
-
-              print(
-                  f"compliance: {summary['compliance']}"
-              )
-
-              print(
-                  f"source: {summary['source']}"
-              )
-
-              print(
-                  f"causeType: {summary['causeType']}"
-              )
-
-              print(
-                  f"detailedCause: {summary['detailedCause']}"
-              )
-
-              print(
-                  f"comment: {summary['comment']}"
-              )
-
-              print(
-                  f"roadName: {summary['roadName']}"
-              )
-
-              print(
-                  f"direction: {summary['direction']}"
-              )
-
-              print(
-                  f"directionRelative: {summary['directionRelative']}"
-              )
-
-              print(
-                  f"linearElementType: {summary['linearElementType']}"
-              )
-
-              print(
-                  f"fromDistance: {summary['fromDistance']}"
-              )
-
-              print(
-                  f"toDistance: {summary['toDistance']}"
-              )
-
-              print(
-                  f"locationDescription: {summary['locationDescription']}"
-              )
-
-              print(
-                  f"carriageway: {summary['carriageway']}"
-              )
-
-              print(
-                  f"carriagewayExtended: {summary['carriagewayExtended']}"
-              )
-
-              print(
-                  f"lanesRestricted: {summary['lanesRestricted']}"
-              )
-
-              print(
-                  f"lanesOperational: {summary['lanesOperational']}"
-              )
-
-              print(
-                  f"widthRestriction: {summary['widthRestriction']}"
-              )
-
-              print(
-                  f"heightRestriction: {summary['heightRestriction']}"
-              )
-
-              print(
-                  f"weightRestriction: {summary['weightRestriction']}"
-              )
-
-              print(
-                  f"contraFlow: {summary['contraFlow']}"
-              )
-
-          # ------------------------------------------------------------
-          # SUMMARY
-          # ------------------------------------------------------------
-
-          print()
-          print("=" * 80)
-          print("TEST 5 SUMMARY")
+          print("\nProduction importer modified: NO")
+          print("Database modified:            NO")
           print("=" * 80)
 
-          print(
-              "Successful API request: YES"
-          )
+          if raw_records and successful == 0:
+              print("\nERROR: No raw records could be parsed.")
+              sys.exit(1)
 
-          print(
-              "closureType supplied: NO"
-          )
+          if not raw_records:
+              print("\nWARNING: API returned zero raw records.")
 
-          print(
-              "Pagination followed: NO"
-          )
-
-          print(
-              "Request splitting: NO"
-          )
-
-          print(
-              f"Records inspected: {total}"
-          )
-
-          print(
-              "Output mode: COMPACT RECORD SUMMARY"
-          )
-
-          print(
-              "Production importer was not modified."
-          )
-
-          print(
-              "Database was not modified."
-          )
-
-          print("=" * 80)
-
+          print("\nParser test completed.")
           PY
