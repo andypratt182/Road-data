@@ -2,11 +2,13 @@ name: Update Road Data
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "0 * * * *"
   workflow_dispatch:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
 
 jobs:
   update-road-data:
@@ -34,7 +36,10 @@ jobs:
 
           from fetch_closures import fetch_closures
 
+          print("Fetching planned closures...")
           planned = fetch_closures(closure_type="planned")
+
+          print("Fetching unplanned closures...")
           unplanned = fetch_closures(closure_type="unplanned")
 
           closures = planned + unplanned
@@ -45,9 +50,16 @@ jobs:
           }
 
           with open("data/road_data.json", "w", encoding="utf-8") as file:
-              json.dump(output, file, indent=2, ensure_ascii=False)
+              json.dump(
+                  output,
+                  file,
+                  indent=2,
+                  ensure_ascii=False,
+              )
 
           print(f"Written {len(closures)} closures")
+          print(f"Planned: {len(planned)}")
+          print(f"Unplanned: {len(unplanned)}")
           print(f"Updated: {output['updated']}")
           PY
 
