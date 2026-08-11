@@ -1,0 +1,34 @@
+# Python
+
+**pycache**/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# Environment / secrets
+
+.env
+.env.*
+!.env.example
+
+# Raw National Highways API responses
+
+raw/
+
+# Generated website data
+
+site/data/
+
+# Local development files
+
+.DS_Store
+Thumbs.db
+
+# IDE files
+
+.vscode/
+.idea/
