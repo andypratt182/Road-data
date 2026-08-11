@@ -20,13 +20,79 @@ UK_TZ = ZoneInfo("Europe/London")
 
 ROUTES = {
     "Omega": {
-        "M6": (45, 20),
-        "M62": (10, 8),
+        "Southbound": [
+            {
+                "road": "M6",
+                "start": 45,
+                "end": 20,
+                "direction": "southbound",
+            },
+            {
+                "road": "M62",
+                "start": 10,
+                "end": 8,
+                "direction": "westbound",
+            },
+        ],
+        "Northbound": [
+            {
+                "road": "M62",
+                "start": 8,
+                "end": 10,
+                "direction": "eastbound",
+            },
+            {
+                "road": "M6",
+                "start": 20,
+                "end": 45,
+                "direction": "northbound",
+            },
+        ],
     },
+
     "Axis": {
-        "M6": (45, 26),
-        "M58": "entire",
-        "M57": (6, 4),
+        "Southbound": [
+            {
+                "road": "M6",
+                "start": 45,
+                "end": 26,
+                "direction": "southbound",
+            },
+            {
+                "road": "M58",
+                "start": None,
+                "end": None,
+                "direction": "westbound",
+                "entire": True,
+            },
+            {
+                "road": "M57",
+                "start": 6,
+                "end": 4,
+                "direction": "southbound",
+            },
+        ],
+        "Northbound": [
+            {
+                "road": "M57",
+                "start": 4,
+                "end": 6,
+                "direction": "northbound",
+            },
+            {
+                "road": "M58",
+                "start": None,
+                "end": None,
+                "direction": "eastbound",
+                "entire": True,
+            },
+            {
+                "road": "M6",
+                "start": 26,
+                "end": 45,
+                "direction": "northbound",
+            },
+        ],
     },
 }
 
@@ -76,16 +142,17 @@ def format_datetime(value):
 
 
 # ============================================================
-# JUNCTION FILTERING
+# JUNCTION EXTRACTION
 # ============================================================
 
 def extract_junctions(description):
     """
     Extract junction numbers from a closure description.
 
-    Examples:
+    Examples handled:
+
         M6 northbound between J18 and J19
-        M62 eastbound between J26 and J27
+        M62 westbound between J26 and J27
         M1 southbound within J21
         M6 northbound J45 to J20
 
@@ -108,9 +175,7 @@ def extract_junctions(description):
             number_match = re.match(r"\d+", match)
 
             if number_match:
-                junctions.append(
-                    int(number_match.group())
-                )
+                junctions.append(int(number_match.group()))
 
         except (AttributeError, ValueError):
             continue
@@ -118,31 +183,63 @@ def extract_junctions(description):
     return junctions
 
 
-def closure_matches_route(closure, route_name):
+# ============================================================
+# DIRECTION NORMALISATION
+# ============================================================
+
+def normalise_direction(value):
     """
-    Determine whether a closure belongs inside one of the
-    configured Omega/Axis route boundaries.
+    Normalise API direction values so comparisons are consistent.
     """
 
-    route = ROUTES.get(route_name)
+    if not value:
+        return ""
 
-    if not route:
-        return False
+    return str(value).strip().lower()
+
+
+# ============================================================
+# ROUTE MATCHING
+# ============================================================
+
+def closure_matches_leg(closure, leg):
+    """
+    Determine whether a closure belongs to a specific route leg.
+
+    A closure must match:
+
+        1. Road
+        2. Direction
+        3. Junction boundary
+
+    Entire-road legs, such as M58, only require road and direction.
+    """
 
     road = str(
         closure.get("road") or ""
-    ).upper().strip()
+    ).strip().upper()
 
-    if road not in route:
+    required_road = str(
+        leg.get("road") or ""
+    ).strip().upper()
+
+    if road != required_road:
         return False
 
-    boundary = route[road]
+    closure_direction = normalise_direction(
+        closure.get("direction")
+    )
 
-    # Entire road, e.g. M58
-    if boundary == "entire":
+    required_direction = normalise_direction(
+        leg.get("direction")
+    )
+
+    if closure_direction != required_direction:
+        return False
+
+    # Entire road, such as M58
+    if leg.get("entire") is True:
         return True
-
-    start_junction, end_junction = boundary
 
     description = str(
         closure.get("description") or ""
@@ -150,8 +247,13 @@ def closure_matches_route(closure, route_name):
 
     junctions = extract_junctions(description)
 
-    # Bounded routes require junction information.
     if not junctions:
+        return False
+
+    start_junction = leg.get("start")
+    end_junction = leg.get("end")
+
+    if start_junction is None or end_junction is None:
         return False
 
     lower_bound = min(
@@ -164,14 +266,78 @@ def closure_matches_route(closure, route_name):
         end_junction,
     )
 
-    # A closure is relevant when at least one referenced
-    # junction falls inside the configured route.
+    # A closure is relevant if at least one of its
+    # referenced junctions falls inside this route leg.
     for junction in junctions:
-
         if lower_bound <= junction <= upper_bound:
             return True
 
     return False
+
+
+def closure_matches_route(
+    closure,
+    route_name,
+    direction_name,
+):
+    """
+    Determine whether a closure belongs to the selected
+    route and direction.
+    """
+
+    route = ROUTES.get(route_name)
+
+    if not route:
+        return False
+
+    legs = route.get(direction_name)
+
+    if not legs:
+        return False
+
+    for leg in legs:
+        if closure_matches_leg(
+            closure,
+            leg,
+        ):
+            return True
+
+    return False
+
+
+# ============================================================
+# ROUTE DESCRIPTION
+# ============================================================
+
+def route_description(route_name, direction_name):
+    """
+    Generate a human-readable description of the selected route.
+    """
+
+    route = ROUTES.get(route_name, {})
+    legs = route.get(direction_name, [])
+
+    descriptions = []
+
+    for leg in legs:
+
+        road = leg["road"]
+        direction = leg["direction"].title()
+
+        if leg.get("entire"):
+            descriptions.append(
+                f"{road} entire road {direction}"
+            )
+            continue
+
+        start = leg["start"]
+        end = leg["end"]
+
+        descriptions.append(
+            f"{road} J{start} → J{end} {direction}"
+        )
+
+    return " • ".join(descriptions)
 
 
 # ============================================================
@@ -191,57 +357,27 @@ def build_page(data):
     )
 
     # --------------------------------------------------------
-    # Route data
+    # Pre-calculate route membership
     # --------------------------------------------------------
 
-    route_data = {
-        "Omega": [],
-        "Axis": [],
-    }
+    route_membership = {}
 
-    for closure in closures:
+    for index, closure in enumerate(closures):
 
-        for route_name in route_data:
+        route_membership[index] = []
 
-            if closure_matches_route(
-                closure,
-                route_name,
-            ):
-                route_data[route_name].append(
-                    closure
-                )
+        for route_name in ROUTES:
 
-    # --------------------------------------------------------
-    # Direction/status options
-    # --------------------------------------------------------
+            for direction_name in ROUTES[route_name]:
 
-    directions = sorted(
-        {
-            str(closure.get("direction"))
-            for closure in closures
-            if closure.get("direction")
-        }
-    )
-
-    statuses = sorted(
-        {
-            str(closure.get("status"))
-            for closure in closures
-            if closure.get("status")
-        }
-    )
-
-    direction_options = "".join(
-        f'<option value="{escape(direction)}">'
-        f'{escape(direction)}</option>'
-        for direction in directions
-    )
-
-    status_options = "".join(
-        f'<option value="{escape(status)}">'
-        f'{escape(status)}</option>'
-        for status in statuses
-    )
+                if closure_matches_route(
+                    closure,
+                    route_name,
+                    direction_name,
+                ):
+                    route_membership[index].append(
+                        f"{route_name}:{direction_name}"
+                    )
 
     # --------------------------------------------------------
     # Closure cards
@@ -282,7 +418,9 @@ def build_page(data):
         direction = escape(direction_raw)
         status = escape(status_raw)
         description = escape(description_raw)
-        closure_type = escape(closure_type_raw)
+        closure_type = escape(
+            closure_type_raw
+        )
         cause = escape(cause_raw)
 
         start = escape(
@@ -298,27 +436,20 @@ def build_page(data):
         if direction:
             title += f" {direction}"
 
-        matching_routes = []
-
-        for route_name in route_data:
-
-            if closure in route_data[route_name]:
-                matching_routes.append(
-                    route_name
-                )
-
-        route_attributes = ",".join(
-            matching_routes
+        memberships = ",".join(
+            route_membership[index]
         )
 
         closure_cards.append(
             f"""
-            <article class="closure"
-                     data-index="{index}"
-                     data-road="{road}"
-                     data-direction="{direction}"
-                     data-status="{status}"
-                     data-routes="{escape(route_attributes)}">
+            <article
+                class="closure"
+                data-index="{index}"
+                data-road="{road}"
+                data-direction="{direction}"
+                data-status="{status}"
+                data-memberships="{escape(memberships)}"
+            >
 
                 <div class="closure-header">
 
@@ -371,15 +502,25 @@ def build_page(data):
         )
 
     # --------------------------------------------------------
-    # Route counts
+    # Counts
     # --------------------------------------------------------
 
-    omega_count = len(
-        route_data["Omega"]
+    omega_count = sum(
+        1
+        for memberships in route_membership.values()
+        if any(
+            item.startswith("Omega:")
+            for item in memberships
+        )
     )
 
-    axis_count = len(
-        route_data["Axis"]
+    axis_count = sum(
+        1
+        for memberships in route_membership.values()
+        if any(
+            item.startswith("Axis:")
+            for item in memberships
+        )
     )
 
     updated_display = format_datetime(
@@ -395,231 +536,209 @@ def build_page(data):
 
 <head>
 
-    <meta charset="UTF-8">
+<meta charset="UTF-8">
 
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
 
-    <title>National Highways Road Data</title>
+<title>National Highways Road Dashboard</title>
 
-    <style>
+<style>
 
-        * {{
-            box-sizing: border-box;
-        }}
+* {{
+    box-sizing: border-box;
+}}
 
-        body {{
-            font-family: Arial, sans-serif;
-            margin: 0;
-            background: #f4f6f8;
-            color: #222;
-        }}
+body {{
+    font-family: Arial, sans-serif;
+    margin: 0;
+    background: #f4f6f8;
+    color: #222;
+}}
 
-        header {{
-            background: #003b5c;
-            color: white;
-            padding: 25px 20px;
-        }}
+header {{
+    background: #003b5c;
+    color: white;
+    padding: 25px 20px;
+}}
 
-        .container {{
-            max-width: 1400px;
-            margin: auto;
-            padding: 0 20px;
-        }}
+.container {{
+    max-width: 1400px;
+    margin: auto;
+    padding: 0 20px;
+}}
 
-        header h1 {{
-            margin: 0 0 5px;
-        }}
+header h1 {{
+    margin: 0 0 5px;
+}}
 
-        header p {{
-            margin: 0;
-            opacity: 0.9;
-        }}
+header p {{
+    margin: 0;
+    opacity: .9;
+}}
 
-        .updated {{
-            margin-top: 10px;
-            font-size: 13px;
-            opacity: 0.8;
-        }}
+.updated {{
+    margin-top: 10px;
+    font-size: 13px;
+    opacity: .8;
+}}
 
-        .filters {{
-            background: white;
-            padding: 20px;
-            margin: 20px 0;
-            border-radius: 8px;
-            box-shadow: 0 2px 6px rgba(0,0,0,.08);
-        }}
+.filters {{
+    background: white;
+    padding: 20px;
+    margin: 20px 0;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.08);
+}}
 
-        .filters h2 {{
-            margin-top: 0;
-        }}
+.filter-row {{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}}
 
-        .route-buttons {{
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }}
+.filter-group {{
+    display: flex;
+    flex-direction: column;
+    min-width: 200px;
+}}
 
-        .route-button {{
-            padding: 12px 28px;
-            border: none;
-            border-radius: 6px;
-            background: #e5e7eb;
-            color: #333;
-            font-size: 15px;
-            font-weight: bold;
-            cursor: pointer;
-        }}
+label {{
+    font-weight: bold;
+    margin-bottom: 5px;
+}}
 
-        .route-button:hover {{
-            background: #d1d5db;
-        }}
+select {{
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 14px;
+    background: white;
+}}
 
-        .route-button.active {{
-            background: #003b5c;
-            color: white;
-        }}
+.route-info {{
+    margin-top: 15px;
+    padding: 12px 15px;
+    background: #eef5f8;
+    border-left: 4px solid #003b5c;
+    border-radius: 4px;
+    font-size: 14px;
+}}
 
-        .filter-row {{
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-        }}
+.summary {{
+    display: grid;
+    grid-template-columns:
+        repeat(auto-fit, minmax(180px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}}
 
-        .filter-group {{
-            display: flex;
-            flex-direction: column;
-            min-width: 180px;
-        }}
+.summary-card {{
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.08);
+}}
 
-        label {{
-            font-weight: bold;
-            margin-bottom: 5px;
-        }}
+.summary-card strong {{
+    display: block;
+    font-size: 28px;
+    margin-top: 5px;
+}}
 
-        select {{
-            padding: 9px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 14px;
-        }}
+.closures {{
+    display: grid;
+    gap: 15px;
+    padding-bottom: 30px;
+}}
 
-        .summary {{
-            display: grid;
-            grid-template-columns:
-                repeat(auto-fit, minmax(180px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }}
+.closure {{
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.08);
+}}
 
-        .summary-card {{
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 6px rgba(0,0,0,.08);
-        }}
+.closure-header {{
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+    align-items: center;
+}}
 
-        .summary-card strong {{
-            display: block;
-            font-size: 28px;
-            margin-top: 5px;
-        }}
+.closure-header h3 {{
+    margin: 0;
+}}
 
-        .closures {{
-            display: grid;
-            gap: 15px;
-            padding-bottom: 30px;
-        }}
+.status {{
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+}}
 
-        .closure {{
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 6px rgba(0,0,0,.08);
-        }}
+.status-active {{
+    background: #ffdede;
+    color: #a00000;
+}}
 
-        .closure-header {{
-            display: flex;
-            justify-content: space-between;
-            gap: 15px;
-            align-items: center;
-        }}
+.status-planned {{
+    background: #fff1c7;
+    color: #795900;
+}}
 
-        .closure-header h3 {{
-            margin: 0;
-        }}
+.status-suspended {{
+    background: #e5e5e5;
+    color: #555;
+}}
 
-        .status {{
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
-            text-transform: uppercase;
-        }}
+.details {{
+    display: grid;
+    grid-template-columns:
+        repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+    margin-top: 15px;
+}}
 
-        .status-active {{
-            background: #ffdede;
-            color: #a00000;
-        }}
+.detail {{
+    background: #f7f8fa;
+    padding: 10px;
+    border-radius: 5px;
+}}
 
-        .status-planned {{
-            background: #fff1c7;
-            color: #795900;
-        }}
+.detail strong {{
+    display: block;
+    margin-bottom: 3px;
+}}
 
-        .status-suspended {{
-            background: #e5e5e5;
-            color: #555;
-        }}
+.empty {{
+    background: white;
+    padding: 30px;
+    text-align: center;
+    border-radius: 8px;
+}}
 
-        .details {{
-            display: grid;
-            grid-template-columns:
-                repeat(auto-fit, minmax(180px, 1fr));
-            gap: 10px;
-            margin-top: 15px;
-        }}
+@media (max-width: 600px) {{
 
-        .detail {{
-            background: #f7f8fa;
-            padding: 10px;
-            border-radius: 5px;
-        }}
+    .container {{
+        padding: 0 10px;
+    }}
 
-        .detail strong {{
-            display: block;
-            margin-bottom: 3px;
-        }}
+    .closure-header {{
+        flex-direction: column;
+        align-items: flex-start;
+    }}
 
-        .empty {{
-            background: white;
-            padding: 30px;
-            text-align: center;
-            border-radius: 8px;
-        }}
+    .filter-group {{
+        width: 100%;
+    }}
 
-        @media (max-width: 600px) {{
+}}
 
-            .container {{
-                padding: 0 10px;
-            }}
-
-            .closure-header {{
-                flex-direction: column;
-                align-items: flex-start;
-            }}
-
-            .route-buttons {{
-                width: 100%;
-            }}
-
-            .route-button {{
-                flex: 1;
-            }}
-
-        }}
-
-    </style>
+</style>
 
 </head>
 
@@ -627,287 +746,366 @@ def build_page(data):
 
 <header>
 
-    <div class="container">
+<div class="container">
 
-        <h1>National Highways Road Data</h1>
+<h1>National Highways Road Dashboard</h1>
 
-        <p>
-            Omega &amp; Axis route monitoring
-        </p>
+<p>
+Omega & Axis route monitoring
+</p>
 
-        <div class="updated">
-            Last updated: {escape(updated_display)}
-        </div>
+<div class="updated">
+Last updated: {escape(updated_display)}
+</div>
 
-    </div>
+</div>
 
 </header>
 
+
 <main class="container">
 
-    <section class="filters">
+<section class="filters">
 
-        <h2>Route</h2>
+<h2>Route Filters</h2>
 
-        <div class="route-buttons">
+<div class="filter-row">
 
-            <button class="route-button active"
-                    data-route="Omega">
-                Omega
-            </button>
+<div class="filter-group">
 
-            <button class="route-button"
-                    data-route="Axis">
-                Axis
-            </button>
+<label for="route">
+Route
+</label>
 
-        </div>
+<select id="route">
 
-        <div class="filter-row">
+<option value="Omega">
+Omega
+</option>
 
-            <div class="filter-group">
+<option value="Axis">
+Axis
+</option>
 
-                <label for="direction">
-                    Direction
-                </label>
+</select>
 
-                <select id="direction">
-
-                    <option value="">
-                        All directions
-                    </option>
-
-                    {direction_options}
-
-                </select>
-
-            </div>
-
-            <div class="filter-group">
-
-                <label for="status">
-                    Status
-                </label>
-
-                <select id="status">
-
-                    <option value="">
-                        All statuses
-                    </option>
-
-                    {status_options}
-
-                </select>
-
-            </div>
-
-        </div>
-
-    </section>
+</div>
 
 
-    <section class="summary">
+<div class="filter-group">
 
-        <div class="summary-card">
+<label for="direction">
+Direction
+</label>
 
-            Total closures
+<select id="direction">
 
-            <strong id="total-count">
-                {len(closures)}
-            </strong>
+<option value="Southbound">
+Southbound
+</option>
 
-        </div>
+<option value="Northbound">
+Northbound
+</option>
 
-        <div class="summary-card">
+</select>
 
-            Omega
-
-            <strong>
-                {omega_count}
-            </strong>
-
-        </div>
-
-        <div class="summary-card">
-
-            Axis
-
-            <strong>
-                {axis_count}
-            </strong>
-
-        </div>
-
-        <div class="summary-card">
-
-            Visible
-
-            <strong id="visible-count">
-                0
-            </strong>
-
-        </div>
-
-    </section>
+</div>
 
 
-    <section class="closures"
-             id="closures">
+<div class="filter-group">
 
-        {"".join(closure_cards)}
+<label for="status">
+Status
+</label>
 
-    </section>
+<select id="status">
+
+<option value="">
+All statuses
+</option>
+
+<option value="active">
+Active
+</option>
+
+<option value="planned">
+Planned
+</option>
+
+<option value="suspended">
+Suspended
+</option>
+
+</select>
+
+</div>
+
+</div>
 
 
-    <div class="empty"
-         id="empty-message"
-         style="display:none;">
+<div
+    id="route-info"
+    class="route-info"
+>
+{escape(route_description("Omega", "Southbound"))}
+</div>
 
-        No closures match the selected filters.
+</section>
 
-    </div>
+
+<section class="summary">
+
+<div class="summary-card">
+
+Total route closures
+
+<strong id="total-count">
+0
+</strong>
+
+</div>
+
+
+<div class="summary-card">
+
+Active
+
+<strong id="active-count">
+0
+</strong>
+
+</div>
+
+
+<div class="summary-card">
+
+Planned
+
+<strong id="planned-count">
+0
+</strong>
+
+</div>
+
+
+<div class="summary-card">
+
+Suspended
+
+<strong id="suspended-count">
+0
+</strong>
+
+</div>
+
+</section>
+
+
+<section
+    id="closures"
+    class="closures"
+>
+
+{"".join(closure_cards)}
+
+</section>
+
+
+<div
+    id="empty"
+    class="empty"
+    style="display:none;"
+>
+
+No closures match the selected route and filters.
+
+</div>
 
 </main>
 
 
 <script>
 
-    let selectedRoute = "Omega";
+const ROUTE_DESCRIPTIONS = {{
 
-    const directionSelect =
-        document.getElementById("direction");
+    Omega: {{
 
-    const statusSelect =
-        document.getElementById("status");
+        Southbound:
+            "{escape(route_description('Omega', 'Southbound'))}",
 
-    const closureElements =
-        Array.from(
-            document.querySelectorAll(".closure")
-        );
+        Northbound:
+            "{escape(route_description('Omega', 'Northbound'))}"
 
-    const routeButtons =
-        Array.from(
-            document.querySelectorAll(".route-button")
-        );
+    }},
 
-    const visibleCount =
-        document.getElementById("visible-count");
+    Axis: {{
 
-    const emptyMessage =
-        document.getElementById("empty-message");
+        Southbound:
+            "{escape(route_description('Axis', 'Southbound'))}",
 
+        Northbound:
+            "{escape(route_description('Axis', 'Northbound'))}"
 
-    function updateClosures() {{
+    }}
 
-        const selectedDirection =
-            directionSelect.value.toLowerCase();
-
-        const selectedStatus =
-            statusSelect.value.toLowerCase();
-
-        let visible = 0;
+}};
 
 
-        closureElements.forEach(
-            closure => {{
+let selectedRoute = "Omega";
 
-                const routes =
-                    (closure.dataset.routes || "")
+let selectedDirection = "Southbound";
+
+
+const routeSelect =
+    document.getElementById("route");
+
+const directionSelect =
+    document.getElementById("direction");
+
+const statusSelect =
+    document.getElementById("status");
+
+const routeInfo =
+    document.getElementById("route-info");
+
+const closureElements =
+    Array.from(
+        document.querySelectorAll(".closure")
+    );
+
+const emptyMessage =
+    document.getElementById("empty");
+
+
+function updateDashboard() {{
+
+    selectedRoute =
+        routeSelect.value;
+
+    selectedDirection =
+        directionSelect.value;
+
+    const selectedStatus =
+        statusSelect.value;
+
+    routeInfo.textContent =
+        ROUTE_DESCRIPTIONS[selectedRoute][selectedDirection];
+
+
+    let visibleCount = 0;
+    let activeCount = 0;
+    let plannedCount = 0;
+    let suspendedCount = 0;
+
+
+    const membership =
+        selectedRoute + ":" + selectedDirection;
+
+
+    closureElements.forEach(
+        function(closure) {{
+
+            const memberships =
+                closure.dataset.memberships
                     .split(",")
                     .filter(Boolean);
 
-                const direction =
-                    (closure.dataset.direction || "")
-                    .toLowerCase();
-
-                const status =
-                    (closure.dataset.status || "")
+            const status =
+                closure.dataset.status
                     .toLowerCase();
 
 
-                const routeMatches =
-                    routes.includes(
-                        selectedRoute
-                    );
-
-                const directionMatches =
-                    !selectedDirection ||
-                    direction === selectedDirection;
-
-                const statusMatches =
-                    !selectedStatus ||
-                    status === selectedStatus;
+            const matchesRoute =
+                memberships.includes(
+                    membership
+                );
 
 
-                const matches =
-                    routeMatches &&
-                    directionMatches &&
-                    statusMatches;
+            const matchesStatus =
+                !selectedStatus ||
+                status === selectedStatus;
 
 
-                closure.style.display =
-                    matches ? "" : "none";
+            const visible =
+                matchesRoute &&
+                matchesStatus;
 
 
-                if (matches) {{
-                    visible++;
+            closure.style.display =
+                visible ? "" : "none";
+
+
+            if (visible) {{
+
+                visibleCount++;
+
+
+                if (status === "active") {{
+                    activeCount++;
+                }}
+
+                if (status === "planned") {{
+                    plannedCount++;
+                }}
+
+                if (status === "suspended") {{
+                    suspendedCount++;
                 }}
 
             }}
-        );
-
-
-        visibleCount.textContent =
-            visible;
-
-        emptyMessage.style.display =
-            visible === 0 ? "block" : "none";
-    }}
-
-
-    routeButtons.forEach(
-        button => {{
-
-            button.addEventListener(
-                "click",
-                () => {{
-
-                    selectedRoute =
-                        button.dataset.route;
-
-
-                    routeButtons.forEach(
-                        item => {{
-                            item.classList.toggle(
-                                "active",
-                                item === button
-                            );
-                        }}
-                    );
-
-
-                    updateClosures();
-
-                }}
-            );
 
         }}
     );
 
 
-    directionSelect.addEventListener(
-        "change",
-        updateClosures
-    );
+    document.getElementById(
+        "total-count"
+    ).textContent = visibleCount;
 
 
-    statusSelect.addEventListener(
-        "change",
-        updateClosures
-    );
+    document.getElementById(
+        "active-count"
+    ).textContent = activeCount;
 
 
-    updateClosures();
+    document.getElementById(
+        "planned-count"
+    ).textContent = plannedCount;
+
+
+    document.getElementById(
+        "suspended-count"
+    ).textContent = suspendedCount;
+
+
+    emptyMessage.style.display =
+        visibleCount === 0
+            ? "block"
+            : "none";
+
+}}
+
+
+routeSelect.addEventListener(
+    "change",
+    updateDashboard
+);
+
+
+directionSelect.addEventListener(
+    "change",
+    updateDashboard
+);
+
+
+statusSelect.addEventListener(
+    "change",
+    updateDashboard
+);
+
+
+updateDashboard();
 
 </script>
 
@@ -915,6 +1113,10 @@ def build_page(data):
 
 </html>
 """
+
+    # --------------------------------------------------------
+    # Write output
+    # --------------------------------------------------------
 
     OUTPUT_DIR.mkdir(
         exist_ok=True
@@ -936,14 +1138,20 @@ def build_page(data):
     )
 
     print(
-        f"Omega: {omega_count}"
+        f"Omega closures: {omega_count}"
     )
 
     print(
-        f"Axis: {axis_count}"
+        f"Axis closures: {axis_count}"
     )
 
 
+# ============================================================
+# MAIN
+# ============================================================
+
 if __name__ == "__main__":
+
     data = load_data()
+
     build_page(data)
