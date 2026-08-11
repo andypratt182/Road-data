@@ -626,11 +626,6 @@ Last updated: {escape(updated_display)}
 <div class="route-buttons">
 
 <button class="route-button active"
-        data-route="">
-    All
-</button>
-
-<button class="route-button"
         data-route="Omega">
     Omega
 </button>
@@ -641,6 +636,46 @@ Last updated: {escape(updated_display)}
 </button>
 
 </div>
+
+Then change:
+
+let selectedRoute = "";
+
+to:
+
+let selectedRoute = "Omega";
+
+That's it.
+
+Result
+
+When you open the site:
+
+OMEGA is selected automatically and shows:
+
+M6 J45 → J20
+M62 J10 → J8
+
+Clicking AXIS switches to:
+
+M6 J45 → J26
+M58 entire road
+M57 J6 → J4
+
+The Northbound/Southbound filter will continue working within whichever route you've selected.
+
+So the dashboard becomes:
+
+ROUTE
+[ OMEGA ] [ AXIS ]
+
+DIRECTION
+[ All directions ▼ ]
+
+STATUS
+[ All statuses ▼ ]
+
+Much cleaner.
 
 <div class="route-info">
 
@@ -776,7 +811,7 @@ const statusSelect =
 const visibleCount =
     document.getElementById("visible-count");
 
-let selectedRoute = "";
+let selectedRoute = "Omega";
 
 function updateFilters() {{
 
