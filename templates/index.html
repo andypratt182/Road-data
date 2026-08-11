@@ -1,0 +1,412 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>National Highways Road Data</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background: #f4f6f8;
+            color: #222;
+        }
+
+        header {
+            background: #003b5c;
+            color: white;
+            padding: 20px;
+        }
+
+        header h1 {
+            margin: 0 0 5px 0;
+        }
+
+        header p {
+            margin: 0;
+            opacity: 0.9;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 0 20px;
+        }
+
+        .filters {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        }
+
+        .filters h2 {
+            margin-top: 0;
+        }
+
+        .filter-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            min-width: 180px;
+        }
+
+        .filter-group label {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        select,
+        button {
+            padding: 9px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        button {
+            background: #003b5c;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #00547f;
+        }
+
+        .summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .summary-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        }
+
+        .summary-card strong {
+            display: block;
+            font-size: 28px;
+            margin-top: 5px;
+        }
+
+        .closures {
+            display: grid;
+            gap: 15px;
+        }
+
+        .closure {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+        }
+
+        .closure-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .closure-header h3 {
+            margin: 0;
+        }
+
+        .status {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .status-active {
+            background: #ffdede;
+            color: #a00000;
+        }
+
+        .status-planned {
+            background: #fff1c7;
+            color: #795900;
+        }
+
+        .status-suspended {
+            background: #e5e5e5;
+            color: #555;
+        }
+
+        .details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .detail {
+            background: #f7f8fa;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .detail strong {
+            display: block;
+            margin-bottom: 3px;
+        }
+
+        .comments {
+            margin-top: 15px;
+        }
+
+        .comments p {
+            background: #f7f8fa;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .empty {
+            background: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 8px;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 0 10px;
+            }
+
+            .closure-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+    <div class="container">
+        <h1>National Highways Road Data</h1>
+        <p>Live and planned road closure information</p>
+    </div>
+</header>
+
+<main class="container">
+
+    <section class="filters">
+
+        <h2>Filter closures</h2>
+
+        <form method="get">
+
+            <div class="filter-row">
+
+                <div class="filter-group">
+                    <label for="road">Road</label>
+
+                    <select id="road" name="road">
+                        <option value="">All roads</option>
+
+                        {% for road in roads %}
+                            <option
+                                value="{{ road }}"
+                                {% if selected_road == road %}selected{% endif %}
+                            >
+                                {{ road }}
+                            </option>
+                        {% endfor %}
+
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="direction">Direction</label>
+
+                    <select id="direction" name="direction">
+                        <option value="">All directions</option>
+
+                        {% for direction in directions %}
+                            <option
+                                value="{{ direction }}"
+                                {% if selected_direction == direction %}selected{% endif %}
+                            >
+                                {{ direction }}
+                            </option>
+                        {% endfor %}
+
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="status">Status</label>
+
+                    <select id="status" name="status">
+                        <option value="">All statuses</option>
+
+                        {% for status in statuses %}
+                            <option
+                                value="{{ status }}"
+                                {% if selected_status == status %}selected{% endif %}
+                            >
+                                {{ status }}
+                            </option>
+                        {% endfor %}
+
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label>&nbsp;</label>
+                    <button type="submit">Apply filters</button>
+                </div>
+
+            </div>
+
+        </form>
+
+    </section>
+
+
+    <section class="summary">
+
+        <div class="summary-card">
+            Total closures
+            <strong>{{ closures|length }}</strong>
+        </div>
+
+        <div class="summary-card">
+            Active
+            <strong>
+                {{ closures|selectattr("status", "equalto", "active")|list|length }}
+            </strong>
+        </div>
+
+        <div class="summary-card">
+            Planned
+            <strong>
+                {{ closures|selectattr("status", "equalto", "planned")|list|length }}
+            </strong>
+        </div>
+
+    </section>
+
+
+    <section class="closures">
+
+        {% if closures %}
+
+            {% for closure in closures %}
+
+                <article class="closure">
+
+                    <div class="closure-header">
+
+                        <h3>
+                            {{ closure.road or "Unknown road" }}
+                            {% if closure.direction %}
+                                {{ closure.direction }}
+                            {% endif %}
+                        </h3>
+
+                        <span class="status status-{{ closure.status }}">
+                            {{ closure.status or "Unknown" }}
+                        </span>
+
+                    </div>
+
+
+                    {% if closure.description %}
+                        <p>
+                            {{ closure.description }}
+                        </p>
+                    {% endif %}
+
+
+                    <div class="details">
+
+                        <div class="detail">
+                            <strong>Road</strong>
+                            {{ closure.road or "Unknown" }}
+                        </div>
+
+                        <div class="detail">
+                            <strong>Direction</strong>
+                            {{ closure.direction or "Unknown" }}
+                        </div>
+
+                        <div class="detail">
+                            <strong>Type</strong>
+                            {{ closure.type or "Unknown" }}
+                        </div>
+
+                        <div class="detail">
+                            <strong>Cause</strong>
+                            {{ closure.cause or "Unknown" }}
+                        </div>
+
+                        <div class="detail">
+                            <strong>Start</strong>
+                            {{ closure.start or "Unknown" }}
+                        </div>
+
+                        <div class="detail">
+                            <strong>End</strong>
+                            {{ closure.end or "Unknown" }}
+                        </div>
+
+                    </div>
+
+
+                    {% if closure.comments %}
+
+                        <div class="comments">
+
+                            <strong>Comments</strong>
+
+                            {% for comment in closure.comments %}
+                                <p>{{ comment }}</p>
+                            {% endfor %}
+
+                        </div>
+
+                    {% endif %}
+
+                </article>
+
+            {% endfor %}
+
+        {% else %}
+
+            <div class="empty">
+                <h2>No closures found</h2>
+                <p>
+                    There are no closures matching the selected filters.
+                </p>
+            </div>
+
+        {% endif %}
+
+    </section>
+
+</main>
+
+</body>
+</html>
+```
