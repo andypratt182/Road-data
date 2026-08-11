@@ -1,0 +1,53 @@
+name: Audit Road Closure Types
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit-road-types:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Audit closure types
+        run: |
+          python - <<'PY'
+          import json
+          from collections import Counter
+
+          with open("data/road_data.json", "r", encoding="utf-8") as f:
+              data = json.load(f)
+
+          closures = data.get("closures", [])
+
+          counts = Counter(
+              str(c.get("type") or "MISSING")
+              for c in closures
+          )
+
+          print("=" * 60)
+          print("ROAD CLOSURE TYPE AUDIT")
+          print("=" * 60)
+          print(f"Total closures: {len(closures)}")
+          print()
+
+          for closure_type, count in sorted(
+              counts.items(),
+              key=lambda x: (-x[1], x[0])
+          ):
+              print(f"{closure_type}: {count}")
+
+          print()
+          print(f"Distinct types: {len(counts)}")
+          print("=" * 60)
+          PY
