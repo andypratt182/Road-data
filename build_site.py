@@ -24,7 +24,7 @@ ROUTES = {
             {
                 "road": "M6",
                 "start": 45,
-                "end": 20,
+                "end": 21,
                 "direction": "southbound",
             },
             {
@@ -43,7 +43,7 @@ ROUTES = {
             },
             {
                 "road": "M6",
-                "start": 20,
+                "start": 21,
                 "end": 45,
                 "direction": "northbound",
             },
@@ -151,14 +151,16 @@ def format_datetime(value):
 
 def extract_junctions(description):
     """
-    Extract junction numbers from a closure description.
+    Extract junction numbers and suffixes from a closure
+    description.
 
-    Examples:
+    Examples recognised:
 
-        M6 northbound between J18 and J19
-        M62 westbound between J26 and J27
-        M1 southbound within J21
-        M6 northbound J45 to J20
+        J18
+        J21
+        J21A
+        J21B
+        J45
     """
 
     if not description:
@@ -173,34 +175,67 @@ def extract_junctions(description):
     junctions = []
 
     for match in matches:
+        match = match.upper()
 
-        try:
-            number_match = re.match(
-                r"\d+",
-                match
-            )
+        number_match = re.match(
+            r"(\d+)([A-Z]?)",
+            match,
+        )
 
-            if number_match:
-                junctions.append(
-                    int(number_match.group())
-                )
-
-        except (AttributeError, ValueError):
+        if not number_match:
             continue
+
+        number = int(
+            number_match.group(1)
+        )
+
+        suffix = (
+            number_match.group(2)
+            or ""
+        )
+
+        junctions.append(
+            {
+                "number": number,
+                "suffix": suffix,
+                "label": f"J{number}{suffix}",
+            }
+        )
 
     return junctions
 
 
 # ============================================================
-# DIRECTION NORMALISATION
+# JUNCTION POSITION
 # ============================================================
 
-def normalise_direction(value):
+def junction_position(junction):
+    """
+    Convert a junction to a sortable numeric position.
 
-    if not value:
-        return ""
+    J21  -> 21.0
+    J21A -> 21.1
+    J21B -> 21.2
 
-    return str(value).strip().lower()
+    This means J21A is treated as immediately after J21
+    when travelling in the increasing direction.
+    """
+
+    number = junction["number"]
+    suffix = junction["suffix"]
+
+    if not suffix:
+        return float(number)
+
+    # A = .1, B = .2, etc.
+    suffix_value = (
+        ord(suffix[0]) - ord("A") + 1
+    )
+
+    return (
+        number
+        + suffix_value / 10
+    )
 
 
 # ============================================================
@@ -227,13 +262,13 @@ def closure_matches_leg(
     if road != required_road:
         return False
 
-    closure_direction = normalise_direction(
-        closure.get("direction")
-    )
+    closure_direction = str(
+        closure.get("direction") or ""
+    ).strip().lower()
 
-    required_direction = normalise_direction(
-        leg.get("direction")
-    )
+    required_direction = str(
+        leg.get("direction") or ""
+    ).strip().lower()
 
     if closure_direction != required_direction:
         return False
@@ -274,9 +309,15 @@ def closure_matches_leg(
 
     for junction in junctions:
 
+        position = junction_position(
+            junction
+        )
+
+        # Explicitly include J21 and J21A
+        # within the Omega M6 J45-J21 section.
         if (
             lower_bound
-            <= junction
+            <= position
             <= upper_bound
         ):
             return True
@@ -332,25 +373,12 @@ def get_route_position(
     Calculate the position of a closure along
     the selected route.
 
-    Lower numbers appear first.
+    The result is:
 
-    The route definition determines the order
-    of the road legs.
+        (road_leg_order, junction_position)
 
-    Within a leg, junctions are ordered in the
-    direction of travel.
-
-    Example:
-
-        M6 J45 -> J20
-
-    produces:
-
-        J45
-        J44
-        J43
-        ...
-        J20
+    This ensures records follow the actual direction
+    of travel rather than simple alphabetical ordering.
     """
 
     route = ROUTES.get(
@@ -358,14 +386,19 @@ def get_route_position(
     )
 
     if not route:
-        return (999999, 999999)
+        return (
+            999999,
+            999999,
+        )
 
     legs = route.get(
         direction_name,
         []
     )
 
-    for leg_index, leg in enumerate(legs):
+    for leg_index, leg in enumerate(
+        legs
+    ):
 
         if not closure_matches_leg(
             closure,
@@ -393,36 +426,37 @@ def get_route_position(
                 999999,
             )
 
+        positions = [
+            junction_position(junction)
+            for junction in junctions
+        ]
+
         start = leg["start"]
         end = leg["end"]
 
-        # Route direction determines whether
-        # junction numbers increase or decrease.
+        # Southbound / descending junction numbers.
         if end < start:
 
-            # Southbound-style descending junctions.
-            # J45 should appear before J44,
-            # J44 before J43, etc.
-            relevant_junction = max(
-                junctions
+            # Highest junction first.
+            relevant_position = max(
+                positions
             )
 
             position = (
                 start
-                - relevant_junction
+                - relevant_position
             )
 
+        # Northbound / ascending junction numbers.
         else:
 
-            # Northbound-style ascending junctions.
-            # J20 should appear before J21,
-            # J21 before J22, etc.
-            relevant_junction = min(
-                junctions
+            # Lowest junction first.
+            relevant_position = min(
+                positions
             )
 
             position = (
-                relevant_junction
+                relevant_position
                 - start
             )
 
@@ -463,14 +497,14 @@ def route_description(
         road = leg["road"]
 
         direction = (
-            leg["direction"]
-            .title()
+            leg["direction"].title()
         )
 
         if leg.get("entire"):
 
             descriptions.append(
-                f"{road} entire road {direction}"
+                f"{road} entire road "
+                f"{direction}"
             )
 
             continue
@@ -647,15 +681,15 @@ def build_page(data):
             route_membership[index]
         )
 
-        # Store route positions in the HTML
-        # so JavaScript can sort the records.
         position_data = []
 
         for membership, position in (
             route_positions[index].items()
         ):
 
-            leg_index, position_index = position
+            leg_index, position_index = (
+                position
+            )
 
             position_data.append(
                 f"{membership}="
@@ -738,9 +772,7 @@ def build_page(data):
         for memberships
         in route_membership.values()
         if any(
-            item.startswith(
-                "Omega:"
-            )
+            item.startswith("Omega:")
             for item in memberships
         )
     )
@@ -750,9 +782,7 @@ def build_page(data):
         for memberships
         in route_membership.values()
         if any(
-            item.startswith(
-                "Axis:"
-            )
+            item.startswith("Axis:")
             for item in memberships
         )
     )
@@ -985,7 +1015,7 @@ select {{
 <h1>National Highways Road Dashboard</h1>
 
 <p>
-Omega & Axis route monitoring
+Omega &amp; Axis route monitoring
 </p>
 
 <div class="updated">
@@ -1173,16 +1203,16 @@ const ROUTE_DESCRIPTIONS = {{
         Southbound:
             "{escape(
                 route_description(
-                    'Omega',
-                    'Southbound'
+                    "Omega",
+                    "Southbound"
                 )
             )}",
 
         Northbound:
             "{escape(
                 route_description(
-                    'Omega',
-                    'Northbound'
+                    "Omega",
+                    "Northbound"
                 )
             )}"
 
@@ -1193,16 +1223,16 @@ const ROUTE_DESCRIPTIONS = {{
         Southbound:
             "{escape(
                 route_description(
-                    'Axis',
-                    'Southbound'
+                    "Axis",
+                    "Southbound"
                 )
             )}",
 
         Northbound:
             "{escape(
                 route_description(
-                    'Axis',
-                    'Northbound'
+                    "Axis",
+                    "Northbound"
                 )
             )}"
 
