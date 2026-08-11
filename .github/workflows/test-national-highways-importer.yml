@@ -21,355 +21,338 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests python-dotenv
 
-      - name: Run National Highways importer test
+      - name: Run National Highways Test 5 - raw payload inspection
         env:
           NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
         run: |
           python - <<'PY'
-          from collections import Counter
-          from datetime import datetime, timezone
-
-          from sources.national_highways import (
-              fetch_national_highways,
-              group_by_road,
-          )
-
-
-          # ============================================================
-          # TEST WINDOW
-          # ============================================================
+          from pprint import pprint
+          import os
+          import requests
 
           START = "2026-08-11T00:00:00"
           END = "2026-08-18T23:59:59"
 
-
           print("=" * 70)
-          print("NATIONAL HIGHWAYS IMPORTER TEST")
+          print("NATIONAL HIGHWAYS TEST 5 - RAW PAYLOAD INSPECTION")
           print("=" * 70)
           print()
-          print("This is an isolated importer test.")
-          print("Production workflow is NOT modified.")
-          print()
-          print("Request window:")
+          print("One raw API request.")
+          print("closureType: NOT supplied")
           print(f"Start: {START}")
           print(f"End:   {END}")
           print()
-          print("closureType: NOT supplied")
-          print("Pagination: x-next")
-          print("PageCursor: NOT manually supplied")
-          print("Rate limiting: Retry-After")
-          print()
-          print("=" * 70)
+          print("This test deliberately bypasses the normalised importer")
+          print("processing so that the actual D2Payload structure can")
+          print("be inspected.")
           print()
 
+          api_key = os.environ["NATIONAL_HIGHWAYS_API_KEY"]
 
-          # ============================================================
-          # FETCH
-          # ============================================================
-
-          closures = fetch_national_highways(
-              start_datetime=START,
-              end_datetime=END,
+          url = (
+              "https://api.data.nationalhighways.co.uk/"
+              "roads/v2.0/closures"
           )
 
+          params = {
+              "startDateTime": START,
+              "endDateTime": END,
+          }
 
-          # ============================================================
-          # BASIC RESULT
-          # ============================================================
+          headers = {
+              "x-api-key": api_key,
+              "Accept": "application/json",
+          }
 
-          print()
-          print("=" * 70)
-          print("IMPORTER RESULT")
-          print("=" * 70)
-          print()
-
-          print(
-              f"Target-road closures returned: "
-              f"{len(closures)}"
+          response = requests.get(
+              url,
+              params=params,
+              headers=headers,
+              timeout=60,
           )
 
+          print("HTTP STATUS:", response.status_code)
           print()
 
+          response.raise_for_status()
 
-          # ============================================================
-          # ROAD COUNTS
-          # ============================================================
+          payload = response.json()
 
-          grouped = group_by_road(
-              closures
-          )
+          print("=" * 70)
+          print("RAW TOP-LEVEL STRUCTURE")
+          print("=" * 70)
 
-          print("ROAD COUNTS")
-          print("-" * 70)
-
-          for road in (
-              "M6",
-              "M57",
-              "M58",
-              "M62",
-          ):
-              print(
-                  f"{road}: "
-                  f"{len(grouped.get(road, []))}"
-              )
-
-          print()
-
-
-          # ============================================================
-          # VALIDITY RANGE
-          # ============================================================
-
-          def parse_datetime(value):
-              if not value:
-                  return None
-
-              text = str(value).strip()
-
-              if text.endswith("Z"):
-                  text = (
-                      text[:-1]
-                      + "+00:00"
-                  )
-
-              try:
-                  value_datetime = (
-                      datetime.fromisoformat(
-                          text
-                      )
-                  )
-              except ValueError:
-                  return None
-
-              if value_datetime.tzinfo is None:
-                  value_datetime = (
-                      value_datetime.replace(
-                          tzinfo=timezone.utc
-                      )
-                  )
-              else:
-                  value_datetime = (
-                      value_datetime.astimezone(
-                          timezone.utc
-                      )
-                  )
-
-              return value_datetime
-
-
-          starts = []
-          ends = []
-
-          for closure in closures:
-
-              start = parse_datetime(
-                  closure.get("start")
-              )
-
-              end = parse_datetime(
-                  closure.get("end")
-              )
-
-              if start:
-                  starts.append(start)
-
-              if end:
-                  ends.append(end)
-
-
-          print("VALIDITY RANGE")
-          print("-" * 70)
-
-          if starts:
-              print(
-                  "Earliest start:"
-              )
-              print(
-                  min(starts).isoformat()
-              )
-
-              print()
-
-              print(
-                  "Latest start:"
-              )
-              print(
-                  max(starts).isoformat()
-              )
-
+          if isinstance(payload, dict):
+              print("Top-level keys:")
+              pprint(list(payload.keys()))
           else:
-              print(
-                  "No usable start timestamps."
-              )
+              print("Unexpected payload type:")
+              print(type(payload).__name__)
 
           print()
 
-          if ends:
-              print(
-                  "Earliest end:"
-              )
-              print(
-                  min(ends).isoformat()
-              )
-
-              print()
-
-              print(
-                  "Latest end:"
-              )
-              print(
-                  max(ends).isoformat()
-              )
-
-          else:
-              print(
-                  "No usable end timestamps."
-              )
-
-          print()
-
-
-          # ============================================================
-          # FIELD AVAILABILITY
-          # ============================================================
-
-          print("FIELD AVAILABILITY")
-          print("-" * 70)
-
-          fields = (
-              "road",
-              "direction",
-              "start",
-              "end",
-              "description",
-              "location",
-              "latitude",
-              "longitude",
-              "lanes",
+          d2_payload = (
+              payload.get("D2Payload", {})
+              if isinstance(payload, dict)
+              else {}
           )
 
-          field_counts = Counter()
-
-          for closure in closures:
-
-              for field in fields:
-
-                  value = closure.get(
-                      field
-                  )
-
-                  if value not in (
-                      None,
-                      "",
-                      [],
-                  ):
-                      field_counts[field] += 1
-
-          total = len(closures)
-
-          for field in fields:
-
-              count = field_counts[field]
-
-              percentage = (
-                  count / total * 100
-                  if total
-                  else 0
-              )
-
-              print(
-                  f"{field}: "
-                  f"{count}/{total} "
-                  f"({percentage:.1f}%)"
-              )
-
+          print("D2Payload type:")
+          print(type(d2_payload).__name__)
           print()
 
+          if not isinstance(d2_payload, dict):
+              raise RuntimeError(
+                  "D2Payload is not a dictionary."
+              )
 
-          # ============================================================
-          # SAMPLE RECORDS
-          # ============================================================
+          situations = d2_payload.get(
+              "situation",
+              []
+          )
 
-          print("SAMPLE NORMALISED RECORDS")
-          print("-" * 70)
+          print("Situation count:")
+          print(len(situations))
+          print()
 
-          for number, closure in enumerate(
-              closures[:10],
+          if not isinstance(situations, list):
+              raise RuntimeError(
+                  "D2Payload.situation is not a list."
+              )
+
+          # ------------------------------------------------------------
+          # Inspect the first three situations and first three records
+          # from each situation.
+          # ------------------------------------------------------------
+
+          for situation_number, situation in enumerate(
+              situations[:3],
               start=1,
           ):
 
+              print("=" * 70)
+              print(
+                  f"SITUATION {situation_number}"
+              )
+              print("=" * 70)
+
+              if not isinstance(situation, dict):
+                  print(
+                      "Unexpected situation type:",
+                      type(situation).__name__,
+                  )
+                  print()
+                  continue
+
+              print("Situation keys:")
+              pprint(
+                  list(situation.keys())
+              )
+
               print()
-              print(
-                  f"Record {number}"
+
+              records = situation.get(
+                  "situationRecord",
+                  []
               )
 
               print(
-                  f"Road: "
-                  f"{closure.get('road')}"
+                  "situationRecord count:",
+                  len(records),
               )
 
-              print(
-                  f"Direction: "
-                  f"{closure.get('direction')}"
-              )
+              print()
 
-              print(
-                  f"Start: "
-                  f"{closure.get('start')}"
-              )
+              if not isinstance(records, list):
+                  print(
+                      "Unexpected situationRecord type:",
+                      type(records).__name__,
+                  )
+                  print()
+                  continue
 
-              print(
-                  f"End: "
-                  f"{closure.get('end')}"
-              )
+              for record_number, record in enumerate(
+                  records[:3],
+                  start=1,
+              ):
 
-              print(
-                  f"Description: "
-                  f"{closure.get('description')}"
-              )
+                  print("-" * 70)
+                  print(
+                      f"RAW situationRecord "
+                      f"{record_number}"
+                  )
+                  print("-" * 70)
 
-              print(
-                  f"Location: "
-                  f"{closure.get('location')}"
-              )
+                  if not isinstance(record, dict):
+                      print(
+                          "Unexpected record type:",
+                          type(record).__name__,
+                      )
+                      print()
+                      continue
 
-              print(
-                  f"Latitude: "
-                  f"{closure.get('latitude')}"
-              )
+                  print("Record keys:")
+                  pprint(
+                      list(record.keys())
+                  )
 
-              print(
-                  f"Longitude: "
-                  f"{closure.get('longitude')}"
-              )
+                  print()
+                  print("FULL RAW RECORD:")
+                  pprint(
+                      record,
+                      sort_dicts=False,
+                      width=160,
+                  )
 
-              print(
-                  f"Lanes: "
-                  f"{closure.get('lanes')}"
-              )
+                  print()
 
+                  management = record.get(
+                      "sitRoadOrCarriagewayOrLaneManagement",
+                      {},
+                  )
 
-          # ============================================================
-          # FINAL RESULT
-          # ============================================================
+                  print("MANAGEMENT TYPE:")
+                  print(
+                      type(management).__name__
+                  )
 
-          print()
+                  print()
+
+                  if not isinstance(
+                      management,
+                      dict,
+                  ):
+                      print(
+                          "Unexpected management structure."
+                      )
+                      print()
+                      continue
+
+                  print("MANAGEMENT KEYS:")
+                  pprint(
+                      list(management.keys())
+                  )
+
+                  print()
+
+                  validity = management.get(
+                      "validity",
+                      {},
+                  )
+
+                  print("VALIDITY:")
+                  pprint(
+                      validity,
+                      sort_dicts=False,
+                      width=160,
+                  )
+
+                  print()
+
+                  if isinstance(
+                      validity,
+                      dict,
+                  ):
+                      validity_spec = validity.get(
+                          "validityTimeSpecification",
+                          {},
+                      )
+                  else:
+                      validity_spec = {}
+
+                  print(
+                      "VALIDITY TIME SPECIFICATION:"
+                  )
+                  pprint(
+                      validity_spec,
+                      sort_dicts=False,
+                      width=160,
+                  )
+
+                  print()
+
+                  location_reference = management.get(
+                      "locationReference",
+                      {},
+                  )
+
+                  print("LOCATION REFERENCE:")
+                  pprint(
+                      location_reference,
+                      sort_dicts=False,
+                      width=160,
+                  )
+
+                  print()
+
+                  # Explicitly inspect the location structures that
+                  # data_processor.py currently expects.
+
+                  print(
+                      "EXPECTED LOCATION PATHS:"
+                  )
+
+                  if isinstance(
+                      location_reference,
+                      dict,
+                  ):
+
+                      single = location_reference.get(
+                          "locLinearLocation"
+                      )
+
+                      grouped = (
+                          location_reference
+                          .get(
+                              "locLocationGroupByList",
+                              {},
+                          )
+                      )
+
+                      print(
+                          "locLinearLocation:"
+                      )
+                      pprint(
+                          single,
+                          sort_dicts=False,
+                          width=160,
+                      )
+
+                      print()
+
+                      print(
+                          "locLocationGroupByList:"
+                      )
+                      pprint(
+                          grouped,
+                          sort_dicts=False,
+                          width=160,
+                      )
+
+                  else:
+                      print(
+                          "locationReference is not "
+                          "a dictionary."
+                      )
+
+                  print()
+
           print("=" * 70)
-          print("TEST COMPLETE")
+          print("TEST 5 COMPLETE")
           print("=" * 70)
           print()
           print(
-              "The existing production workflow was "
-              "not modified."
+              "Raw API structure inspected directly."
           )
           print(
-              "The existing fetch_closures.py was "
-              "not modified."
+              "No data_processor.py processing performed."
           )
           print(
-              "No database writes were performed."
+              "No production importer modification performed."
           )
           print(
-              "No EPG/XMLTV processing was performed."
+              "No database writes performed."
           )
+          print("=" * 70)
+
           PY
