@@ -1,70 +1,38 @@
+import os
 from pathlib import Path
 
-# ============================================================
+from dotenv import load_dotenv
 
-# PROJECT PATHS
 
-# ============================================================
+# Project paths
 
-BASE_DIR = Path(**file**).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent
 
-RAW_DATA_DIR = BASE_DIR / "raw"
 DATA_DIR = BASE_DIR / "data"
+OUTPUT_DIR = BASE_DIR / "output"
 
-# ============================================================
+DATA_DIR.mkdir(exist_ok=True)
+OUTPUT_DIR.mkdir(exist_ok=True)
 
-# NATIONAL HIGHWAYS API
 
-# ============================================================
+# Environment variables
 
-API_URL = (
-"https://api.data.nationalhighways.co.uk"
-"/roads/v2.0/closures"
+load_dotenv()
+
+
+# National Highways API
+
+API_BASE_URL = os.getenv(
+    "NATIONAL_HIGHWAYS_API_BASE_URL",
+    "https://api.data.nationalhighways.co.uk/roads/v2.0",
 )
 
-# ============================================================
-
-# ROADS TO DISPLAY
-
-# ============================================================
-
-TARGET_ROADS = {
-"M1",
-"M6",
-"M57",
-"M58",
-"M62",
-}
-
-# ============================================================
-
-# API QUERY WINDOW
-
-# ============================================================
-
-HOURS_BACK = 6
-HOURS_FORWARD = 24
-
-# ============================================================
-
-# REQUEST SETTINGS
-
-# ============================================================
-
-REQUEST_TIMEOUT = 60
-
-# ============================================================
-
-# OUTPUT SETTINGS
-
-# ============================================================
-
-RAW_DATA_DIR.mkdir(
-parents=True,
-exist_ok=True,
+API_KEY = os.getenv(
+    "NATIONAL_HIGHWAYS_API_KEY"
 )
 
-DATA_DIR.mkdir(
-parents=True,
-exist_ok=True,
-)
+
+if not API_KEY:
+    raise RuntimeError(
+        "NATIONAL_HIGHWAYS_API_KEY is not configured."
+    )
