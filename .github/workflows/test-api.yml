@@ -35,7 +35,7 @@ jobs:
         env:
           NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
         run: |
-          python -c "from app import app; print('Flask application imported successfully')
+          python -c "from app import app; print('Flask application imported successfully')"
           
       - name: Test Flask homepage
         env:
