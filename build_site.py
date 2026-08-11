@@ -21,77 +21,25 @@ UK_TZ = ZoneInfo("Europe/London")
 ROUTES = {
     "Omega": {
         "Southbound": [
-            {
-                "road": "M6",
-                "start": 45,
-                "end": 21,
-                "direction": "southbound",
-            },
-            {
-                "road": "M62",
-                "start": 10,
-                "end": 8,
-                "direction": "westbound",
-            },
+            ("M6", 45, 21),
+            ("M62", 10, 8),
         ],
         "Northbound": [
-            {
-                "road": "M62",
-                "start": 8,
-                "end": 10,
-                "direction": "eastbound",
-            },
-            {
-                "road": "M6",
-                "start": 21,
-                "end": 45,
-                "direction": "northbound",
-            },
+            ("M62", 8, 10),
+            ("M6", 21, 45),
         ],
     },
 
     "Axis": {
         "Southbound": [
-            {
-                "road": "M6",
-                "start": 45,
-                "end": 26,
-                "direction": "southbound",
-            },
-            {
-                "road": "M58",
-                "start": None,
-                "end": None,
-                "direction": "westbound",
-                "entire": True,
-            },
-            {
-                "road": "M57",
-                "start": 6,
-                "end": 4,
-                "direction": "southbound",
-            },
+            ("M6", 45, 26),
+            ("M58", "entire", "entire"),
+            ("M57", 6, 4),
         ],
         "Northbound": [
-            {
-                "road": "M57",
-                "start": 4,
-                "end": 6,
-                "direction": "northbound",
-            },
-            {
-                "road": "M58",
-                "start": None,
-                "end": None,
-                "direction": "eastbound",
-                "entire": True,
-            },
-            {
-                "road": "M6",
-                "start": 26,
-                "end": 45,
-                "direction": "northbound",
-            },
+            ("M57", 4, 6),
+            ("M58", "entire", "entire"),
+            ("M6", 26, 45),
         ],
     },
 }
@@ -131,15 +79,11 @@ def format_datetime(value):
         dt = datetime.fromisoformat(timestamp)
 
         if dt.tzinfo is None:
-            dt = dt.replace(
-                tzinfo=ZoneInfo("UTC")
-            )
+            dt = dt.replace(tzinfo=ZoneInfo("UTC"))
 
         dt = dt.astimezone(UK_TZ)
 
-        return dt.strftime(
-            "%d %b %Y, %H:%M"
-        )
+        return dt.strftime("%d %b %Y, %H:%M")
 
     except (ValueError, TypeError):
         return str(value)
@@ -151,131 +95,256 @@ def format_datetime(value):
 
 def extract_junctions(description):
     """
-    Extract junction numbers and suffixes from a closure
-    description.
+    Extract junction numbers from a closure description.
 
-    Examples recognised:
-
-        J18
+    Handles:
+        J20
         J21
         J21A
-        J21B
-        J45
+        J29a
+
+    Returns a list of tuples:
+        [(21, ""), (21, "A")]
     """
 
     if not description:
         return []
 
     matches = re.findall(
-        r"\bJ(\d+[A-Z]?)\b",
+        r"\bJ(\d+)([A-Z]?)\b",
         str(description),
         flags=re.IGNORECASE,
     )
 
     junctions = []
 
-    for match in matches:
-        match = match.upper()
-
-        number_match = re.match(
-            r"(\d+)([A-Z]?)",
-            match,
-        )
-
-        if not number_match:
+    for number, suffix in matches:
+        try:
+            junctions.append(
+                (
+                    int(number),
+                    suffix.upper(),
+                )
+            )
+        except ValueError:
             continue
-
-        number = int(
-            number_match.group(1)
-        )
-
-        suffix = (
-            number_match.group(2)
-            or ""
-        )
-
-        junctions.append(
-            {
-                "number": number,
-                "suffix": suffix,
-                "label": f"J{number}{suffix}",
-            }
-        )
 
     return junctions
 
 
-# ============================================================
-# JUNCTION POSITION
-# ============================================================
-
-def junction_position(junction):
+def junction_value(junction):
     """
-    Convert a junction to a sortable numeric position.
+    Convert a junction tuple into a sortable numeric value.
 
     J21  -> 21.0
     J21A -> 21.1
-    J21B -> 21.2
 
-    This means J21A is treated as immediately after J21
-    when travelling in the increasing direction.
+    This means J21 comes before J21A.
     """
 
-    number = junction["number"]
-    suffix = junction["suffix"]
+    number, suffix = junction
 
-    if not suffix:
-        return float(number)
+    if suffix:
+        return float(f"{number}.1")
 
-    # A = .1, B = .2, etc.
-    suffix_value = (
-        ord(suffix[0]) - ord("A") + 1
-    )
+    return float(number)
 
-    return (
-        number
-        + suffix_value / 10
-    )
+
+# ============================================================
+# FRIENDLY RESTRICTION TYPE
+# ============================================================
+
+def get_restriction_type(closure):
+    """
+    Convert National Highways API type/cause values into
+    user-friendly terminology.
+
+    Raw API values remain available separately.
+    """
+
+    raw_type = str(
+        closure.get("type") or ""
+    ).strip()
+
+    raw_cause = str(
+        closure.get("cause") or ""
+    ).strip()
+
+    if raw_type == "carriagewayClosures":
+        return "Carriageway Closure"
+
+    if raw_type.lower() == "other":
+
+        if raw_cause == "roadMaintenance":
+            return "Road Maintenance"
+
+        if raw_cause == "constructionWork":
+            return "Construction"
+
+        if raw_cause == "authorityOperation":
+            return "Authority Operation"
+
+        return "Other"
+
+    return raw_type or "Other"
 
 
 # ============================================================
 # ROUTE MATCHING
 # ============================================================
 
-def closure_matches_leg(
+def closure_matches_route(
     closure,
-    leg,
+    route_name,
+    direction_name,
 ):
     """
-    Determine whether a closure belongs to a
-    particular route leg.
+    Determine whether a closure belongs to a specific
+    Omega/Axis directional route.
+
+    A closure is included when:
+
+    1. The road matches the route.
+    2. The direction matches the configured direction.
+    3. Its junction information falls inside the configured
+       route boundary.
+
+    For entire-road sections such as M58, the direction must
+    still match.
+    """
+
+    route = ROUTES.get(route_name, {})
+    sections = route.get(direction_name, [])
+
+    if not sections:
+        return False
+
+    road = str(
+        closure.get("road") or ""
+    ).upper().strip()
+
+    closure_direction = str(
+        closure.get("direction") or ""
+    ).lower().strip()
+
+    description = str(
+        closure.get("description") or ""
+    )
+
+    junctions = extract_junctions(
+        description
+    )
+
+    for section_road, start, end in sections:
+
+        if road != section_road:
+            continue
+
+        # ----------------------------------------------------
+        # M58 entire road
+        # ----------------------------------------------------
+
+        if start == "entire":
+            if direction_name == "Southbound":
+                return closure_direction == "westbound"
+
+            if direction_name == "Northbound":
+                return closure_direction == "eastbound"
+
+        # ----------------------------------------------------
+        # Direction mapping
+        # ----------------------------------------------------
+
+        expected_direction = None
+
+        if direction_name == "Southbound":
+
+            if section_road == "M6":
+                expected_direction = "southbound"
+
+            elif section_road == "M62":
+                expected_direction = "westbound"
+
+            elif section_road == "M57":
+                expected_direction = "southbound"
+
+        elif direction_name == "Northbound":
+
+            if section_road == "M6":
+                expected_direction = "northbound"
+
+            elif section_road == "M62":
+                expected_direction = "eastbound"
+
+            elif section_road == "M57":
+                expected_direction = "northbound"
+
+        if (
+            expected_direction
+            and closure_direction != expected_direction
+        ):
+            continue
+
+        if not junctions:
+            continue
+
+        lower = min(
+            float(start),
+            float(end),
+        )
+
+        upper = max(
+            float(start),
+            float(end),
+        )
+
+        for junction in junctions:
+
+            value = junction_value(
+                junction
+            )
+
+            if lower <= value <= upper:
+                return True
+
+    return False
+
+
+# ============================================================
+# JUNCTION POSITION FOR SORTING
+# ============================================================
+
+def get_route_sort_value(
+    closure,
+    route_name,
+    direction_name,
+):
+    """
+    Return the junction position used to order closures
+    along the selected route.
+
+    The ordering follows the actual direction of travel.
+
+    Example:
+
+        Omega Southbound M6 J45 -> J21
+
+        J45
+        J40
+        J30
+        J21
+
+    Omega Northbound M6 J21 -> J45
+
+        J21
+        J30
+        J40
+        J45
     """
 
     road = str(
         closure.get("road") or ""
-    ).strip().upper()
-
-    required_road = str(
-        leg.get("road") or ""
-    ).strip().upper()
-
-    if road != required_road:
-        return False
-
-    closure_direction = str(
-        closure.get("direction") or ""
-    ).strip().lower()
-
-    required_direction = str(
-        leg.get("direction") or ""
-    ).strip().lower()
-
-    if closure_direction != required_direction:
-        return False
-
-    # Entire road, e.g. M58
-    if leg.get("entire") is True:
-        return True
+    ).upper().strip()
 
     description = str(
         closure.get("description") or ""
@@ -286,239 +355,37 @@ def closure_matches_leg(
     )
 
     if not junctions:
-        return False
+        return 9999
 
-    start_junction = leg.get("start")
-    end_junction = leg.get("end")
-
-    if (
-        start_junction is None
-        or end_junction is None
-    ):
-        return False
-
-    lower_bound = min(
-        start_junction,
-        end_junction,
-    )
-
-    upper_bound = max(
-        start_junction,
-        end_junction,
-    )
-
-    for junction in junctions:
-
-        position = junction_position(
-            junction
-        )
-
-        # Explicitly include J21 and J21A
-        # within the Omega M6 J45-J21 section.
-        if (
-            lower_bound
-            <= position
-            <= upper_bound
-        ):
-            return True
-
-    return False
-
-
-def closure_matches_route(
-    closure,
-    route_name,
-    direction_name,
-):
-    """
-    Determine whether a closure belongs to the
-    selected route and direction.
-    """
-
-    route = ROUTES.get(
-        route_name
-    )
-
-    if not route:
-        return False
-
-    legs = route.get(
-        direction_name
-    )
-
-    if not legs:
-        return False
-
-    for leg in legs:
-
-        if closure_matches_leg(
-            closure,
-            leg,
-        ):
-            return True
-
-    return False
-
-
-# ============================================================
-# ROUTE POSITION
-# ============================================================
-
-def get_route_position(
-    closure,
-    route_name,
-    direction_name,
-):
-    """
-    Calculate the position of a closure along
-    the selected route.
-
-    The result is:
-
-        (road_leg_order, junction_position)
-
-    This ensures records follow the actual direction
-    of travel rather than simple alphabetical ordering.
-    """
-
-    route = ROUTES.get(
-        route_name
-    )
-
-    if not route:
-        return (
-            999999,
-            999999,
-        )
-
-    legs = route.get(
-        direction_name,
-        []
-    )
-
-    for leg_index, leg in enumerate(
-        legs
-    ):
-
-        if not closure_matches_leg(
-            closure,
-            leg,
-        ):
-            continue
-
-        # Entire road
-        if leg.get("entire") is True:
-            return (
-                leg_index,
-                0,
-            )
-
-        junctions = extract_junctions(
-            closure.get(
-                "description",
-                ""
-            )
-        )
-
-        if not junctions:
-            return (
-                leg_index,
-                999999,
-            )
-
-        positions = [
-            junction_position(junction)
-            for junction in junctions
-        ]
-
-        start = leg["start"]
-        end = leg["end"]
-
-        # Southbound / descending junction numbers.
-        if end < start:
-
-            # Highest junction first.
-            relevant_position = max(
-                positions
-            )
-
-            position = (
-                start
-                - relevant_position
-            )
-
-        # Northbound / ascending junction numbers.
-        else:
-
-            # Lowest junction first.
-            relevant_position = min(
-                positions
-            )
-
-            position = (
-                relevant_position
-                - start
-            )
-
-        return (
-            leg_index,
-            position,
-        )
-
-    return (
-        999999,
-        999999,
-    )
-
-
-# ============================================================
-# ROUTE DESCRIPTION
-# ============================================================
-
-def route_description(
-    route_name,
-    direction_name,
-):
+    values = [
+        junction_value(junction)
+        for junction in junctions
+    ]
 
     route = ROUTES.get(
         route_name,
         {}
     )
 
-    legs = route.get(
+    sections = route.get(
         direction_name,
         []
     )
 
-    descriptions = []
+    for section_road, start, end in sections:
 
-    for leg in legs:
-
-        road = leg["road"]
-
-        direction = (
-            leg["direction"].title()
-        )
-
-        if leg.get("entire"):
-
-            descriptions.append(
-                f"{road} entire road "
-                f"{direction}"
-            )
-
+        if road != section_road:
             continue
 
-        descriptions.append(
-            f"{road} "
-            f"J{leg['start']} → "
-            f"J{leg['end']} "
-            f"{direction}"
-        )
+        if start == "entire":
+            return 5000
 
-    return " • ".join(
-        descriptions
-    )
+        if direction_name == "Southbound":
+            return -max(values)
+
+        return min(values)
+
+    return 9999
 
 
 # ============================================================
@@ -538,20 +405,16 @@ def build_page(data):
     )
 
     # --------------------------------------------------------
-    # Route membership
+    # Determine route membership
     # --------------------------------------------------------
 
     route_membership = {}
-
-    route_positions = {}
 
     for index, closure in enumerate(
         closures
     ):
 
         route_membership[index] = []
-
-        route_positions[index] = {}
 
         for route_name in ROUTES:
 
@@ -565,26 +428,45 @@ def build_page(data):
                     direction_name,
                 ):
 
-                    membership = (
-                        f"{route_name}:"
-                        f"{direction_name}"
-                    )
-
                     route_membership[
                         index
                     ].append(
-                        membership
+                        f"{route_name}:{direction_name}"
                     )
 
-                    route_positions[
-                        index
-                    ][membership] = (
-                        get_route_position(
-                            closure,
-                            route_name,
-                            direction_name,
-                        )
-                    )
+    # --------------------------------------------------------
+    # Direction options
+    # --------------------------------------------------------
+
+    direction_options = """
+        <option value="">All directions</option>
+        <option value="Northbound">Northbound</option>
+        <option value="Southbound">Southbound</option>
+    """
+
+    # --------------------------------------------------------
+    # Status options
+    # --------------------------------------------------------
+
+    statuses = sorted(
+        {
+            str(
+                closure.get(
+                    "status"
+                )
+                or ""
+            )
+            for closure in closures
+            if closure.get("status")
+        }
+    )
+
+    status_options = "".join(
+        f'<option value="{escape(status)}">'
+        f'{escape(status.title())}'
+        f'</option>'
+        for status in statuses
+    )
 
     # --------------------------------------------------------
     # Closure cards
@@ -616,14 +498,18 @@ def build_page(data):
             or ""
         )
 
-        closure_type_raw = str(
+        raw_type = str(
             closure.get("type")
             or "Unknown"
         )
 
-        cause_raw = str(
+        raw_cause = str(
             closure.get("cause")
             or "Unknown"
+        )
+
+        friendly_type = get_restriction_type(
+            closure
         )
 
         start_raw = closure.get(
@@ -650,12 +536,16 @@ def build_page(data):
             description_raw
         )
 
-        closure_type = escape(
-            closure_type_raw
+        friendly_type_html = escape(
+            friendly_type
         )
 
-        cause = escape(
-            cause_raw
+        raw_type_html = escape(
+            raw_type
+        )
+
+        raw_cause_html = escape(
+            raw_cause
         )
 
         start = escape(
@@ -673,32 +563,10 @@ def build_page(data):
         title = road
 
         if direction:
-            title += (
-                f" {direction}"
-            )
+            title += f" {direction}"
 
-        memberships = ",".join(
+        route_attributes = ",".join(
             route_membership[index]
-        )
-
-        position_data = []
-
-        for membership, position in (
-            route_positions[index].items()
-        ):
-
-            leg_index, position_index = (
-                position
-            )
-
-            position_data.append(
-                f"{membership}="
-                f"{leg_index}:"
-                f"{position_index}"
-            )
-
-        positions = ";".join(
-            position_data
         )
 
         closure_cards.append(
@@ -709,8 +577,7 @@ def build_page(data):
                 data-road="{road}"
                 data-direction="{direction}"
                 data-status="{status}"
-                data-memberships="{escape(memberships)}"
-                data-positions="{escape(positions)}"
+                data-routes="{escape(route_attributes)}"
             >
 
                 <div class="closure-header">
@@ -718,7 +585,7 @@ def build_page(data):
                     <h3>{title}</h3>
 
                     <span class="status status-{status}">
-                        {status}
+                        {escape(status_raw.title())}
                     </span>
 
                 </div>
@@ -738,13 +605,23 @@ def build_page(data):
                     </div>
 
                     <div class="detail">
-                        <strong>Type</strong>
-                        {closure_type}
+                        <strong>Restriction Type</strong>
+                        {friendly_type_html}
                     </div>
 
                     <div class="detail">
                         <strong>Cause</strong>
-                        {cause}
+                        {raw_cause_html}
+                    </div>
+
+                    <div class="detail">
+                        <strong>Raw Type</strong>
+                        {raw_type_html}
+                    </div>
+
+                    <div class="detail">
+                        <strong>Raw Cause</strong>
+                        {raw_cause_html}
                     </div>
 
                     <div class="detail">
@@ -764,34 +641,6 @@ def build_page(data):
         )
 
     # --------------------------------------------------------
-    # Counts
-    # --------------------------------------------------------
-
-    omega_count = sum(
-        1
-        for memberships
-        in route_membership.values()
-        if any(
-            item.startswith("Omega:")
-            for item in memberships
-        )
-    )
-
-    axis_count = sum(
-        1
-        for memberships
-        in route_membership.values()
-        if any(
-            item.startswith("Axis:")
-            for item in memberships
-        )
-    )
-
-    updated_display = format_datetime(
-        updated
-    )
-
-    # --------------------------------------------------------
     # HTML
     # --------------------------------------------------------
 
@@ -807,7 +656,7 @@ def build_page(data):
     content="width=device-width, initial-scale=1.0"
 >
 
-<title>National Highways Road Dashboard</title>
+<title>National Highways Road Data</title>
 
 <style>
 
@@ -875,20 +724,30 @@ label {{
 }}
 
 select {{
-    padding: 10px;
+    padding: 9px;
     border: 1px solid #ccc;
     border-radius: 5px;
     font-size: 14px;
-    background: white;
 }}
 
-.route-info {{
-    margin-top: 15px;
-    padding: 12px 15px;
-    background: #eef5f8;
-    border-left: 4px solid #003b5c;
-    border-radius: 4px;
-    font-size: 14px;
+.route-buttons {{
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}}
+
+.route-button {{
+    padding: 10px 22px;
+    border: 0;
+    border-radius: 6px;
+    background: #d9e1e6;
+    cursor: pointer;
+    font-weight: bold;
+}}
+
+.route-button.active {{
+    background: #003b5c;
+    color: white;
 }}
 
 .summary {{
@@ -996,10 +855,6 @@ select {{
         align-items: flex-start;
     }}
 
-    .filter-group {{
-        width: 100%;
-    }}
-
 }}
 
 </style>
@@ -1012,49 +867,43 @@ select {{
 
 <div class="container">
 
-<h1>National Highways Road Dashboard</h1>
+<h1>National Highways Road Data</h1>
 
-<p>
-Omega &amp; Axis route monitoring
-</p>
+<p>Omega & Axis route monitoring dashboard</p>
 
 <div class="updated">
-Last updated: {escape(updated_display)}
+Last updated: {escape(updated_display := format_datetime(updated))}
 </div>
 
 </div>
 
 </header>
 
-
 <main class="container">
 
 <section class="filters">
 
-<h2>Route Filters</h2>
+<h2>Route</h2>
 
-<div class="filter-row">
+<div class="route-buttons">
 
-<div class="filter-group">
+<button
+    class="route-button active"
+    data-route="Omega"
+>
+    OMEGA
+</button>
 
-<label for="route">
-Route
-</label>
-
-<select id="route">
-
-<option value="Omega">
-Omega
-</option>
-
-<option value="Axis">
-Axis
-</option>
-
-</select>
+<button
+    class="route-button"
+    data-route="Axis"
+>
+    AXIS
+</button>
 
 </div>
 
+<div class="filter-row">
 
 <div class="filter-group">
 
@@ -1064,18 +913,11 @@ Direction
 
 <select id="direction">
 
-<option value="Southbound">
-Southbound
-</option>
-
-<option value="Northbound">
-Northbound
-</option>
+{direction_options}
 
 </select>
 
 </div>
-
 
 <div class="filter-group">
 
@@ -1089,17 +931,7 @@ Status
 All statuses
 </option>
 
-<option value="active">
-Active
-</option>
-
-<option value="planned">
-Planned
-</option>
-
-<option value="suspended">
-Suspended
-</option>
+{status_options}
 
 </select>
 
@@ -1107,27 +939,13 @@ Suspended
 
 </div>
 
-
-<div
-    id="route-info"
-    class="route-info"
->
-{escape(
-    route_description(
-        "Omega",
-        "Southbound"
-    )
-)}
-</div>
-
 </section>
-
 
 <section class="summary">
 
 <div class="summary-card">
 
-Total route closures
+Total closures
 
 <strong id="total-count">
 0
@@ -1135,34 +953,45 @@ Total route closures
 
 </div>
 
-
 <div class="summary-card">
 
-Active
+Omega
 
-<strong id="active-count">
-0
+<strong id="omega-count">
+{sum(
+    1
+    for routes in route_membership.values()
+    if any(
+        r.startswith("Omega:")
+        for r in routes
+    )
+)}
 </strong>
 
 </div>
 
-
 <div class="summary-card">
 
-Planned
+Axis
 
-<strong id="planned-count">
-0
+<strong id="axis-count">
+{sum(
+    1
+    for routes in route_membership.values()
+    if any(
+        r.startswith("Axis:")
+        for r in routes
+    )
+)}
 </strong>
 
 </div>
 
-
 <div class="summary-card">
 
-Suspended
+Visible
 
-<strong id="suspended-count">
+<strong id="visible-count">
 0
 </strong>
 
@@ -1170,85 +999,34 @@ Suspended
 
 </section>
 
-
 <section
-    id="closures"
     class="closures"
+    id="closures"
 >
 
 {"".join(closure_cards)}
 
 </section>
 
-
 <div
-    id="empty"
     class="empty"
+    id="empty"
     style="display:none;"
 >
 
-No closures match the selected route and filters.
+No closures match the selected filters.
 
 </div>
 
 </main>
 
-
 <script>
-
-const ROUTE_DESCRIPTIONS = {{
-
-    Omega: {{
-
-        Southbound:
-            "{escape(
-                route_description(
-                    "Omega",
-                    "Southbound"
-                )
-            )}",
-
-        Northbound:
-            "{escape(
-                route_description(
-                    "Omega",
-                    "Northbound"
-                )
-            )}"
-
-    }},
-
-    Axis: {{
-
-        Southbound:
-            "{escape(
-                route_description(
-                    "Axis",
-                    "Southbound"
-                )
-            )}",
-
-        Northbound:
-            "{escape(
-                route_description(
-                    "Axis",
-                    "Northbound"
-                )
-            )}"
-
-    }}
-
-}};
-
 
 let selectedRoute = "Omega";
 
-let selectedDirection = "Southbound";
-
-
-const routeSelect =
-    document.getElementById(
-        "route"
+const routeButtons =
+    document.querySelectorAll(
+        ".route-button"
     );
 
 const directionSelect =
@@ -1261,319 +1039,163 @@ const statusSelect =
         "status"
     );
 
-const routeInfo =
+const cards =
+    document.querySelectorAll(
+        ".closure"
+    );
+
+const totalCount =
     document.getElementById(
-        "route-info"
+        "total-count"
     );
 
-const closureContainer =
+const visibleCount =
     document.getElementById(
-        "closures"
+        "visible-count"
     );
 
-const closureElements =
-    Array.from(
-        document.querySelectorAll(
-            ".closure"
-        )
-    );
-
-const emptyMessage =
+const empty =
     document.getElementById(
         "empty"
     );
 
 
-function getPosition(
-    closure,
-    membership
-) {{
+function updateFilters() {{
 
-    const positions =
-        closure.dataset.positions
-            .split(";")
-            .filter(Boolean);
-
-    for (
-        const entry of positions
-    ) {{
-
-        const parts =
-            entry.split("=");
-
-        if (
-            parts.length !== 2
-        ) {{
-            continue;
-        }}
-
-        if (
-            parts[0] !== membership
-        ) {{
-            continue;
-        }}
-
-        const values =
-            parts[1].split(":");
-
-        if (
-            values.length !== 2
-        ) {{
-            continue;
-        }}
-
-        return [
-            Number(values[0]),
-            Number(values[1])
-        ];
-
-    }}
-
-    return [
-        999999,
-        999999
-    ];
-
-}}
-
-
-function sortClosures(
-    visibleClosures,
-    membership
-) {{
-
-    visibleClosures.sort(
-        function(a, b) {{
-
-            const positionA =
-                getPosition(
-                    a,
-                    membership
-                );
-
-            const positionB =
-                getPosition(
-                    b,
-                    membership
-                );
-
-
-            if (
-                positionA[0]
-                !== positionB[0]
-            ) {{
-
-                return (
-                    positionA[0]
-                    - positionB[0]
-                );
-
-            }}
-
-
-            if (
-                positionA[1]
-                !== positionB[1]
-            ) {{
-
-                return (
-                    positionA[1]
-                    - positionB[1]
-                );
-
-            }}
-
-
-            return (
-                Number(
-                    a.dataset.index
-                )
-                -
-                Number(
-                    b.dataset.index
-                )
-            );
-
-        }}
-    );
-
-
-    visibleClosures.forEach(
-        function(closure) {{
-
-            closureContainer.appendChild(
-                closure
-            );
-
-        }}
-    );
-
-}}
-
-
-function updateDashboard() {{
-
-    selectedRoute =
-        routeSelect.value;
-
-    selectedDirection =
+    const direction =
         directionSelect.value;
 
-    const selectedStatus =
+    const status =
         statusSelect.value;
 
+    let visible = [];
 
-    routeInfo.textContent =
-        ROUTE_DESCRIPTIONS[
-            selectedRoute
-        ][
-            selectedDirection
-        ];
+    cards.forEach(card => {{
 
+        const routes =
+            card.dataset.routes
+                .split(",")
+                .filter(Boolean);
 
-    const membership =
-        selectedRoute
-        + ":"
-        + selectedDirection;
+        const roadDirection =
+            direction
+                ? selectedRoute + ":" + direction
+                : null;
 
+        const routeMatch =
+            roadDirection
+                ? routes.includes(
+                    roadDirection
+                  )
+                : routes.some(
+                    route =>
+                        route.startsWith(
+                            selectedRoute + ":"
+                        )
+                  );
 
-    let visibleClosures = [];
+        const statusMatch =
+            !status ||
+            card.dataset.status === status;
 
-    let activeCount = 0;
+        const show =
+            routeMatch &&
+            statusMatch;
 
-    let plannedCount = 0;
+        card.style.display =
+            show ? "" : "none";
 
-    let suspendedCount = 0;
-
-
-    closureElements.forEach(
-        function(closure) {{
-
-            const memberships =
-                closure.dataset.memberships
-                    .split(",")
-                    .filter(Boolean);
-
-
-            const status =
-                closure.dataset.status
-                    .toLowerCase();
-
-
-            const matchesRoute =
-                memberships.includes(
-                    membership
-                );
-
-
-            const matchesStatus =
-                !selectedStatus
-                ||
-                status === selectedStatus;
-
-
-            const visible =
-                matchesRoute
-                &&
-                matchesStatus;
-
-
-            closure.style.display =
-                visible
-                    ? ""
-                    : "none";
-
-
-            if (visible) {{
-
-                visibleClosures.push(
-                    closure
-                );
-
-
-                if (
-                    status === "active"
-                ) {{
-                    activeCount++;
-                }}
-
-
-                if (
-                    status === "planned"
-                ) {{
-                    plannedCount++;
-                }}
-
-
-                if (
-                    status === "suspended"
-                ) {{
-                    suspendedCount++;
-                }}
-
-            }}
-
+        if (show) {{
+            visible.push(card);
         }}
+
+    }});
+
+    // --------------------------------------------------------
+    // Sort visible records by route order
+    // --------------------------------------------------------
+
+    visible.sort((a, b) => {{
+
+        const aIndex =
+            parseInt(
+                a.dataset.index,
+                10
+            );
+
+        const bIndex =
+            parseInt(
+                b.dataset.index,
+                10
+            );
+
+        return aIndex - bIndex;
+
+    }});
+
+    const container =
+        document.getElementById(
+            "closures"
+        );
+
+    visible.forEach(card =>
+        container.appendChild(card)
     );
 
+    totalCount.textContent =
+        cards.length;
 
-    sortClosures(
-        visibleClosures,
-        membership
-    );
+    visibleCount.textContent =
+        visible.length;
 
-
-    document.getElementById(
-        "total-count"
-    ).textContent =
-        visibleClosures.length;
-
-
-    document.getElementById(
-        "active-count"
-    ).textContent =
-        activeCount;
-
-
-    document.getElementById(
-        "planned-count"
-    ).textContent =
-        plannedCount;
-
-
-    document.getElementById(
-        "suspended-count"
-    ).textContent =
-        suspendedCount;
-
-
-    emptyMessage.style.display =
-        visibleClosures.length === 0
-            ? "block"
-            : "none";
+    empty.style.display =
+        visible.length
+            ? "none"
+            : "block";
 
 }}
 
 
-routeSelect.addEventListener(
-    "change",
-    updateDashboard
-);
+routeButtons.forEach(button => {{
+
+    button.addEventListener(
+        "click",
+        () => {{
+
+            selectedRoute =
+                button.dataset.route;
+
+            routeButtons.forEach(
+                item =>
+                    item.classList.remove(
+                        "active"
+                    )
+            );
+
+            button.classList.add(
+                "active"
+            );
+
+            updateFilters();
+
+        }}
+    );
+
+}});
 
 
 directionSelect.addEventListener(
     "change",
-    updateDashboard
+    updateFilters
 );
-
 
 statusSelect.addEventListener(
     "change",
-    updateDashboard
+    updateFilters
 );
 
 
-updateDashboard();
+updateFilters();
 
 </script>
 
@@ -1581,10 +1203,6 @@ updateDashboard();
 
 </html>
 """
-
-    # --------------------------------------------------------
-    # Write output
-    # --------------------------------------------------------
 
     OUTPUT_DIR.mkdir(
         exist_ok=True
@@ -1603,14 +1221,6 @@ updateDashboard();
 
     print(
         f"Closures: {len(closures)}"
-    )
-
-    print(
-        f"Omega closures: {omega_count}"
-    )
-
-    print(
-        f"Axis closures: {axis_count}"
     )
 
 
