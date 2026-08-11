@@ -28,152 +28,317 @@ jobs:
           python - <<'PY'
           import json
           import os
-          import requests
+          import time
           from pprint import pprint
+
+          import requests
+
+
+          API_URL = (
+              "https://api.data.nationalhighways.co.uk"
+              "/roads/v2.0/closures"
+          )
+
+          API_KEY = os.environ["NATIONAL_HIGHWAYS_API_KEY"]
 
           START = "2026-08-11T00:00:00"
           END = "2026-08-18T23:59:59"
 
-          print("=" * 80)
-          print("NATIONAL HIGHWAYS TEST 5")
-          print("RAW API PAYLOAD INSPECTION")
-          print("=" * 80)
-          print()
-          print("Purpose:")
-          print("Determine the actual structure returned by the")
-          print("National Highways closures endpoint when closureType")
-          print("is NOT supplied.")
-          print()
-          print("Request:")
-          print("  startDateTime:", START)
-          print("  endDateTime:  ", END)
-          print("  closureType:  NOT SUPPLIED")
-          print()
-          print("No production parser is being used.")
-          print("No data_processor.py processing is being performed.")
-          print("No database writes are being performed.")
-          print()
+          MAX_REQUESTS = 5
 
-          api_key = os.environ.get("NATIONAL_HIGHWAYS_API_KEY")
 
-          if not api_key:
-              raise RuntimeError(
-                  "NATIONAL_HIGHWAYS_API_KEY is not configured."
-              )
-
-          url = (
-              "https://api.data.nationalhighways.co.uk"
-              "/roads/v2.0/closures"
-          )
+          headers = {
+              "Ocp-Apim-Subscription-Key": API_KEY,
+              "X-Response-MediaType": "application/json",
+              "X-Data-Format": "DATEXII",
+          }
 
           params = {
               "startDateTime": START,
               "endDateTime": END,
           }
 
-          # These match the authentication / DATEX II headers
-          # used by the existing National Highways parser.
-          headers = {
-              "Ocp-Apim-Subscription-Key": api_key,
-              "X-Response-MediaType": "application/json",
-              "X-Data-Format": "DATEXII",
-          }
 
           print("=" * 80)
-          print("REQUEST")
+          print("NATIONAL HIGHWAYS TEST 5")
+          print("RAW D2PAYLOAD INSPECTION")
           print("=" * 80)
-          print("URL:", url)
           print()
-          print("Parameters:")
-          pprint(params)
-          print()
-          print("Headers:")
-          print("  Ocp-Apim-Subscription-Key: [REDACTED]")
-          print("  X-Response-MediaType: application/json")
-          print("  X-Data-Format: DATEXII")
-          print()
-
-          print("Sending request...")
-          print()
-
-          response = requests.get(
-              url,
-              params=params,
-              headers=headers,
-              timeout=60,
+          print("Purpose:")
+          print(
+              "Inspect the actual raw D2Payload structure returned by "
+              "the National Highways closures endpoint."
           )
-
-          print("HTTP STATUS:", response.status_code)
+          print()
+          print("closureType: NOT supplied")
+          print("Pagination: NOT followed")
+          print("Request splitting: NOT used")
+          print("Production importer: NOT used")
+          print("Database: NOT modified")
+          print()
+          print(f"Start: {START}")
+          print(f"End:   {END}")
           print()
 
-          if response.status_code != 200:
+
+          for request_number in range(
+              1,
+              MAX_REQUESTS + 1,
+          ):
+
               print("=" * 80)
-              print("API ERROR")
+              print(
+                  f"REQUEST ATTEMPT {request_number}/{MAX_REQUESTS}"
+              )
               print("=" * 80)
-              print()
-              print("Response headers:")
-              pprint(dict(response.headers))
-              print()
-              print("Response body:")
-              print(response.text[:10000])
               print()
 
-              raise RuntimeError(
-                  f"National Highways API returned "
-                  f"HTTP {response.status_code}"
+              print("URL:")
+              print(API_URL)
+              print()
+
+              print("Parameters:")
+              pprint(params)
+              print()
+
+              print("Sending request...")
+              print()
+
+              response = requests.get(
+                  API_URL,
+                  params=params,
+                  headers=headers,
+                  timeout=60,
               )
 
-          payload = response.json()
+              print(
+                  "HTTP STATUS:",
+                  response.status_code,
+              )
+              print()
 
-          print("=" * 80)
-          print("RAW RESPONSE SUMMARY")
-          print("=" * 80)
-          print()
+              # --------------------------------------------------------
+              # Rate limiting
+              # --------------------------------------------------------
 
-          print("Python payload type:")
-          print(type(payload).__name__)
-          print()
+              if response.status_code == 429:
 
-          if not isinstance(payload, dict):
+                  retry_after = response.headers.get(
+                      "Retry-After"
+                  )
+
+                  print("=" * 80)
+                  print("HTTP 429 RATE LIMIT")
+                  print("=" * 80)
+                  print()
+
+                  print(
+                      "Retry-After:",
+                      retry_after or "NOT SUPPLIED",
+                  )
+                  print()
+
+                  if not retry_after:
+                      raise RuntimeError(
+                          "HTTP 429 received without "
+                          "Retry-After header."
+                      )
+
+                  try:
+                      wait_seconds = int(
+                          retry_after
+                      )
+                  except ValueError:
+                      raise RuntimeError(
+                          "Invalid Retry-After value: "
+                          f"{retry_after}"
+                      )
+
+                  if request_number >= MAX_REQUESTS:
+                      raise RuntimeError(
+                          "Maximum Test 5 request attempts reached "
+                          "after receiving HTTP 429."
+                      )
+
+                  print(
+                      f"Waiting {wait_seconds} seconds "
+                      "before retrying the same request..."
+                  )
+                  print()
+
+                  time.sleep(
+                      max(
+                          0,
+                          wait_seconds,
+                      )
+                  )
+
+                  continue
+
+
+              # --------------------------------------------------------
+              # All non-200 responses fail immediately.
+              # --------------------------------------------------------
+
+              if response.status_code != 200:
+
+                  print("=" * 80)
+                  print("API REQUEST FAILED")
+                  print("=" * 80)
+                  print()
+
+                  print("Response headers:")
+                  pprint(
+                      dict(
+                          response.headers
+                      )
+                  )
+                  print()
+
+                  print("Response body:")
+                  print(
+                      response.text[:10000]
+                  )
+                  print()
+
+                  raise RuntimeError(
+                      "National Highways API returned "
+                      f"HTTP {response.status_code}"
+                  )
+
+
+              # --------------------------------------------------------
+              # Successful response
+              # --------------------------------------------------------
+
+              print("=" * 80)
+              print("SUCCESSFUL API RESPONSE")
+              print("=" * 80)
+              print()
+
+              print("Response headers:")
+              pprint(
+                  dict(
+                      response.headers
+                  )
+              )
+              print()
+
+              try:
+                  payload = response.json()
+              except Exception as exc:
+                  print(
+                      "Raw response body:"
+                  )
+                  print(
+                      response.text[:10000]
+                  )
+                  print()
+
+                  raise RuntimeError(
+                      "Response was not valid JSON."
+                  ) from exc
+
+              break
+
+          else:
               raise RuntimeError(
-                  "Expected top-level JSON object."
+                  "Test 5 exhausted all request attempts."
+              )
+
+
+          # ============================================================
+          # TOP LEVEL
+          # ============================================================
+
+          print("=" * 80)
+          print("RAW RESPONSE STRUCTURE")
+          print("=" * 80)
+          print()
+
+          print("Top-level Python type:")
+          print(
+              type(payload).__name__
+          )
+          print()
+
+          if not isinstance(
+              payload,
+              dict,
+          ):
+              print("Raw payload:")
+              print(
+                  json.dumps(
+                      payload,
+                      indent=2,
+                      ensure_ascii=False,
+                  )
+              )
+
+              raise RuntimeError(
+                  "Top-level JSON object was not a dictionary."
               )
 
           print("Top-level keys:")
-          pprint(list(payload.keys()))
+          pprint(
+              list(
+                  payload.keys()
+              )
+          )
           print()
 
-          # ------------------------------------------------------------
-          # D2Payload
-          # ------------------------------------------------------------
 
-          d2_payload = payload.get("D2Payload")
+          # ============================================================
+          # D2Payload
+          # ============================================================
 
           print("=" * 80)
           print("D2Payload")
           print("=" * 80)
           print()
 
+          d2payload = payload.get(
+              "D2Payload"
+          )
+
           print("D2Payload type:")
-          print(type(d2_payload).__name__)
+          print(
+              type(d2payload).__name__
+          )
           print()
 
-          if not isinstance(d2_payload, dict):
+          if not isinstance(
+              d2payload,
+              dict,
+          ):
+
               print("D2Payload:")
-              pprint(d2_payload)
+              print(
+                  json.dumps(
+                      d2payload,
+                      indent=2,
+                      ensure_ascii=False,
+                  )
+              )
+
               raise RuntimeError(
-                  "D2Payload is not a dictionary."
+                  "D2Payload was not a dictionary."
               )
 
           print("D2Payload keys:")
-          pprint(list(d2_payload.keys()))
+          pprint(
+              list(
+                  d2payload.keys()
+              )
+          )
           print()
 
-          # ------------------------------------------------------------
-          # situation[]
-          # ------------------------------------------------------------
 
-          situations = d2_payload.get(
+          # ============================================================
+          # SITUATIONS
+          # ============================================================
+
+          situations = d2payload.get(
               "situation",
               []
           )
@@ -184,24 +349,39 @@ jobs:
           print()
 
           print("Type:")
-          print(type(situations).__name__)
+          print(
+              type(situations).__name__
+          )
 
           print("Count:")
-          print(len(situations))
+          print(
+              len(situations)
+          )
           print()
 
-          if not isinstance(situations, list):
+          if not isinstance(
+              situations,
+              list,
+          ):
               raise RuntimeError(
-                  "D2Payload.situation is not a list."
+                  "D2Payload.situation was not a list."
               )
 
-          # Inspect enough records to understand the actual schema,
-          # while avoiding an enormous Actions log.
+
+          # ============================================================
+          # RAW RECORD INSPECTION
+          # ============================================================
+
           MAX_SITUATIONS = 5
           MAX_RECORDS_PER_SITUATION = 5
 
+          total_records_seen = 0
+
+
           for situation_index, situation in enumerate(
-              situations[:MAX_SITUATIONS],
+              situations[
+                  :MAX_SITUATIONS
+              ],
               start=1,
           ):
 
@@ -212,62 +392,108 @@ jobs:
               print("=" * 80)
               print()
 
-              print("Situation type:")
-              print(type(situation).__name__)
-              print()
+              if not isinstance(
+                  situation,
+                  dict,
+              ):
 
-              if not isinstance(situation, dict):
-                  pprint(situation)
+                  print(
+                      "Unexpected situation type:"
+                  )
+                  print(
+                      type(situation).__name__
+                  )
                   print()
+
+                  pprint(
+                      situation
+                  )
+
                   continue
 
+
               print("Situation keys:")
-              pprint(list(situation.keys()))
+              pprint(
+                  list(
+                      situation.keys()
+                  )
+              )
               print()
+
 
               records = situation.get(
                   "situationRecord",
                   []
               )
 
-              print("situationRecord type:")
-              print(type(records).__name__)
+              print(
+                  "situationRecord type:"
+              )
+              print(
+                  type(records).__name__
+              )
 
-              print("situationRecord count:")
-              print(len(records))
+              print(
+                  "situationRecord count:"
+              )
+              print(
+                  len(records)
+              )
               print()
 
-              if not isinstance(records, list):
-                  pprint(records)
-                  print()
+
+              if not isinstance(
+                  records,
+                  list,
+              ):
                   continue
 
+
               for record_index, record in enumerate(
-                  records[:MAX_RECORDS_PER_SITUATION],
+                  records[
+                      :MAX_RECORDS_PER_SITUATION
+                  ],
                   start=1,
               ):
+
+                  total_records_seen += 1
 
                   print("-" * 80)
                   print(
                       f"SITUATION {situation_index} "
-                      f"/ situationRecord {record_index}"
+                      f"/ RECORD {record_index}"
                   )
                   print("-" * 80)
                   print()
 
-                  if not isinstance(record, dict):
-                      print("Record type:")
-                      print(type(record).__name__)
+
+                  if not isinstance(
+                      record,
+                      dict,
+                  ):
+
+                      print(
+                          "Unexpected record type:"
+                      )
+                      print(
+                          type(record).__name__
+                      )
                       print()
-                      pprint(record)
-                      print()
+
+                      pprint(
+                          record
+                      )
+
                       continue
 
-                  # --------------------------------------------------
-                  # Complete raw record
-                  # --------------------------------------------------
 
-                  print("RAW RECORD:")
+                  # ----------------------------------------------------
+                  # Complete raw record
+                  # ----------------------------------------------------
+
+                  print("FULL RAW RECORD:")
+                  print()
+
                   print(
                       json.dumps(
                           record,
@@ -277,51 +503,82 @@ jobs:
                   )
                   print()
 
-                  # --------------------------------------------------
+
+                  # ----------------------------------------------------
                   # Record keys
-                  # --------------------------------------------------
+                  # ----------------------------------------------------
 
                   print("RECORD KEYS:")
-                  pprint(list(record.keys()))
-                  print()
-
-                  # --------------------------------------------------
-                  # Road / carriageway management
-                  # --------------------------------------------------
-
-                  management = record.get(
-                      "sitRoadOrCarriagewayOrLaneManagement"
-                  )
-
-                  print(
-                      "sitRoadOrCarriagewayOrLaneManagement:"
-                  )
-                  print(
-                      json.dumps(
-                          management,
-                          indent=2,
-                          ensure_ascii=False,
+                  pprint(
+                      list(
+                          record.keys()
                       )
                   )
                   print()
 
-                  if not isinstance(
-                      management,
-                      dict,
-                  ):
-                      continue
 
-                  print("MANAGEMENT KEYS:")
-                  pprint(list(management.keys()))
+                  # ----------------------------------------------------
+                  # Important top-level fields
+                  # ----------------------------------------------------
+
+                  print(
+                      "IMPORTANT TOP-LEVEL FIELDS:"
+                  )
                   print()
 
-                  # --------------------------------------------------
-                  # VALIDITY
-                  # --------------------------------------------------
+                  for field in (
+                      "idG",
+                      "situationRecordType",
+                      "recordVersion",
+                      "recordVersionTime",
+                      "situationRecordCreationTime",
+                      "situationRecordObservationTime",
+                      "situationRecordStatus",
+                      "overallSeverity",
+                      "probabilityOfOccurrence",
+                  ):
 
-                  validity = management.get(
+                      if field in record:
+
+                          print(
+                              f"{field}:"
+                          )
+
+                          print(
+                              json.dumps(
+                                  record[field],
+                                  indent=2,
+                                  ensure_ascii=False,
+                              )
+                          )
+
+                          print()
+
+
+                  # ----------------------------------------------------
+                  # Validity
+                  # ----------------------------------------------------
+
+                  validity = record.get(
                       "validity"
                   )
+
+                  if validity is None:
+
+                      management = record.get(
+                          "sitRoadOrCarriagewayOrLaneManagement",
+                          {}
+                      )
+
+                      if isinstance(
+                          management,
+                          dict,
+                      ):
+
+                          validity = management.get(
+                              "validity"
+                          )
+
 
                   print("=" * 80)
                   print("VALIDITY")
@@ -337,31 +594,55 @@ jobs:
                   )
                   print()
 
-                  if isinstance(validity, dict):
 
-                      validity_spec = validity.get(
-                          "validityTimeSpecification"
-                      )
+                  if isinstance(
+                      validity,
+                      dict,
+                  ):
 
                       print(
-                          "VALIDITY TIME SPECIFICATION:"
+                          "validityTimeSpecification:"
                       )
+
                       print(
                           json.dumps(
-                              validity_spec,
+                              validity.get(
+                                  "validityTimeSpecification"
+                              ),
                               indent=2,
                               ensure_ascii=False,
                           )
                       )
+
                       print()
 
-                  # --------------------------------------------------
-                  # LOCATION REFERENCE
-                  # --------------------------------------------------
 
-                  location_reference = management.get(
+                  # ----------------------------------------------------
+                  # Location reference
+                  # ----------------------------------------------------
+
+                  location_reference = record.get(
                       "locationReference"
                   )
+
+                  if location_reference is None:
+
+                      management = record.get(
+                          "sitRoadOrCarriagewayOrLaneManagement",
+                          {}
+                      )
+
+                      if isinstance(
+                          management,
+                          dict,
+                      ):
+
+                          location_reference = (
+                              management.get(
+                                  "locationReference"
+                              )
+                          )
+
 
                   print("=" * 80)
                   print("LOCATION REFERENCE")
@@ -377,110 +658,75 @@ jobs:
                   )
                   print()
 
-                  if isinstance(
-                      location_reference,
-                      dict,
-                  ):
 
-                      print(
-                          "LOCATION REFERENCE KEYS:"
-                      )
-                      pprint(
-                          list(
-                              location_reference.keys()
-                          )
-                      )
-                      print()
+                  # ----------------------------------------------------
+                  # Road management
+                  # ----------------------------------------------------
 
-                      print(
-                          "locLinearLocation:"
-                      )
-                      print(
-                          json.dumps(
-                              location_reference.get(
-                                  "locLinearLocation"
-                              ),
-                              indent=2,
-                              ensure_ascii=False,
-                          )
-                      )
-                      print()
-
-                      print(
-                          "locLocationGroupByList:"
-                      )
-                      print(
-                          json.dumps(
-                              location_reference.get(
-                                  "locLocationGroupByList"
-                              ),
-                              indent=2,
-                              ensure_ascii=False,
-                          )
-                      )
-                      print()
-
-                  # --------------------------------------------------
-                  # Any useful top-level record fields
-                  # --------------------------------------------------
+                  management = record.get(
+                      "sitRoadOrCarriagewayOrLaneManagement"
+                  )
 
                   print("=" * 80)
-                  print("IMPORTANT RECORD FIELDS")
+                  print(
+                      "ROAD / CARRIAGEWAY MANAGEMENT"
+                  )
                   print("=" * 80)
                   print()
 
-                  interesting_fields = [
-                      "id",
-                      "situationRecordType",
-                      "recordVersion",
-                      "recordVersionTime",
-                      "situationRecordCreationTime",
-                      "situationRecordObservationTime",
-                      "situationRecordStatus",
-                      "overallSeverity",
-                      "probabilityOfOccurrence",
-                      "roadMaintenance",
-                      "roadworks",
-                      "impact",
-                      "publicEvent",
-                  ]
+                  print(
+                      json.dumps(
+                          management,
+                          indent=2,
+                          ensure_ascii=False,
+                      )
+                  )
+                  print()
 
-                  for field in interesting_fields:
-                      if field in record:
-                          print(f"{field}:")
-                          print(
-                              json.dumps(
-                                  record[field],
-                                  indent=2,
-                                  ensure_ascii=False,
-                              )
-                          )
-                          print()
 
-          # ------------------------------------------------------------
-          # Summary
-          # ------------------------------------------------------------
+          # ============================================================
+          # FINAL SUMMARY
+          # ============================================================
 
           print("=" * 80)
-          print("TEST 5 COMPLETE")
+          print("TEST 5 SUMMARY")
           print("=" * 80)
           print()
+
           print(
-              "The Actions log above is the authoritative Test 5 output."
+              "Successful API request: YES"
           )
+
+          print(
+              "closureType supplied: NO"
+          )
+
+          print(
+              "Pagination followed: NO"
+          )
+
+          print(
+              "Records inspected in detail:",
+              total_records_seen,
+          )
+
           print()
+
           print(
-              "No closureType parameter was supplied."
+              "The GitHub Actions log is the "
+              "authoritative Test 5 output."
           )
+
+          print()
+
           print(
-              "No normalised importer processing was performed."
+              "No production importer was modified."
           )
+
           print(
-              "No data_processor.py processing was performed."
+              "No database was modified."
           )
-          print(
-              "No database writes were performed."
-          )
+
           print("=" * 80)
 
           PY
