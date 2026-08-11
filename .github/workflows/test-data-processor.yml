@@ -1,0 +1,629 @@
+name: Test Data Processor
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-data-processor:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests python-dotenv
+
+      - name: Run isolated parser test
+        env:
+          NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
+        run: |
+          python - <<'PY'
+          import os
+          import time
+          import traceback
+
+          import requests
+
+          from data_processor import (
+              extract_raw_records,
+              parse_situation_record,
+          )
+
+
+          API_URL = (
+              "https://api.data.nationalhighways.co.uk"
+              "/roads/v2.0/closures"
+          )
+
+          API_KEY = os.environ["NATIONAL_HIGHWAYS_API_KEY"]
+
+          START = "2026-08-11T00:00:00"
+          END = "2026-08-18T23:59:59"
+
+          headers = {
+              "Ocp-Apim-Subscription-Key": API_KEY,
+              "X-Response-MediaType": "application/json",
+              "X-Data-Format": "DATEXII",
+          }
+
+          params = {
+              "startDateTime": START,
+              "endDateTime": END,
+          }
+
+
+          print("=" * 80)
+          print("TEST 6")
+          print("ISOLATED DATA_PROCESSOR.PY PARSER TEST")
+          print("=" * 80)
+          print()
+          print("Purpose:")
+          print(
+              "Validate data_processor.py directly against the raw "
+              "D2Payload structure returned by National Highways."
+          )
+          print()
+          print("closureType: NOT supplied")
+          print("Pagination: NOT followed")
+          print(f"Start: {START}")
+          print(f"End:   {END}")
+          print()
+          print("Production importer: NOT USED")
+          print("Database: NOT USED")
+          print("test-api-window.yml: NOT USED")
+          print()
+          print("=" * 80)
+          print("API REQUEST")
+          print("=" * 80)
+          print()
+
+          # ------------------------------------------------------------
+          # API request with existing Retry-After rate-limit behaviour
+          # ------------------------------------------------------------
+
+          while True:
+
+              response = requests.get(
+                  API_URL,
+                  params=params,
+                  headers=headers,
+                  timeout=60,
+              )
+
+              print(
+                  f"HTTP status: {response.status_code}"
+              )
+
+              if response.status_code == 429:
+
+                  retry_after = response.headers.get(
+                      "Retry-After"
+                  )
+
+                  print()
+                  print("HTTP 429 RATE LIMIT")
+                  print(
+                      "Retry-After:",
+                      retry_after or "not supplied",
+                  )
+
+                  if not retry_after:
+                      raise RuntimeError(
+                          "HTTP 429 received without Retry-After."
+                      )
+
+                  try:
+                      wait_seconds = int(retry_after)
+                  except ValueError:
+                      raise RuntimeError(
+                          "Invalid Retry-After value: "
+                          f"{retry_after}"
+                      )
+
+                  print(
+                      f"Waiting {wait_seconds} seconds "
+                      "before retrying."
+                  )
+
+                  time.sleep(max(0, wait_seconds))
+                  continue
+
+              break
+
+          if response.status_code != 200:
+              print()
+              print("REQUEST FAILED")
+              print()
+              print(response.text[:5000])
+              raise RuntimeError(
+                  f"HTTP {response.status_code}"
+              )
+
+          print("HTTP request successful.")
+          print()
+
+          # ------------------------------------------------------------
+          # Decode raw response
+          # ------------------------------------------------------------
+
+          try:
+              payload = response.json()
+          except Exception as exc:
+              raise RuntimeError(
+                  "Response was not valid JSON."
+              ) from exc
+
+          if not isinstance(payload, dict):
+              raise RuntimeError(
+                  "Top-level response was not a JSON object."
+              )
+
+          d2payload = payload.get("D2Payload")
+
+          if not isinstance(d2payload, dict):
+              raise RuntimeError(
+                  "D2Payload was not found."
+              )
+
+          situations = d2payload.get("situation")
+
+          if not isinstance(situations, list):
+              raise RuntimeError(
+                  "D2Payload.situation was not a list."
+              )
+
+          print(
+              f"Situations returned: {len(situations)}"
+          )
+
+          # ------------------------------------------------------------
+          # Use the actual parser's raw-record extraction
+          # ------------------------------------------------------------
+
+          raw_records = extract_raw_records(payload)
+
+          print(
+              f"Raw situationRecords found: "
+              f"{len(raw_records)}"
+          )
+
+          print()
+
+          if not raw_records:
+              raise RuntimeError(
+                  "Parser found zero raw situation records."
+              )
+
+          # ------------------------------------------------------------
+          # Parse every raw situationRecord
+          # ------------------------------------------------------------
+
+          parsed_count = 0
+          failed_count = 0
+
+          missing_road = []
+          missing_direction = []
+          missing_location = []
+
+          management_types = {}
+          road_counts = {}
+
+          print("=" * 80)
+          print("PARSER RESULTS")
+          print("=" * 80)
+          print()
+
+          for index, raw_record in enumerate(
+              raw_records,
+              start=1,
+          ):
+
+              record_id = ""
+
+              management_record = raw_record.get(
+                  "sitRoadOrCarriagewayOrLaneManagement"
+              )
+
+              if isinstance(
+                  management_record,
+                  dict,
+              ):
+                  record_id = str(
+                      management_record.get(
+                          "idG",
+                          ""
+                      )
+                  )
+
+              try:
+
+                  parsed = parse_situation_record(
+                      raw_record
+                  )
+
+              except Exception as exc:
+
+                  failed_count += 1
+
+                  print(
+                      f"RECORD {index}: PARSER EXCEPTION"
+                  )
+                  print(
+                      f"ID: {record_id}"
+                  )
+                  print(
+                      f"ERROR: {exc}"
+                  )
+                  print()
+
+                  traceback.print_exc()
+                  print()
+
+                  continue
+
+              if parsed is None:
+
+                  failed_count += 1
+
+                  print(
+                      f"RECORD {index}: PARSER RETURNED NONE"
+                  )
+                  print(
+                      f"ID: {record_id}"
+                  )
+                  print()
+
+                  continue
+
+              parsed_count += 1
+
+              road = parsed.get(
+                  "road_name",
+                  ""
+              ) or ""
+
+              direction = parsed.get(
+                  "direction",
+                  ""
+              ) or ""
+
+              management_type = parsed.get(
+                  "management_type",
+                  ""
+              ) or ""
+
+              comment = parsed.get(
+                  "comment",
+                  ""
+              ) or ""
+
+              start = parsed.get(
+                  "start",
+                  ""
+              ) or ""
+
+              end = parsed.get(
+                  "end",
+                  ""
+              ) or ""
+
+              locations = parsed.get(
+                  "locations",
+                  []
+              )
+
+              location_count = (
+                  len(locations)
+                  if isinstance(
+                      locations,
+                      list,
+                  )
+                  else 0
+              )
+
+              validity_status = parsed.get(
+                  "validity_status",
+                  ""
+              ) or ""
+
+              print(
+                  f"RECORD {index}: OK"
+              )
+              print(
+                  f"ID: {record_id}"
+              )
+              print(
+                  f"ROAD: {road or '[MISSING]'}"
+              )
+              print(
+                  f"DIRECTION: "
+                  f"{direction or '[MISSING]'}"
+              )
+              print(
+                  f"MANAGEMENT: "
+                  f"{management_type or '[MISSING]'}"
+              )
+              print(
+                  f"STATUS: "
+                  f"{validity_status or '[MISSING]'}"
+              )
+              print(
+                  f"START: "
+                  f"{start or '[MISSING]'}"
+              )
+              print(
+                  f"END: "
+                  f"{end or '[MISSING]'}"
+              )
+              print(
+                  f"LOCATIONS: {location_count}"
+              )
+              print(
+                  f"COMMENT: "
+                  f"{comment or '[MISSING]'}"
+              )
+
+              print()
+
+              if not road:
+                  missing_road.append(
+                      (
+                          index,
+                          record_id,
+                          comment,
+                      )
+                  )
+
+              if not direction:
+                  missing_direction.append(
+                      (
+                          index,
+                          record_id,
+                          comment,
+                      )
+                  )
+
+              if location_count == 0:
+                  missing_location.append(
+                      (
+                          index,
+                          record_id,
+                          comment,
+                      )
+                  )
+
+              management_types[management_type] = (
+                  management_types.get(
+                      management_type,
+                      0
+                  ) + 1
+              )
+
+              if road:
+                  road_counts[road] = (
+                      road_counts.get(
+                          road,
+                          0
+                      ) + 1
+                  )
+
+          # ------------------------------------------------------------
+          # Summary
+          # ------------------------------------------------------------
+
+          print("=" * 80)
+          print("TEST 6 SUMMARY")
+          print("=" * 80)
+          print()
+
+          print(
+              f"Raw situationRecords: {len(raw_records)}"
+          )
+
+          print(
+              f"Successfully parsed: {parsed_count}"
+          )
+
+          print(
+              f"Parser failures: {failed_count}"
+          )
+
+          print(
+              f"Missing road_name: "
+              f"{len(missing_road)}"
+          )
+
+          print(
+              f"Missing direction: "
+              f"{len(missing_direction)}"
+          )
+
+          print(
+              f"No locations extracted: "
+              f"{len(missing_location)}"
+          )
+
+          print()
+
+          print("MANAGEMENT TYPES")
+          print("-" * 80)
+
+          for name, count in sorted(
+              management_types.items()
+          ):
+              print(
+                  f"{name or '[MISSING]'}: {count}"
+              )
+
+          print()
+
+          print("ROAD COUNTS")
+          print("-" * 80)
+
+          for name, count in sorted(
+              road_counts.items()
+          ):
+              print(
+                  f"{name}: {count}"
+              )
+
+          # ------------------------------------------------------------
+          # Missing-road detail
+          # ------------------------------------------------------------
+
+          print()
+          print("=" * 80)
+          print("RECORDS WITH MISSING ROAD NAME")
+          print("=" * 80)
+
+          if not missing_road:
+
+              print("None.")
+
+          else:
+
+              for (
+                  index,
+                  record_id,
+                  comment,
+              ) in missing_road:
+
+                  print()
+                  print(
+                      f"RECORD {index}"
+                  )
+                  print(
+                      f"ID: {record_id}"
+                  )
+                  print(
+                      f"COMMENT: {comment}"
+                  )
+
+          # ------------------------------------------------------------
+          # Location detail
+          # ------------------------------------------------------------
+
+          print()
+          print("=" * 80)
+          print("MULTI-LOCATION RECORDS")
+          print("=" * 80)
+
+          multi_location_count = 0
+
+          for index, raw_record in enumerate(
+              raw_records,
+              start=1,
+          ):
+
+              try:
+                  parsed = parse_situation_record(
+                      raw_record
+                  )
+              except Exception:
+                  continue
+
+              if not parsed:
+                  continue
+
+              locations = parsed.get(
+                  "locations",
+                  []
+              )
+
+              if (
+                  isinstance(locations, list)
+                  and len(locations) > 1
+              ):
+
+                  multi_location_count += 1
+
+                  record_id = parsed.get(
+                      "idG",
+                      ""
+                  )
+
+                  print(
+                      f"RECORD {index}: "
+                      f"{len(locations)} locations"
+                  )
+
+                  print(
+                      f"ID: {record_id}"
+                  )
+
+                  for location_number, location in enumerate(
+                      locations,
+                      start=1,
+                  ):
+
+                      print(
+                          f"  Location {location_number}: "
+                          f"road="
+                          f"{location.get('road_name', '')}, "
+                          f"direction="
+                          f"{location.get('direction', '')}, "
+                          f"type="
+                          f"{location.get('linear_element_type', '')}, "
+                          f"from="
+                          f"{location.get('from_distance')}, "
+                          f"to="
+                          f"{location.get('to_distance')}"
+                      )
+
+          print()
+
+          print(
+              f"Records containing multiple "
+              f"location segments: "
+              f"{multi_location_count}"
+          )
+
+          # ------------------------------------------------------------
+          # Final result
+          # ------------------------------------------------------------
+
+          print()
+          print("=" * 80)
+          print("TEST 6 FINAL RESULT")
+          print("=" * 80)
+          print()
+
+          if failed_count > 0:
+
+              print(
+                  "RESULT: FAIL"
+              )
+
+              raise SystemExit(
+                  "One or more raw records could not "
+                  "be parsed."
+              )
+
+          print(
+              "RESULT: PASS"
+          )
+
+          print()
+          print(
+              "All raw situationRecords were successfully "
+              "accepted by data_processor.py."
+          )
+
+          print(
+              "Missing fields are reported above for "
+              "parser-behaviour analysis."
+          )
+
+          print()
+          print("=" * 80)
+          print("END TEST 6")
+          print("=" * 80)
+          PY
