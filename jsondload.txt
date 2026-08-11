@@ -1,0 +1,2384 @@
+{
+    "openapi": "3.0.1",
+    "info": {
+        "title": "Road and Lane Closures Data Service (DATEX II)",
+        "description": "Road and Lane Closures is a data service to describe all current and future road and lane closures resulting from incidents, roadworks, or any other reason.\n\nThe service is built to support:\n - Journey time predictions\n - Incident management\n - Route planning\n - Road safety policy planning\n - Enabling real-time journey alerts\n\nThe precision of the output location attributes will be 6 decimal places: 0.000001 degrees, which is approximately 0.1 meters. \n\nUse the service to gain access to up to date traffic and related information from the Strategic Road Network (SRN) based on the DATEX II specification v3.4 (https://docs.datex2.eu).\n\n Please note that, the data service has maintained all multilingual strings as strings (highlighted in the properties' description) to streamline payload. \n\n Coverage\n--\n Current release of this service will provide near real time information on planned and unplanned closures.\n\nAcross 2025, the service will be iteratively improved to provide near real-time information on incidents. \n\n Guidance\n--\n 1. For planned closures - The geometry provided in posList pertains solely to the impacted geometry for the respective Link. It does not necessarily represent the complete geometry for the National Highway's Network Model Link or the entire impacted area when a Situation comprises multiple Links. \n\n 2. For unplanned closures - The geometry provided in posList pertains to the aggregated geometry of the impacted area per applicable path, across multiple links on the SRN. And the linear element attributes provided  corresponds to the starting link of the impacted area on the SRN. \n\n 2. Please note that, where the posList attribute appears in the response structure, does differ when a SituationRecord contains multiple impacted areas of the Network to when a SituationRecord contains only one.\n \t- In the event of data having multiple locations for a SituationRecord, the locationReference will be characterised by locLocationGroupByList.locationContainedInGroup[] with respective properties nested under. The affected geometry will be available within locLocationGroupByList.locationContainedInGroup[].locLinearLocation.gmlLineString.locGmlLineString.posList.\n \t- In the event of data having one location for a SituationRecord, the locationReference will be characterised by locLinearLocation with respective properties nested under. The affected geometry will be available directly within locLinearLocation.gmlLineString.locGmlLineString.posList\n\n \n 3. Where validityStatus equals ‘active’, the works have been confirmed as started\n 4. Where validityStatus equals ‘planned’, the works are scheduled for the validityTimeSpecification period. When the current date/time is within this period, the validityStatus will remain ‘planned’ until the works are confirmed as started, at which point, it will change to ‘active’, or confirmed as cancelled at which point, it will change to ‘suspended’. \n\n 5. Completed closures will be available as 'active' until +7 days of when works ended.\n\n 6. For unplanned closures, it is strongly recommended that the startDateTime and endDateTime query parameters are sent to receive accurate closures. Not providing start and end times  will force the API to default the date range of current timestamp and end of current day and may render lesser or no results.\n\n \tTo get results recently modified (last 15 minutes) that started in the last 6 hours\n \t- set modifiedSinceDateTime to now() minus 15 minutes\n \t- set endDateTime to now()\n \t- set startDateTime to now() minus 6 hours\n\n \n7. To ensure that road users receive timely and accurate information, it is your responsibility to call the API as frequently as appropriate for the product or service leveraging this data source and utilise the data in a manner that prioritises accuracy and timeliness. Delays in refreshing data could result in outdated messages being displayed which may not reflect current road conditions. \n\n DATEX II Guidance\n--\n 1. Please note that, the schema is based on an extension of Datex v3.4 for National Highways. \n\n 2. The data service has maintained all multilingual strings as strings (highlighted in the respective properties' description) to streamline the payload. \n\n 3. All location attributes are based on WGS84 Coordinate Reference System. \n\n 4. National Highways lane usage / XSP can be found in FAQs. . \n\nFAQ\n --\nMore information can be found at https://developer.data.nationalhighways.co.uk/faq",
+        "contact": {
+            "url": "https://developer.data.nationalhighways.co.uk/",
+            "email": "digitallaboperations@nationalhighways.co.uk"
+        },
+        "license": {
+            "name": "Open Government License (OGLv3.0)"
+        },
+        "version": "v2.0"
+    },
+    "servers": [
+        {
+            "url": "https://api.data.nationalhighways.co.uk/roads/v2.0"
+        }
+    ],
+    "paths": {
+        "/closures": {
+            "get": {
+                "tags": [
+                    "roadClosuresByType"
+                ],
+                "summary": "List all road closures",
+                "description": "List all road closures for a given closureType",
+                "operationId": "RoadClosures",
+                "parameters": [
+                    {
+                        "name": "closureType",
+                        "in": "query",
+                        "description": "The type of closures:\n\t'planned' - future and active planned closure events for roadworks\n\t'unplanned' - current active closure events due to an unplanned situation on the SRN.\n\n If no parameter is provided in the request, then the default action will be to return planned closures.",
+                        "schema": {
+                            "$ref": "#/components/schemas/ClosureType"
+                        }
+                    },
+                    {
+                        "name": "startDateTime",
+                        "in": "query",
+                        "description": "The date-time notation as defined by ISO 8601. Example: 2023-07-21T17:32:28 \nDefault behaviour will be to assume current date time where not specified. \n For unplanned closures, it is best to specify starttDatetime and endDateTime",
+                        "schema": {
+                            "$ref": "#/components/schemas/StartEndModifiedDateTime"
+                        }
+                    },
+                    {
+                        "name": "endDateTime",
+                        "in": "query",
+                        "description": "The date-time notation as defined by ISO 8601. Example: 2023-07-21T17:32:28 \nDefault behaviour will be to assume 23:59:59 of startDateTime where not specified.\n For unplanned closures, it is best to specify starttDatetime and endDateTime",
+                        "schema": {
+                            "$ref": "#/components/schemas/StartEndModifiedDateTime"
+                        }
+                    },
+                    {
+                        "name": "modifiedSinceDateTime",
+                        "in": "query",
+                        "description": "The date-time notation as defined by ISO 8601. Example: 2023-07-21T17:32:28 \nAllows to filter records that has been updated since the specified date/time within the existing startDateTime and endDateTime parameter date range. ",
+                        "schema": {
+                            "$ref": "#/components/schemas/StartEndModifiedDateTime"
+                        }
+                    },
+                    {
+                        "name": "pageCursor",
+                        "in": "query",
+                        "description": "Holds pagination cursor value to the next page of responses. This is part of the x-next response header url.\n When no value is specified this will retrieve responses for first page.\n Kindly be aware that the initial GET operation must be executed without including the PageCursor query parameter. This will return the first page of results, accompanied by a pagination link found in the x-next parameter of the header. After that, the link in the x-next parameter can be utilised to navigate through the next page of results  available until there are no more results.",
+                        "schema": {
+                            "$ref": "#/components/schemas/PageCursor"
+                        }
+                    },
+                    {
+                        "name": "Ocp-Apim-Subscription-Key",
+                        "in": "header",
+                        "description": "API subscription key",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/components/schemas/Ocp-Apim-Subscription-Key"
+                        }
+                    },
+                    {
+                        "name": "X-Response-MediaType",
+                        "in": "header",
+                        "description": "Media Type of the Response – Default Value is application/xml",
+                        "schema": {
+                            "$ref": "#/components/schemas/X-Response-MediaType"
+                        }
+                    },
+                    {
+                        "name": "X-Data-Format",
+                        "in": "header",
+                        "description": "Data exchange format of the response – default value is DATEXII",
+                        "schema": {
+                            "$ref": "#/components/schemas/X-Data-Format"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "A list of road closures based on the specified closure type",
+                        "headers": {
+                            "x-next": {
+                                "description": "A link to the next page of responses.",
+                                "schema": {
+                                    "$ref": "#/components/schemas/X-Next"
+                                }
+                            }
+                        },
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/D2Payload"
+                                },
+                                "examples": {
+                                    "planned closure with multiple location records": {
+                                        "summary": "Example of planned closure with multiple location records",
+                                        "value": {
+                                            "D2Payload": {
+                                                "version": "2025-03-04",
+                                                "modelBaseVersion": "3",
+                                                "lang": "en",
+                                                "feedDescription": "Road and Lane Closures",
+                                                "feedType": "SituationPublication",
+                                                "publicationTime": "2025-03-21T06:15:56.0000000+00:00",
+                                                "publicationCreator": {
+                                                    "country": "gb",
+                                                    "nationalIdentifier": "NationalHighways"
+                                                },
+                                                "situation": [
+                                                    {
+                                                        "idG": "384696",
+                                                        "situationVersionTime": "2025-03-21T05:41:43.0000000+00:00",
+                                                        "headerInformation": {
+                                                            "confidentiality": "noRestriction",
+                                                            "informationStatus": "real"
+                                                        },
+                                                        "situationRecord": [
+                                                            {
+                                                                "sitRoadOrCarriagewayOrLaneManagement": {
+                                                                    "idG": "1-1742368657-0985c698-d765-4085-b9c7-4c4d28205328",
+                                                                    "versionG": "1",
+                                                                    "situationRecordCreationTime": "2025-03-19T07:16:54.0000000+00:00",
+                                                                    "situationRecordVersionTime": "2025-03-21T05:41:43.0000000+00:00",
+                                                                    "probabilityOfOccurrence": "probable",
+                                                                    "complianceOption": "mandatory",
+                                                                    "roadOrCarriagewayOrLaneManagementType": {
+                                                                        "value": "other"
+                                                                    },
+                                                                    "source": {
+                                                                        "sourceIdentification": "roadworks"
+                                                                    },
+                                                                    "validity": {
+                                                                        "validityStatus": "planned",
+                                                                        "validityTimeSpecification": {
+                                                                            "overallStartTime": "2025-03-14T08:00:00.0000000+00:00",
+                                                                            "overallEndTime": "2025-03-15T06:00:00.0000000+00:00"
+                                                                        }
+                                                                    },
+                                                                    "cause": {
+                                                                        "causeType": "roadMaintenance",
+                                                                        "detailedCauseType": {
+                                                                            "roadMaintenanceType": [
+                                                                                "other"
+                                                                            ]
+                                                                        }
+                                                                    },
+                                                                    "generalPublicComment": [
+                                                                        {
+                                                                            "comment": "A120 both directions\nBlake End to Marks Farm roundabout - mobile lane closures/IPV for litter clearance works on behalf of Braintree District Council"
+                                                                        }
+                                                                    ],
+                                                                    "locationReference": {
+                                                                        "locLocationGroupByList": {
+                                                                            "locationContainedInGroup": [
+                                                                                {
+                                                                                    "locLinearLocation": {
+                                                                                        "gmlLineString": {
+                                                                                            "locGmlLineString": {
+                                                                                                "srsDimension": 2,
+                                                                                                "srsName": "EPSG::4326",
+                                                                                                "posList": "51.868835 0.525233 51.869 0.525917"
+                                                                                            }
+                                                                                        },
+                                                                                        "supplementaryPositionalDescription": {
+                                                                                            "locationDescription": "A120 eastbound between B1256 near Rayne (west) and A131 (south)",
+                                                                                            "carriageway": [
+                                                                                                {
+                                                                                                    "carriageway": {
+                                                                                                        "value": "extendedG",
+                                                                                                        "extendedValueG": "dualCarriageway"
+                                                                                                    },
+                                                                                                    "lane": [
+                                                                                                        {
+                                                                                                            "laneUsage": {
+                                                                                                                "value": "extendedG",
+                                                                                                                "extendedValueG": "cl1"
+                                                                                                            },
+                                                                                                            "laneNumber": 1,
+                                                                                                            "laneExtensionG": {
+                                                                                                                "impactOnLanes": {
+                                                                                                                    "impactExtensionG": {
+                                                                                                                        "lanesStatus": "closed",
+                                                                                                                        "laneImpactDirection": "aligned"
+                                                                                                                    }
+                                                                                                                }
+                                                                                                            }
+                                                                                                        }
+                                                                                                    ],
+                                                                                                    "carriagewayExtensionG": {
+                                                                                                        "impactOnCarriageway": {
+                                                                                                            "numberOfLanesRestricted": 1,
+                                                                                                            "numberOfOperationalLanes": 3
+                                                                                                        }
+                                                                                                    }
+                                                                                                }
+                                                                                            ]
+                                                                                        }
+                                                                                    },
+                                                                                    "locSingleRoadLinearLocation": {
+                                                                                        "linearWithinLinearElement": [
+                                                                                            {
+                                                                                                "directionOnLinearSection": "eastBound",
+                                                                                                "directionRelativeOnLinearSection": "aligned",
+                                                                                                "heightGradeOfLinearSection": {
+                                                                                                    "value": "extendedG",
+                                                                                                    "extendedValueG": "start2End1"
+                                                                                                },
+                                                                                                "linearElement": {
+                                                                                                    "locLinearElementByCode": {
+                                                                                                        "roadName": "A120",
+                                                                                                        "linearElementReferenceModel": "The Network Model",
+                                                                                                        "linearElementIdentifier": "{33332A8E-2026-4D6D-9B3E-5421B4A85121}",
+                                                                                                        "linearElementByCodeExtensionG": {
+                                                                                                            "linearElementType": "aCarriageway"
+                                                                                                        }
+                                                                                                    }
+                                                                                                },
+                                                                                                "fromPoint": {
+                                                                                                    "locDistanceFromLinearElementStart": {
+                                                                                                        "distanceAlong": 0
+                                                                                                    }
+                                                                                                },
+                                                                                                "toPoint": {
+                                                                                                    "locDistanceFromLinearElementStart": {
+                                                                                                        "distanceAlong": 50
+                                                                                                    }
+                                                                                                }
+                                                                                            }
+                                                                                        ]
+                                                                                    }
+                                                                                },
+                                                                                {
+                                                                                    "locLinearLocation": {
+                                                                                        "gmlLineString": {
+                                                                                            "locGmlLineString": {
+                                                                                                "srsDimension": 2,
+                                                                                                "srsName": "EPSG::4326",
+                                                                                                "posList": "51.869825 0.534082 51.869803 0.534249 51.869803 0.534252"
+                                                                                            }
+                                                                                        },
+                                                                                        "supplementaryPositionalDescription": {
+                                                                                            "locationDescription": "A120 eastbound within the A131 (south) junction",
+                                                                                            "carriageway": [
+                                                                                                {
+                                                                                                    "carriageway": {
+                                                                                                        "value": "extendedG",
+                                                                                                        "extendedValueG": "dualCarriageway"
+                                                                                                    },
+                                                                                                    "lane": [
+                                                                                                        {
+                                                                                                            "laneUsage": {
+                                                                                                                "value": "extendedG",
+                                                                                                                "extendedValueG": "cl1"
+                                                                                                            },
+                                                                                                            "laneNumber": 1,
+                                                                                                            "laneExtensionG": {
+                                                                                                                "impactOnLanes": {
+                                                                                                                    "impactExtensionG": {
+                                                                                                                        "lanesStatus": "closed",
+                                                                                                                        "laneImpactDirection": "aligned"
+                                                                                                                    }
+                                                                                                                }
+                                                                                                            }
+                                                                                                        }
+                                                                                                    ],
+                                                                                                    "carriagewayExtensionG": {
+                                                                                                        "impactOnCarriageway": {
+                                                                                                            "numberOfLanesRestricted": 1,
+                                                                                                            "numberOfOperationalLanes": 2
+                                                                                                        }
+                                                                                                    }
+                                                                                                }
+                                                                                            ]
+                                                                                        }
+                                                                                    },
+                                                                                    "locSingleRoadLinearLocation": {
+                                                                                        "linearWithinLinearElement": [
+                                                                                            {
+                                                                                                "directionOnLinearSection": "eastBound",
+                                                                                                "directionRelativeOnLinearSection": "aligned",
+                                                                                                "heightGradeOfLinearSection": {
+                                                                                                    "value": "extendedG",
+                                                                                                    "extendedValueG": "start2End2"
+                                                                                                },
+                                                                                                "linearElement": {
+                                                                                                    "locLinearElementByCode": {
+                                                                                                        "roadName": "A120",
+                                                                                                        "linearElementReferenceModel": "The Network Model",
+                                                                                                        "linearElementIdentifier": "{6663B77B-43E4-4D94-A32E-5D61D93D2BEB}",
+                                                                                                        "linearElementByCodeExtensionG": {
+                                                                                                            "linearElementType": "aCarriageway"
+                                                                                                        }
+                                                                                                    }
+                                                                                                },
+                                                                                                "fromPoint": {
+                                                                                                    "locDistanceFromLinearElementStart": {
+                                                                                                        "distanceAlong": 0
+                                                                                                    }
+                                                                                                },
+                                                                                                "toPoint": {
+                                                                                                    "locDistanceFromLinearElementStart": {
+                                                                                                        "distanceAlong": 11
+                                                                                                    }
+                                                                                                }
+                                                                                            }
+                                                                                        ]
+                                                                                    }
+                                                                                }
+                                                                            ]
+                                                                        }
+                                                                    },
+                                                                    "roadOrCarriagewayOrLaneManagementExtensionG": {
+                                                                        "hasWidthRestrictionFlag": false,
+                                                                        "hasHeightRestrictionFlag": false,
+                                                                        "hasWeightRestrictionFlag": false,
+                                                                        "hasContraFlow": false
+                                                                    }
+                                                                }
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "unplanned closure with single location record": {
+                                        "summary": "Example of unplanned closure with single location record",
+                                        "value": {
+                                            "D2Payload": {
+                                                "version": "2025-03-04",
+                                                "modelBaseVersion": "3",
+                                                "lang": "en",
+                                                "feedDescription": "Road and Lane Closures",
+                                                "feedType": "SituationPublication",
+                                                "publicationTime": "2025-03-21T06:27:56.0000000+00:00",
+                                                "publicationCreator": {
+                                                    "country": "gb",
+                                                    "nationalIdentifier": "NationalHighways"
+                                                },
+                                                "situation": [
+                                                    {
+                                                        "idG": "signs/M6-S6216B",
+                                                        "situationVersionTime": "2025-03-21T06:03:57.0000000+00:00",
+                                                        "headerInformation": {
+                                                            "confidentiality": "noRestriction",
+                                                            "informationStatus": "real"
+                                                        },
+                                                        "situationRecord": [
+                                                            {
+                                                                "sitRoadOrCarriagewayOrLaneManagement": {
+                                                                    "idG": "7-1742580170-ee8afbb2-efad-4380-954e-a2ec6e9021b2-close",
+                                                                    "versionG": "1",
+                                                                    "situationRecordCreationTime": "2025-03-21T06:01:57.0000000+00:00",
+                                                                    "situationRecordVersionTime": "2025-03-21T06:03:57.0000000+00:00",
+                                                                    "probabilityOfOccurrence": "certain",
+                                                                    "complianceOption": "mandatory",
+                                                                    "roadOrCarriagewayOrLaneManagementType": {
+                                                                        "value": "laneClosures"
+                                                                    },
+                                                                    "source": {
+                                                                        "sourceIdentification": "Signs and Signals"
+                                                                    },
+                                                                    "validity": {
+                                                                        "validityStatus": "active",
+                                                                        "validityTimeSpecification": {
+                                                                            "overallStartTime": "2025-03-21T06:01:57.0000000+00:00",
+                                                                            "overallEndTime": "2025-03-21T06:16:57.0000000+00:00"
+                                                                        }
+                                                                    },
+                                                                    "cause": {
+                                                                        "causeType": "roadOrCarriagewayOrLaneManagement",
+                                                                        "detailedCauseType": {
+                                                                            "roadOrCarriagewayOrLaneManagementType": {
+                                                                                "value": "laneClosures"
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    "generalPublicComment": [
+                                                                        {
+                                                                            "comment": "laneClosures"
+                                                                        }
+                                                                    ],
+                                                                    "locationReference": {
+                                                                        "locLinearLocation": {
+                                                                            "gmlLineString": {
+                                                                                "locGmlLineString": {
+                                                                                    "srsDimension": 2,
+                                                                                    "srsName": "ESPG::4326",
+                                                                                    "posList": "52.777935 -2.118535 52.777526 -2.118181 52.777445 -2.118107 52.777176 -2.117899 52.776718 -2.117557 52.776296 -2.117274 52.77573 -2.116931 52.774274 -2.116142 52.77402 -2.115997 52.772854 -2.115352 52.771916 -2.114844"
+                                                                                }
+                                                                            },
+                                                                            "supplementaryPositionalDescription": {
+                                                                                "locationDescription": "M6 southbound between J14 and J13",
+                                                                                "carriageway": [
+                                                                                    {
+                                                                                        "carriageway": {
+                                                                                            "value": "extendedG",
+                                                                                            "extendedValueG": "dualCarriageway"
+                                                                                        },
+                                                                                        "lane": [
+                                                                                            {
+                                                                                                "laneUsage": {
+                                                                                                    "value": "extendedG",
+                                                                                                    "extendedValueG": "cl1"
+                                                                                                },
+                                                                                                "laneNumber": 1,
+                                                                                                "laneExtensionG": {
+                                                                                                    "impactOnLanes": {
+                                                                                                        "impactExtensionG": {
+                                                                                                            "lanesStatus": "closed",
+                                                                                                            "laneImpactDirection": "aligned"
+                                                                                                        }
+                                                                                                    }
+                                                                                                }
+                                                                                            },
+                                                                                            {
+                                                                                                "laneUsage": {
+                                                                                                    "value": "extendedG",
+                                                                                                    "extendedValueG": "cl2"
+                                                                                                },
+                                                                                                "laneNumber": 2,
+                                                                                                "laneExtensionG": {
+                                                                                                    "impactOnLanes": {
+                                                                                                        "impactExtensionG": {
+                                                                                                            "lanesStatus": "open",
+                                                                                                            "laneImpactDirection": "aligned"
+                                                                                                        }
+                                                                                                    }
+                                                                                                }
+                                                                                            },
+                                                                                            {
+                                                                                                "laneUsage": {
+                                                                                                    "value": "extendedG",
+                                                                                                    "extendedValueG": "cl3"
+                                                                                                },
+                                                                                                "laneNumber": 3,
+                                                                                                "laneExtensionG": {
+                                                                                                    "impactOnLanes": {
+                                                                                                        "impactExtensionG": {
+                                                                                                            "lanesStatus": "open",
+                                                                                                            "laneImpactDirection": "aligned"
+                                                                                                        }
+                                                                                                    }
+                                                                                                }
+                                                                                            },
+                                                                                            {
+                                                                                                "laneUsage": {
+                                                                                                    "value": "extendedG",
+                                                                                                    "extendedValueG": "cl4"
+                                                                                                },
+                                                                                                "laneNumber": 4,
+                                                                                                "laneExtensionG": {
+                                                                                                    "impactOnLanes": {
+                                                                                                        "impactExtensionG": {
+                                                                                                            "lanesStatus": "open",
+                                                                                                            "laneImpactDirection": "aligned"
+                                                                                                        }
+                                                                                                    }
+                                                                                                }
+                                                                                            }
+                                                                                        ],
+                                                                                        "carriagewayExtensionG": {
+                                                                                            "impactOnCarriageway": {
+                                                                                                "numberOfLanesRestricted": 1,
+                                                                                                "numberOfOperationalLanes": 3
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                ]
+                                                                            }
+                                                                        },
+                                                                        "locSingleRoadLinearLocation": {
+                                                                            "linearWithinLinearElement": [
+                                                                                {
+                                                                                    "directionOnLinearSection": "southBound",
+                                                                                    "directionRelativeOnLinearSection": "aligned",
+                                                                                    "heightGradeOfLinearSection": {
+                                                                                        "value": "extendedG",
+                                                                                        "extendedValueG": "start2End1"
+                                                                                    },
+                                                                                    "linearElement": {
+                                                                                        "locLinearElementByCode": {
+                                                                                            "roadName": "M6",
+                                                                                            "linearElementReferenceModel": "The Network Model",
+                                                                                            "linearElementIdentifier": "{68CEE502-B1B4-41ED-9823-0F1356C93FF0}",
+                                                                                            "linearElementByCodeExtensionG": {
+                                                                                                "linearElementType": "bCarriageway"
+                                                                                            }
+                                                                                        }
+                                                                                    },
+                                                                                    "fromPoint": {
+                                                                                        "locDistanceFromLinearElementStart": {
+                                                                                            "distanceAlong": 844
+                                                                                        }
+                                                                                    },
+                                                                                    "toPoint": {
+                                                                                        "locDistanceFromLinearElementStart": {
+                                                                                            "distanceAlong": 26
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                            ]
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    },
+                                    "incident ": {
+                                        "summary": "Example of an incident response ",
+                                        "value": {
+                                            "D2Payload": {
+                                                "version": "2025-03-04",
+                                                "modelBaseVersion": "3",
+                                                "lang": "en",
+                                                "feedDescription": "Road and Lane Closures",
+                                                "feedType": "SituationPublication",
+                                                "publicationTime": "2025-03-20T11:32:00.0000000+00:00",
+                                                "publicationCreator": {
+                                                    "country": "gb",
+                                                    "nationalIdentifier": "NationalHighways"
+                                                },
+                                                "situation": [
+                                                    {
+                                                        "idG": "000007-20032025 - 110312",
+                                                        "situationVersionTime": "2025-03-20T11:30:37.0000000+00:00",
+                                                        "headerInformation": {
+                                                            "confidentiality": "noRestriction",
+                                                            "informationStatus": "real"
+                                                        },
+                                                        "situationRecord": [
+                                                            {
+                                                                "sitRoadOrCarriagewayOrLaneManagement": {
+                                                                    "idG": "1742580170-ee8afbb2-efad-4380-954e-a2ec6e9021b2",
+                                                                    "versionG": "1742472564388",
+                                                                    "situationRecordCreationTime": "2025-03-20T11:28:24.0000000+00:00",
+                                                                    "situationRecordVersionTime": "2025-03-20T11:30:37.0000000+00:00",
+                                                                    "probabilityOfOccurrence": "certain",
+                                                                    "complianceOption": "mandatory",
+                                                                    "roadOrCarriagewayOrLaneManagementType": {
+                                                                        "value": "laneClosures"
+                                                                    },
+                                                                    "source": {
+                                                                        "sourceIdentification": "Incident Management"
+                                                                    },
+                                                                    "validity": {
+                                                                        "validityStatus": "definedByValidityTimeSpec",
+                                                                        "validityTimeSpecification": {
+                                                                            "overallStartTime": "2025-03-20T11:03:12.0000000+00:00",
+                                                                            "overallEndTime": "2025-03-20T12:24:23.0000000+00:00"
+                                                                        }
+                                                                    },
+                                                                    "cause": {
+                                                                        "causeType": "vehicleObstruction",
+                                                                        "detailedCauseType": {
+                                                                            "vehicleObstructionType": "brokenDownVehicle"
+                                                                        }
+                                                                    },
+                                                                    "generalPublicComment": [
+                                                                        {
+                                                                            "comment": "Breakdown [M62A/M60A, Eccles from 0.72 to 0.72]"
+                                                                        }
+                                                                    ],
+                                                                    "locationReference": {
+                                                                        "locPointLocation": {
+                                                                            "pointByCoordinates": {
+                                                                                "pointCoordinates": {
+                                                                                    "latitude": 53.489254,
+                                                                                    "longitude": -2.3784728
+                                                                                }
+                                                                            },
+                                                                            "pointAlongLinearElement": [
+                                                                                {
+                                                                                    "directionAtPoint": "souththbound",
+                                                                                    "directionRelativeAtPoint": "aligned",
+                                                                                    "heightGradeOfPoint": {
+                                                                                        "value": "extendedG",
+                                                                                        "extendedValueG": "start1End1"
+                                                                                    },
+                                                                                    "linearElement": {
+                                                                                        "locLinearElementByCode": {
+                                                                                            "roadName": "M62",
+                                                                                            "linearElementReferenceModel": "The Network Model",
+                                                                                            "linearElementIdentifier": "{}",
+                                                                                            "linearElementByCodeExtensionG": {
+                                                                                                "linearElementType": "aCarriageway"
+                                                                                            }
+                                                                                        }
+                                                                                    },
+                                                                                    "distanceAlongLinearElement": {
+                                                                                        "locDistanceFromLinearElementStart": {
+                                                                                            "distanceAlong": 0.72
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                            ],
+                                                                            "supplementaryPositionalDescription": {
+                                                                                "locationDescription": "link road from M62 J10 westbound to M6 J21A northbound",
+                                                                                "carriageway": [
+                                                                                    {
+                                                                                        "carriageway": {
+                                                                                            "value": "slipRoads"
+                                                                                        },
+                                                                                        "lane": [
+                                                                                            {
+                                                                                                "laneUsage": {
+                                                                                                    "value": "extendedG",
+                                                                                                    "extendedValueG": "cl2"
+                                                                                                },
+                                                                                                "laneNumber": 2,
+                                                                                                "laneExtensionG": {
+                                                                                                    "impactOnLanes": {
+                                                                                                        "impactExtensionG": {
+                                                                                                            "lanesStatus": "closed",
+                                                                                                            "laneImpactDirection": "aligned"
+                                                                                                        }
+                                                                                                    }
+                                                                                                }
+                                                                                            }
+                                                                                        ],
+                                                                                        "carriagewayExtensionG": {
+                                                                                            "impactOnCarriageway": {
+                                                                                                "numberOfLanesRestricted": 1,
+                                                                                                "numberOfOperationalLanes": 1
+                                                                                            }
+                                                                                        }
+                                                                                    }
+                                                                                ]
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        ]
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            "application/xml": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/D2Payload"
+                                },
+                                "examples": {
+                                    "example1": {
+                                        "summary": "Example of planned closure",
+                                        "value": "<?xml version=\"1.0\" encoding=\"UTF-8\" ?><D2Payload><version>3.4</version><modelBaseVersion>3</modelBaseVersion><lang>en</lang><feedDescription>Road and Lane Closures</feedDescription><feedType>SituationPublication</feedType><publicationTime>2025-03-21T18:15:56.56Z</publicationTime><publicationCreator><country>gb</country><nationalIdentifier>NationalHighways</nationalIdentifier></publicationCreator><situation><idG>384696</idG><situationVersionTime>2025-03-21T17:41:43.43Z</situationVersionTime><headerInformation><confidentiality>noRestriction</confidentiality><informationStatus>real</informationStatus></headerInformation><situationRecord><sitRoadOrCarriagewayOrLaneManagement><idG>1-1742368657-0985c698-d765-4085-b9c7-4c4d28205328</idG><versionG>1</versionG><situationRecordCreationTime>2025-03-19T07:16:54.54Z</situationRecordCreationTime><situationRecordVersionTime>2025-03-21T17:41:43.43Z</situationRecordVersionTime><probabilityOfOccurrence>probable</probabilityOfOccurrence><complianceOption>mandatory</complianceOption><roadOrCarriagewayOrLaneManagementType><value>other</value></roadOrCarriagewayOrLaneManagementType><source><sourceIdentification>roadworks</sourceIdentification></source><validity><validityStatus>planned</validityStatus><validityTimeSpecification><overallStartTime>2025-03-14T20:00:00.00Z</overallStartTime><overallEndTime>2025-03-15T06:00:00.00Z</overallEndTime></validityTimeSpecification></validity><cause><causeType>roadMaintenance</causeType><detailedCauseType><roadMaintenanceType>other</roadMaintenanceType></detailedCauseType></cause><generalPublicComment><comment>A120 both directionsBlake End to Marks Farm roundabout - mobile lane closures/IPV for litter clearance works on behalf of Braintree District Council</comment></generalPublicComment><locationReference><locLocationGroupByList><locationContainedInGroup><locLinearLocation><gmlLineString><locGmlLineString><srsDimension>2</srsDimension><srsName>EPSG::4326</srsName><posList>51.868835 0.525233 51.869 0.525917</posList></locGmlLineString></gmlLineString><supplementaryPositionalDescription><locationDescription>A120 eastbound between B1256 near Rayne (west) and A131 (south)</locationDescription><carriageway><carriageway><value>extendedG</value><extendedValueG>dualCarriageway</extendedValueG></carriageway><lane><laneUsage><value>extendedG</value><extendedValueG>cl1</extendedValueG></laneUsage><laneNumber>1</laneNumber><laneExtensionG><impactOnLanes><impactExtensionG><lanesStatus>closed</lanesStatus><laneImpactDirection>aligned</laneImpactDirection></impactExtensionG></impactOnLanes></laneExtensionG></lane><carriagewayExtensionG><impactOnCarriageway><numberOfLanesRestricted>1</numberOfLanesRestricted><numberOfOperationalLanes>3</numberOfOperationalLanes></impactOnCarriageway></carriagewayExtensionG></carriageway></supplementaryPositionalDescription></locLinearLocation><locSingleRoadLinearLocation><linearWithinLinearElement><directionOnLinearSection>eastBound</directionOnLinearSection><directionRelativeOnLinearSection>aligned</directionRelativeOnLinearSection><heightGradeOfLinearSection><value>extendedG</value><extendedValueG>start2End1</extendedValueG></heightGradeOfLinearSection><linearElement><locLinearElementByCode><roadName>A120</roadName><linearElementReferenceModel>The Network Model</linearElementReferenceModel><linearElementIdentifier>{33332A8E-2026-4D6D-9B3E-5421B4A85121}</linearElementIdentifier><linearElementByCodeExtensionG><linearElementType>aCarriageway</linearElementType></linearElementByCodeExtensionG></locLinearElementByCode></linearElement><fromPoint><locDistanceFromLinearElementStart><distanceAlong>0</distanceAlong></locDistanceFromLinearElementStart></fromPoint><toPoint><locDistanceFromLinearElementStart><distanceAlong>50</distanceAlong></locDistanceFromLinearElementStart></toPoint></linearWithinLinearElement></locSingleRoadLinearLocation></locationContainedInGroup><locationContainedInGroup><locLinearLocation><gmlLineString><locGmlLineString><srsDimension>2</srsDimension><srsName>EPSG::4326</srsName><posList>51.869825 0.534082 51.869803 0.534249 51.869803 0.534252</posList></locGmlLineString></gmlLineString><supplementaryPositionalDescription><locationDescription>A120 eastbound within the A131 (south) junction</locationDescription><carriageway><carriageway><value>extendedG</value><extendedValueG>dualCarriageway</extendedValueG></carriageway><lane><laneUsage><value>extendedG</value><extendedValueG>cl1</extendedValueG></laneUsage><laneNumber>1</laneNumber><laneExtensionG><impactOnLanes><impactExtensionG><lanesStatus>closed</lanesStatus><laneImpactDirection>aligned</laneImpactDirection></impactExtensionG></impactOnLanes></laneExtensionG></lane><carriagewayExtensionG><impactOnCarriageway><numberOfLanesRestricted>1</numberOfLanesRestricted><numberOfOperationalLanes>2</numberOfOperationalLanes></impactOnCarriageway></carriagewayExtensionG></carriageway></supplementaryPositionalDescription></locLinearLocation><locSingleRoadLinearLocation><linearWithinLinearElement><directionOnLinearSection>eastBound</directionOnLinearSection><directionRelativeOnLinearSection>aligned</directionRelativeOnLinearSection><heightGradeOfLinearSection><value>extendedG</value><extendedValueG>start2End2</extendedValueG></heightGradeOfLinearSection><linearElement><locLinearElementByCode><roadName>A120</roadName><linearElementReferenceModel>The Network Model</linearElementReferenceModel><linearElementIdentifier>{6663B77B-43E4-4D94-A32E-5D61D93D2BEB}</linearElementIdentifier><linearElementByCodeExtensionG><linearElementType>aCarriageway</linearElementType></linearElementByCodeExtensionG></locLinearElementByCode></linearElement><fromPoint><locDistanceFromLinearElementStart><distanceAlong>0</distanceAlong></locDistanceFromLinearElementStart></fromPoint><toPoint><locDistanceFromLinearElementStart><distanceAlong>11</distanceAlong></locDistanceFromLinearElementStart></toPoint></linearWithinLinearElement></locSingleRoadLinearLocation></locationContainedInGroup></locLocationGroupByList></locationReference><roadOrCarriagewayOrLaneManagementExtensionG><hasWidthRestrictionFlag>false</hasWidthRestrictionFlag><hasHeightRestrictionFlag>false</hasHeightRestrictionFlag><hasWeightRestrictionFlag>false</hasWeightRestrictionFlag><hasContraFlow>false</hasContraFlow></roadOrCarriagewayOrLaneManagementExtensionG></sitRoadOrCarriagewayOrLaneManagement></situationRecord></situation></D2Payload>"
+                                    },
+                                    "example2": {
+                                        "summary": "Example of unplanned closure with single location record",
+                                        "value": "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>version>3.4</version><modelBaseVersion>3</modelBaseVersion><lang>en</lang><feedDescription>Road and Lane Closures</feedDescription><feedType>SituationPublication</feedType><publicationTime>2025-03-21T18:27:56.56Z</publicationTime><publicationCreator><country>gb</country><nationalIdentifier>NationalHighways</nationalIdentifier></publicationCreator><situation><idG>signs/M6-S6216B</idG><situationVersionTime>2025-03-21T18:03:57.57Z</situationVersionTime><headerInformation><confidentiality>noRestriction</confidentiality><informationStatus>real</informationStatus></headerInformation><situationRecord><sitRoadOrCarriagewayOrLaneManagement><idG>7-1742580170-ee8afbb2-efad-4380-954e-a2ec6e9021b2-close</idG><versionG>1</versionG><situationRecordCreationTime>2025-03-21T18:01:57.57Z</situationRecordCreationTime><situationRecordVersionTime>2025-03-21T18:03:57.57Z</situationRecordVersionTime><probabilityOfOccurrence>certain</probabilityOfOccurrence><complianceOption>mandatory</complianceOption><roadOrCarriagewayOrLaneManagementType><value>laneClosures</value></roadOrCarriagewayOrLaneManagementType><source><sourceIdentification>Signs and Signals</sourceIdentification></source><validity><validityStatus>active</validityStatus><validityTimeSpecification><overallStartTime>2025-03-21T18:01:57.57Z</overallStartTime><overallEndTime>2025-03-21T18:16:57.57Z</overallEndTime></validityTimeSpecification></validity><cause><causeType>roadOrCarriagewayOrLaneManagement</causeType><detailedCauseType><roadOrCarriagewayOrLaneManagementType>laneClosures</roadOrCarriagewayOrLaneManagementType></detailedCauseType></cause><generalPublicComment><comment>laneClosures</comment></generalPublicComment><locationReference><locLinearLocation><gmlLineString><locGmlLineString><srsDimension>2</srsDimension><srsName>ESPG::4326</srsName><posList>52.777935 -2.118535 52.777526 -2.118181 52.777445 -2.118107 52.777176 -2.117899 52.776718 -2.117557 52.776296 -2.117274 52.77573 -2.116931 52.774274 -2.116142 52.77402 -2.115997 52.772854 -2.115352 52.771916 -2.114844</posList></locGmlLineString></gmlLineString><supplementaryPositionalDescription><locationDescription>M6 southbound between J14 and J13</locationDescription><carriageway><carriageway><value>extendedG</value><extendedValueG>dualCarriageway</extendedValueG></carriageway><lane><laneUsage><value>extendedG</value><extendedValueG>cl1</extendedValueG></laneUsage><laneNumber>1</laneNumber><laneExtensionG><impactOnLanes><impactExtensionG><lanesStatus>Closed</lanesStatus><laneImpactDirection>aligned</laneImpactDirection></impactExtensionG></impactOnLanes></laneExtensionG></lane><lane><laneUsage><value>extendedG</value><extendedValueG>cl2</extendedValueG></laneUsage><laneNumber>2</laneNumber><laneExtensionG><impactOnLanes><impactExtensionG><lanesStatus>Open</lanesStatus><laneImpactDirection>aligned</laneImpactDirection></impactExtensionG></impactOnLanes></laneExtensionG></lane><lane><laneUsage><value>extendedG</value><extendedValueG>cl3</extendedValueG></laneUsage><laneNumber>3</laneNumber><laneExtensionG><impactOnLanes><impactExtensionG><lanesStatus>Open</lanesStatus><laneImpactDirection>aligned</laneImpactDirection></impactExtensionG></impactOnLanes></laneExtensionG></lane><lane><laneUsage><value>extendedG</value><extendedValueG>cl4</extendedValueG></laneUsage><laneNumber>4</laneNumber><laneExtensionG><impactOnLanes><impactExtensionG><lanesStatus>Open</lanesStatus><laneImpactDirection>aligned</laneImpactDirection></impactExtensionG></impactOnLanes></laneExtensionG></lane><carriagewayExtensionG><impactOnCarriageway><numberOfLanesRestricted>1</numberOfLanesRestricted><numberOfOperationalLanes>3</numberOfOperationalLanes></impactOnCarriageway></carriagewayExtensionG></carriageway></supplementaryPositionalDescription></locLinearLocation><locSingleRoadLinearLocation><linearWithinLinearElement><directionOnLinearSection>southBound</directionOnLinearSection><directionRelativeOnLinearSection>aligned</directionRelativeOnLinearSection><heightGradeOfLinearSection><value>extendedG</value><extendedValueG>start2End1</extendedValueG></heightGradeOfLinearSection><linearElement><locLinearElementByCode><roadName>M6</roadName><linearElementReferenceModel>The Network Model</linearElementReferenceModel><linearElementIdentifier>{68CEE502-B1B4-41ED-9823-0F1356C93FF0}</linearElementIdentifier><linearElementByCodeExtensionG><linearElementType>bCarriageway</linearElementType></linearElementByCodeExtensionG></locLinearElementByCode></linearElement><fromPoint><locDistanceFromLinearElementStart><distanceAlong>844</distanceAlong></locDistanceFromLinearElementStart></fromPoint><toPoint><locDistanceFromLinearElementStart><distanceAlong>26</distanceAlong></locDistanceFromLinearElementStart></toPoint></linearWithinLinearElement></locSingleRoadLinearLocation></locationReference></sitRoadOrCarriagewayOrLaneManagement></situationRecord></situation></D2Payload>"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "When invalid parameters passed in the request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                },
+                                "example": {
+                                    "summary": "When invalid parameters passed in the request",
+                                    "value": {
+                                        "message": "One or more errors occurred"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "When the token validation is unsuccessful",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                },
+                                "example": {
+                                    "summary": "When the token validation is unsuccessful",
+                                    "value": {
+                                        "message": "Invalid Subscription Key"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "When parameters fail validation",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                },
+                                "example": {
+                                    "summary": "When parameters fail validation,",
+                                    "value": {
+                                        "message": "Request Parameter Exception: []"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "429": {
+                        "description": "When too many requests are received within a time interval and rate limit is exceeded",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                },
+                                "example": {
+                                    "summary": "When too many requests are received within a time interval and rate limit is exceeded",
+                                    "value": {
+                                        "message": "Rate limit is exceeded. Try again in xx seconds"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                },
+                                "example": {
+                                    "summary": "Internal Server Error",
+                                    "value": {
+                                        "message": "An internal error occured"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "D2Payload": {
+                "title": "D2Payload",
+                "type": "object",
+                "properties": {
+                    "D2Payload": {
+                        "$ref": "#/components/schemas/SituationPublication"
+                    }
+                },
+                "description": "."
+            },
+            "SituationPublication": {
+                "title": "SituationPublication",
+                "required": [
+                    "lang",
+                    "publicationTime",
+                    "publicationCreator"
+                ],
+                "type": "object",
+                "properties": {
+                    "version": {
+                        "type": "string",
+                        "default": "3.4"
+                    },
+                    "modelBaseVersion": {
+                        "type": "string",
+                        "default": "3"
+                    },
+                    "lang": {
+                        "title": "Lang",
+                        "type": "string",
+                        "description": "The default language used throughout the payload publication"
+                    },
+                    "feedDescription": {
+                        "title": "feedDescription",
+                        "type": "string",
+                        "description": "A description of the information which is to be found in the publications originating from the particular feed (URL). This has been maintained as string and not a multilingual string.",
+                        "example": "Road and Lane Closures"
+                    },
+                    "feedType": {
+                        "title": "feedType",
+                        "type": "string",
+                        "description": "A classification of the information which is to be found in the publications originating from the particular feed.",
+                        "example": "SituationPublication"
+                    },
+                    "publicationTime": {
+                        "title": "publicationTime",
+                        "type": "string",
+                        "description": "Date/time at which the payload publication was created."
+                    },
+                    "publicationCreator": {
+                        "$ref": "#/components/schemas/InternationalIdentifier"
+                    },
+                    "situation": {
+                        "title": "situation",
+                        "minItems": 0,
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Situation"
+                        }
+                    }
+                },
+                "description": "A publication containing zero or more traffic/travel situations."
+            },
+            "InternationalIdentifier": {
+                "title": "InternationalIdentifier",
+                "required": [
+                    "country",
+                    "nationalIdentifier"
+                ],
+                "type": "object",
+                "properties": {
+                    "country": {
+                        "title": "country",
+                        "maxLength": 2,
+                        "type": "string",
+                        "description": "EN ISO 3166-1 alpha-2 two-letter country code",
+                        "example": "gb"
+                    },
+                    "nationalIdentifier": {
+                        "title": "nationalIdentifier",
+                        "type": "string",
+                        "description": "Identifier or name unique within the specified country.",
+                        "example": "NationalHighways"
+                    }
+                },
+                "description": "An identifier/name whose range is specific to the particular country."
+            },
+            "Situation": {
+                "title": "Situation",
+                "required": [
+                    "idG",
+                    "headerInformation",
+                    "situationRecord"
+                ],
+                "type": "object",
+                "properties": {
+                    "idG": {
+                        "type": "string"
+                    },
+                    "situationVersionTime": {
+                        "title": "situationVersionTime",
+                        "type": "string",
+                        "description": "The date/time that this current version of the Situation was written into the database of the supplier which is involved in the data exchange. Identity and version of the situation are defined by the class stereotype implementation."
+                    },
+                    "headerInformation": {
+                        "$ref": "#/components/schemas/HeaderInformation"
+                    },
+                    "situationRecord": {
+                        "title": "situationRecord",
+                        "minItems": 1,
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SituationRecordG"
+                        },
+                        "description": "Details of the Situation"
+                    }
+                },
+                "description": "An identifiable instance of a traffic/travel situation comprising one or more traffic/travel circumstances which are linked by one or more causal relationships. Each traffic/travel circumstance is represented by a Situation Record."
+            },
+            "HeaderInformation": {
+                "title": "HeaderInformation",
+                "required": [
+                    "informationStatus"
+                ],
+                "type": "object",
+                "properties": {
+                    "confidentiality": {
+                        "title": "ConfidentialityValueEnum",
+                        "enum": [
+                            "internalUse",
+                            "noRestriction",
+                            "restrictedToAuthorities",
+                            "restrictedToAuthoritiesAndTrafficOperators"
+                        ],
+                        "type": "string",
+                        "description": "The extent to which the related information may be circulated"
+                    },
+                    "informationStatus": {
+                        "enum": [
+                            "real",
+                            "securityExercise",
+                            "technicalExercise",
+                            "test"
+                        ],
+                        "type": "string",
+                        "description": "The status of the related information (real test exercise ....)"
+                    }
+                },
+                "description": "Management information relating to the data contained within a publication."
+            },
+            "SituationRecordG": {
+                "title": "SituationRecordG",
+                "type": "object",
+                "properties": {
+                    "sitRoadOrCarriagewayOrLaneManagement": {
+                        "$ref": "#/components/schemas/RoadOrCarriagewayOrLaneManagement"
+                    }
+                }
+            },
+            "RoadOrCarriagewayOrLaneManagement": {
+                "title": "RoadOrCarriagewayOrLaneManagement",
+                "required": [
+                    "idG",
+                    "versionG",
+                    "probabilityOfOccurrence",
+                    "situationRecordCreationTime",
+                    "situationRecordVersionTime",
+                    "complianceOption",
+                    "roadOrCarriagewayOrLaneManagementType",
+                    "validity",
+                    "locationReference"
+                ],
+                "type": "object",
+                "properties": {
+                    "idG": {
+                        "type": "string"
+                    },
+                    "versionG": {
+                        "type": "string"
+                    },
+                    "situationRecordCreationTime": {
+                        "title": "situationRecordCreationTime",
+                        "type": "string",
+                        "description": "The date/time that the SituationRecord object (the first version of the record) was created by the original supplier."
+                    },
+                    "situationRecordVersionTime": {
+                        "title": "situationRecordVersionTime",
+                        "type": "string",
+                        "description": "The date/time that this current version of the SituationRecord within the situation was written into the database of the supplier which is involved in the data exchange. Identity and version of record are defined by the class stereotype implementation."
+                    },
+                    "probabilityOfOccurrence": {
+                        "$ref": "#/components/schemas/ProbabilityOfOccurrenceEnum"
+                    },
+                    "complianceOption": {
+                        "$ref": "#/components/schemas/ComplianceOptionEnum"
+                    },
+                    "roadOrCarriagewayOrLaneManagementType": {
+                        "$ref": "#/components/schemas/RoadOrCarriagewayOrLaneManagementTypeEnumG"
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/Source"
+                    },
+                    "validity": {
+                        "$ref": "#/components/schemas/Validity"
+                    },
+                    "cause": {
+                        "$ref": "#/components/schemas/Cause"
+                    },
+                    "generalPublicComment": {
+                        "title": "generalPublicComment",
+                        "minItems": 0,
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Comment"
+                        },
+                        "description": "A comment which may be freely distributed to the general public. For National Highways, for this feed, this would give description of closure"
+                    },
+                    "locationReference": {
+                        "$ref": "#/components/schemas/LocationReferenceG"
+                    },
+                    "roadOrCarriagewayOrLaneManagementExtensionG": {
+                        "$ref": "#/components/schemas/RoadOrCarriagewayOrLaneManagementExtensionTypeG"
+                    }
+                },
+                "description": "Road, carriageway or lane management action that is instigated by the network/road operator."
+            },
+            "ComplianceOptionEnum": {
+                "title": "ComplianceOptionEnum",
+                "enum": [
+                    "advisory",
+                    "mandatory",
+                    "extendedG"
+                ],
+                "type": "string",
+                "description": "Types of compliance."
+            },
+            "ProbabilityOfOccurrenceEnum": {
+                "title": "ProbabilityOfOccurrenceEnum",
+                "enum": [
+                    "certain",
+                    "probable",
+                    "riskOf",
+                    "extendedG"
+                ],
+                "type": "string",
+                "description": "Levels of confidence that the sender has in the information, ordered {certain, probable, risk of}."
+            },
+            "RoadOrCarriagewayOrLaneManagementTypeEnum": {
+                "title": "RoadOrCarriagewayOrLaneManagementTypeEnum",
+                "enum": [
+                    "carPoolLaneInOperation",
+                    "carriagewayClosures",
+                    "clearALaneForEmergencyVehicles",
+                    "clearALaneForSnowploughsAndGrittingVehicles",
+                    "closedPermanentlyForTheWinter",
+                    "contraflow",
+                    "doNotUseSpecifiedLanesOrCarriageways",
+                    "hardShoulderRunningInOperation",
+                    "hardShoulderRunningNotInOperation",
+                    "heightRestrictionInOperation",
+                    "intermittentShortTermClosures",
+                    "keepToTheLeft",
+                    "keepToTheRight",
+                    "laneClosures",
+                    "lanesDeviated",
+                    "narrowLanes",
+                    "newRoadworksLayout",
+                    "overnightClosures",
+                    "roadCleared",
+                    "roadClosed",
+                    "rollingRoadBlock",
+                    "rushHourLaneInOperation",
+                    "singleAlternateLineTraffic",
+                    "tidalFlowLaneInOperation",
+                    "turnAroundInOperation",
+                    "useOfSpecifiedLanesOrCarriagewaysAllowed",
+                    "useSpecifiedLanesOrCarriageways",
+                    "vehicleStorageInOperation",
+                    "weightRestrictionInOperation",
+                    "other",
+                    "extendedG"
+                ],
+                "type": "string",
+                "description": "Management actions relating to road, carriageway or lane usage."
+            },
+            "RoadOrCarriagewayOrLaneManagementTypeEnumG": {
+                "title": "RoadOrCarriagewayOrLaneManagementTypeEnumG",
+                "required": [
+                    "value"
+                ],
+                "type": "object",
+                "properties": {
+                    "value": {
+                        "$ref": "#/components/schemas/RoadOrCarriagewayOrLaneManagementTypeEnum"
+                    }
+                }
+            },
+            "Source": {
+                "title": "Source",
+                "type": "object",
+                "properties": {
+                    "sourceIdentification": {
+                        "title": "sourceIdentification",
+                        "type": "string",
+                        "description": "Language independent textual code or identifier for the organisation or the equipment that has produced the information."
+                    }
+                },
+                "description": "Details of the source from which the information was obtained."
+            },
+            "Validity": {
+                "title": "Validity",
+                "required": [
+                    "validityStatus",
+                    "validityTimeSpecification"
+                ],
+                "type": "object",
+                "properties": {
+                    "validityStatus": {
+                        "title": "validityStatus",
+                        "enum": [
+                            "active",
+                            "planned",
+                            "suspended",
+                            "definedByValidityTimeSpec"
+                        ],
+                        "type": "string",
+                        "description": "Specification of validity, either explicitly overriding the validity time specification or confirming it."
+                    },
+                    "validityTimeSpecification": {
+                        "$ref": "#/components/schemas/OverallPeriod"
+                    }
+                },
+                "description": "Specification of validity, either explicitly or by a validity time period specification which may be discontinuous."
+            },
+            "OverallPeriod": {
+                "title": "OverallPeriod",
+                "required": [
+                    "overallStartTime"
+                ],
+                "type": "object",
+                "properties": {
+                    "overallStartTime": {
+                        "title": "overallStartTime",
+                        "type": "string",
+                        "description": "Start of bounding period of validity defined by date and time.",
+                        "format": "YYYY-MM-DDTHH:MM:SS.SSSZ"
+                    },
+                    "overallEndTime": {
+                        "title": "overallEndTime",
+                        "type": "string",
+                        "description": "End of bounding period of validity defined by date and time.",
+                        "format": "YYYY-MM-DDTHH:MM:SS.SSSZ"
+                    }
+                },
+                "description": "A continuous or discontinuous period of validity defined by overall bounding start and end times and the possible intersection of valid periods (potentially recurring) with the complement of exception periods (also potentially recurring)."
+            },
+            "Cause": {
+                "title": "Cause",
+                "type": "object",
+                "properties": {
+                    "causeType": {
+                        "$ref": "#/components/schemas/CauseTypeEnum"
+                    },
+                    "detailedCauseType": {
+                        "$ref": "#/components/schemas/DetailedCauseType"
+                    }
+                },
+                "description": "Contains details of the cause of a record within a situation"
+            },
+            "CauseTypeEnum": {
+                "title": "CauseTypeEnum",
+                "enum": [
+                    "abnormalTraffic",
+                    "accident",
+                    "animalPresence",
+                    "authorityOperation",
+                    "constructionWork",
+                    "disturbance",
+                    "drivingConditions",
+                    "environmentalObstruction",
+                    "equipmentOrSystemFault",
+                    "infrastructureDamageObstruction",
+                    "instructionToRoadUsers",
+                    "networkManagement",
+                    "nonWeatherRelatedRoadConditions",
+                    "obstruction",
+                    "poorEnvironment",
+                    "publicEvent",
+                    "rerouting",
+                    "roadMaintenance",
+                    "roadOperatorServiceDisruption",
+                    "roadOrCarriagewayOrLaneManagement",
+                    "roadsideAssistance",
+                    "roadsideServiceDisruption",
+                    "speedManagement",
+                    "transitServiceDisruption",
+                    "vehicleObstruction",
+                    "weatherRelatedRoadConditions",
+                    "winterEquipmentManagement",
+                    "earlierEvent",
+                    "earlierIncident",
+                    "holidayTraffic",
+                    "problemsAtBorderPost",
+                    "problemsAtCustomPost",
+                    "problemsOnLocalRoads",
+                    "roadsideEvent",
+                    "rubberNecking",
+                    "technicalProblems",
+                    "vandalism",
+                    "other",
+                    "extendedG"
+                ],
+                "type": "string",
+                "description": "Types of causes of situations which are not managed or are off network."
+            },
+            "DetailedCauseType": {
+                "title": "DetailedCauseType",
+                "type": "object",
+                "properties": {
+                    "authorityOperationType": {
+                        "$ref": "#/components/schemas/AuthorityOperationTypeEnum"
+                    },
+                    "constructionWorkType": {
+                        "$ref": "#/components/schemas/ConstructionWorkTypeEnum"
+                    },
+                    "roadMaintenanceType": {
+                        "title": "roadMaintenanceType",
+                        "minItems": 0,
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/RoadMaintenanceTypeEnum"
+                        },
+                        "description": "The type of road maintenance or installation work at the specified location."
+                    },
+                    "abnormalTrafficType": {
+                        "$ref": "#/components/schemas/AbnormalTrafficTypeEnum"
+                    },
+                    "accidentType": {
+                        "title": "accidentType",
+                        "minItems": 0,
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AccidentTypeEnum"
+                        },
+                        "description": "A characterization of the nature of the accident."
+                    },
+                    "animalPresenceType": {
+                        "$ref": "#/components/schemas/AnimalPresenceTypeEnum"
+                    },
+                    "obstructionType": {
+                        "title": "obstructionType",
+                        "minItems": 0,
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ObstructionTypeEnum"
+                        },
+                        "description": "Characterization of the type of general obstruction."
+                    },
+                    "environmentalObstructionType": {
+                        "$ref": "#/components/schemas/EnvironmentalObstructionTypeEnum"
+                    },
+                    "infrastructureDamageType": {
+                        "$ref": "#/components/schemas/InfrastructureDamageTypeEnum"
+                    },
+                    "poorEnvironmentType": {
+                        "title": "poorEnvironmentType",
+                        "minItems": 0,
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PoorEnvironmentTypeEnum"
+                        },
+                        "description": "The type of environment condition which is affecting driving conditions."
+                    },
+                    "publicEventType": {
+                        "$ref": "#/components/schemas/PublicEventTypeEnum"
+                    },
+                    "vehicleObstructionType": {
+                        "$ref": "#/components/schemas/VehicleObstructionTypeEnum"
+                    },
+                    "roadOrCarriagewayOrLaneManagementType": {
+                        "$ref": "#/components/schemas/RoadOrCarriagewayOrLaneManagementTypeEnumG"
+                    }
+                },
+                "description": "The type of influence that may be the cause of components of a situation. At least one attribute must be populated."
+            },
+            "AbnormalTrafficTypeEnum": {
+                "title": "AbnormalTrafficTypeEnum",
+                "enum": [
+                    "stationaryTraffic",
+                    "queuingTraffic",
+                    "slowTraffic",
+                    "heavyTraffic",
+                    "unspecifiedAbnormalTraffic",
+                    "other",
+                    "extendedG"
+                ],
+                "type": "string",
+                "description": "Descriptive terms for abnormal traffic conditions specifically relating to the nature of the traffic movement, implying levels of service."
+            },
+            "AccidentTypeEnum": {
+                "title": "AccidentTypeEnum",
+                "enum": [
+                    "accident",
+                    "accidentInvolvingHazardousMaterials",
+                    "accidentInvolvingHeavyLorries",
+                    "accidentInvolvingMassTransitVehicle",
+                    "accidentInvolvingPublicTransport",
+                    "accidentInvolvingRadioactiveMaterial",
+                    "accidentInvolvingTrain",
+                    "collision",
+                    "multipleVehicleAccident",
+                    "secondaryAccident",
+                    "seriousInjuryOrFatalAccident",
+                    "vehicleStuckUnderBridge",
+                    "other",
+                    "extendedG"
+                ],
+                "type": "string",
+                "description": "Collection of descriptive terms for types of accidents."
+            },
+            "AnimalPresenceTypeEnum": {
+                "title": "AnimalPresenceTypeEnum",
+                "enum": [
+                    "animalsOnTheRoad",
+                    "herdOfAnimalsOnTheRoad",
+                    "largeAnimalsOnTheRoad",
+                    "smallAnimalsOnTheRoad",
+                    "wildAnimalsOnTheRoad",
+                    "extendedG"
+                ],
+                "type": "string",
+                "description": "Types of animal presence."
+            },
+            "AuthorityOperationTypeEnum": {
+                "title": "AuthorityOperationTypeEnum",
+                "enum": [
+                    "accidentInvestigationWork",
+                    "bombSquadInAction",
+                    "civilEmergency",
+                    "customsOperation",
+                    "juridicalReconstruction",
+                    "policeCheckPoint",
+                    "policeInvestigation",
+                    "roadOperatorCheckPoint",
+                    "snowChainOnBoardOrSnowTyresMountedCheck",
+                    "snowChainOrSnowTyresMountedCheck",
+                    "survey",
+                    "undefinedAuthorityActivity",
+                    "transportOfVip",
+                    "vehicleInspectionCheckPoint",
+                    "vehicleWeighing",
+                    "weighInMotion",
+                    "other",
+                    "extendedG",
+                    "closedOnPoliceIntstructionExtended"
+                ],
+                "type": "string",
+                "description": "Types of authority operations."
+            },
+            "ConstructionWorkTypeEnum": {
+                "title": "ConstructionWorkTypeEnum",
+                "enum": [
+                    "blastingWork",
+                    "constructionWork",
+                    "demolitionWork",
+                    "roadImprovementOrUpgrading",
+                    "roadWideningWork",
+                    "extendedG"
+                ],
+                "type": "string",
+                "description": "Types of works relating to construction."
+            },
+            "RoadMaintenanceTypeEnum": {
+                "title": "RoadMaintenanceTypeEnum",
+                "enum": [
+                    "accidentRepairWork",
+                    "clearanceWork",
+                    "controlledAvalanche",
+                    "installationWork",
+                    "grassCuttingWork",
+                    "litterClearance",
+                    "maintenanceWork",
+                    "maintenancePeopleOnRoad",
+                    "overheadWorks",
+                    "repairWork",
+                    "resurfacingWork",
+                    "roadMarkingWork",
+                    "roadsideWork",
+                    "roadworksClearance",
+                    "roadworks",
+                    "rockFallPreventativeMaintenance",
+                    "saltingInProgress",
+                    "snowploughsInUse",
+                    "sweepingOfRoad",
+                    "treeAndVegetationCuttingWork",
+                    "other",
+                    "extendedG"
+                ],
+                "type": "string",
+                "description": "Types of road maintenance."
+            },
+            "ObstructionTypeEnum": {
+                "title": "ObstructionTypeEnum",
+                "enum": [
+                    "airCrash",
+                    "childrenOnRoadway",
+                    "clearanceWork",
+                    "craneOperating",
+                    "cyclistsOnRoadway",
+                    "debris",
+                    "explosion",
+                    "explosionHazard",
+                    "hazardsOnTheRoad",
+                    "incident",
+                    "industrialAccident",
+                    "objectOnTheRoad",
+                    "objectsFallingFromMovingVehicle",
+                    "obstructionOnTheRoad",
+                    "peopleOnRoadway",
+                    "railCrash",
+                    "rescueAndRecoveryWork",
+                    "severeFrostDamagedRoadway",
+                    "shedLoad",
+                    "snowAndIceDebris",
+                    "spillageOccurringFromMovingVehicle",
+                    "spillageOnTheRoad",
+                    "unprotectedAccidentArea",
+                    "other",
+                    "extendedG"
+                ],
+                "type": "string",
+                "description": "Types of obstructions on the roadway."
+            },
+            "EnvironmentalObstructionTypeEnum": {
+                "title": "EnvironmentalObstructionTypeEnum",
+                "enum": [
+                    "avalanches",
+                    "earthquakeDamage",
+                    "fallenTrees",
+                    "fallingIce",
+                    "fallingLightIceOrSnow",
+                    "flashFloods",
+                    "flooding",
+                    "forestFire",
+                    "grassFire",
+                    "landslips",
+                    "mudSlide",
+                    "sewerOverflow",
+                    "rockfalls",
+                    "seriousFire",
+                    "smokeOrFumes",
+                    "stormDamage",
+                    "subsidence",
+                    "other",
+                    "extendedG"
+                ],
+                "type": "string",
+                "description": "Types of environmental obstructions."
+            },
+            "InfrastructureDamageTypeEnum": {
+                "title": "InfrastructureDamageTypeEnum",
+                "enum": [
+                    "burstPipe",
+                    "burstWaterMain",
+                    "collapsedSewer",
+                    "damagedBridge",
+                    "damagedCrashBarrier",
+                    "damagedFlyover",
+                    "damagedGallery",
+                    "damagedGantry",
+                    "damagedRoadSurface",
+                    "damagedTunnel",
+                    "damagedViaduct",
+                    "fallenPowerCables",
+                    "gasLeak",
+                    "weakBridge",
+                    "other",
+                    "extendedG"
+                ],
+                "type": "string",
+                "description": "Types of infrastructure damage which may have an effect on the road network."
+            },
+            "PoorEnvironmentTypeEnum": {
+                "title": "PoorEnvironmentTypeEnum",
+                "enum": [
+                    "badWeather",
+                    "blizzard",
+                    "blowingDust",
+                    "blowingSnow",
+                    "crosswinds",
+                    "damagingHail",
+                    "denseFog",
+                    "eclipse",
+                    "extremeCold",
+                    "extremeHeat",
+                    "fog",
+                    "freezingFog",
+                    "frost",
+                    "gales",
+                    "gustyWinds",
+                    "hail",
+                    "heavyFrost",
+                    "heavyRain",
+                    "heavySnowfall",
+                    "hurricaneForceWinds",
+                    "lowSunGlare",
+                    "moderateFog",
+                    "nearbyFire",
+                    "nearbyFlooding",
+                    "ozonePollution",
+                    "pollution",
+                    "patchyFog",
+                    "precipitationInTheArea",
+                    "rain",
+                    "rainChangingToSnow",
+                    "sandStorms",
+                    "severeExhaustPollution",
+                    "severeSmog",
+                    "showers",
+                    "sleet",
+                    "smogAlert",
+                    "smokeHazard",
+                    "snowChangingToRain",
+                    "snowfall",
+                    "sprayHazard",
+                    "stormForceWinds",
+                    "strongGustsOfWind",
+                    "strongWinds",
+                    "swarmsOfInsects",
+                    "temperatureFalling",
+                    "thunderstorms",
+                    "tornadoes",
+                    "veryStrongGustsOfWind",
+                    "visibilityReduced",
+                    "whiteOut",
+                    "winterStorm",
+                    "extendedG"
+                ],
+                "type": "string",
+                "description": "Types of poor environmental conditions."
+            },
+            "PublicEventTypeEnum": {
+                "title": "PublicEventTypeEnum",
+                "enum": [
+                    "agriculturalShow",
+                    "airShow",
+                    "artEvent",
+                    "athleticsMeeting",
+                    "commercialEvent",
+                    "culturalEvent",
+                    "ballGame",
+                    "baseballGame",
+                    "basketballGame",
+                    "beerFestival",
+                    "bicycleRace",
+                    "boatRace",
+                    "boatShow",
+                    "boxingTournament",
+                    "bullFight",
+                    "ceremonialEvent",
+                    "concert",
+                    "cricketMatch",
+                    "exhibition",
+                    "fair",
+                    "festival",
+                    "filmFestival",
+                    "filmTVMaking",
+                    "fireworkDisplay",
+                    "flowerEvent",
+                    "foodFestival",
+                    "footballMatch",
+                    "funfair",
+                    "gardeningOrFlowerShow",
+                    "golfTournament",
+                    "hockeyGame",
+                    "horseRaceMeeting",
+                    "internationalSportsMeeting",
+                    "majorEvent",
+                    "marathon",
+                    "market",
+                    "match",
+                    "motorShow",
+                    "motorSportRaceMeeting",
+                    "openAirConcert",
+                    "parade",
+                    "procession",
+                    "raceMeeting",
+                    "rugbyMatch",
+                    "severalMajorEvents",
+                    "show",
+                    "showJumping",
+                    "soundAndLightShow",
+                    "sportsMeeting",
+                    "stateOccasion",
+                    "streetFestival",
+                    "tennisTournament",
+                    "theatricalEvent",
+                    "tournament",
+                    "tradeFair",
+                    "waterSportsMeeting",
+                    "wineFestival",
+                    "winterSportsMeeting",
+                    "unknown",
+                    "other",
+                    "extendedG"
+                ],
+                "type": "string",
+                "description": "Types of public events."
+            },
+            "VehicleObstructionTypeEnum": {
+                "title": "VehicleObstructionTypeEnum",
+                "enum": [
+                    "abandonedVehicle",
+                    "abnormalLoad",
+                    "brokenDownVehicle",
+                    "convoy",
+                    "damagedVehicle",
+                    "dangerousSlowMovingVehicle",
+                    "emergencyVehicle",
+                    "highSpeedEmergencyVehicle",
+                    "longLoad",
+                    "highSpeedChase",
+                    "medicalEmergency",
+                    "militaryConvoy",
+                    "overheightVehicle",
+                    "prohibitedVehicleOnTheRoad",
+                    "recklessDriver",
+                    "slowVehicle",
+                    "specialPermitTransport",
+                    "trackedVehicle",
+                    "unlitVehicleOnTheRoad",
+                    "vehicleOnFire",
+                    "vehicleCarryingHazardousMaterials",
+                    "vehicleInDifficulty",
+                    "vehicleOnWrongCarriageway",
+                    "vehicleStuck",
+                    "vehicleWithOverheightLoad",
+                    "vehicleWithOverwideLoad",
+                    "winterMaintetanceVehicleInTransfer",
+                    "other",
+                    "extendedG"
+                ],
+                "type": "string",
+                "description": "Types of obstructions involving vehicles."
+            },
+            "Comment": {
+                "title": "Comment",
+                "required": [
+                    "comment"
+                ],
+                "type": "object",
+                "properties": {
+                    "comment": {
+                        "title": "comment",
+                        "type": "string",
+                        "description": "A free text comment that can be used by the operator to convey un-coded observations/information.This has been maintained as string and not a multilingual string."
+                    }
+                },
+                "description": "A free text comment with an optional date/time stamp that can be used by the operator to convey un-coded observations/information."
+            },
+            "RoadOrCarriagewayOrLaneManagementExtensionTypeG": {
+                "title": "RoadOrCarriagewayOrLaneManagementExtensionTypeG",
+                "type": "object",
+                "properties": {
+                    "hasWidthRestrictionFlag": {
+                        "title": "hasWidthRestrictionFlag",
+                        "type": "boolean",
+                        "description": "Field indicating if the situation implies a restriction in the width of the road or lane."
+                    },
+                    "hasHeightRestrictionFlag": {
+                        "title": "hasHeightRestrictionFlag",
+                        "type": "boolean",
+                        "description": "Field indicating if the situation implies a restriction in the height of the road or lane."
+                    },
+                    "hasWeightRestrictionFlag": {
+                        "title": "hasWeightRestrictionFlag",
+                        "type": "boolean",
+                        "description": "Field indicating if the situation implies a restriction in the weight of the road or lane."
+                    },
+                    "hasContraFlow": {
+                        "title": "hasContraFlow",
+                        "type": "boolean",
+                        "description": "Field indicating if the situation has resulted in contraflow."
+                    }
+                },
+                "description": "National Highways  Extension for extending attributes related to a Situation Record."
+            },
+            "LocationReferenceG": {
+                "title": "LocationReferenceG",
+                "type": "object",
+                "properties": {
+                    "locLocationGroupByList": {
+                        "$ref": "#/components/schemas/LocationGroupByList"
+                    },
+                    "locLinearLocation": {
+                        "$ref": "#/components/schemas/LinearLocation"
+                    },
+                    "locPointLocation": {
+                        "$ref": "#/components/schemas/PointLocation"
+                    },
+                    "locSingleRoadLinearLocation": {
+                        "$ref": "#/components/schemas/SingleRoadLinearLocation"
+                    }
+                }
+            },
+            "LocationGroupByList": {
+                "title": "LocationGroupByList",
+                "required": [
+                    "locationContainedInGroup"
+                ],
+                "type": "object",
+                "properties": {
+                    "locationContainedInGroup": {
+                        "title": "locationContainedInGroup",
+                        "minItems": 2,
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/LocationG"
+                        },
+                        "description": "A location contained in a non-ordered group of locations."
+                    }
+                },
+                "description": "A group of (i.e. more than one) physically separate locations which have no specific order and where each location is explicitly listed."
+            },
+            "LocationG": {
+                "title": "LocationG",
+                "type": "object",
+                "properties": {
+                    "locLinearLocation": {
+                        "$ref": "#/components/schemas/LinearLocation"
+                    },
+                    "locSingleRoadLinearLocation": {
+                        "$ref": "#/components/schemas/SingleRoadLinearLocation"
+                    },
+                    "locPointLocation": {
+                        "$ref": "#/components/schemas/PointLocation"
+                    }
+                }
+            },
+            "LinearLocation": {
+                "title": "LinearLocation",
+                "type": "object",
+                "properties": {
+                    "gmlLineString": {
+                        "$ref": "#/components/schemas/GmlLineStringG"
+                    },
+                    "supplementaryPositionalDescription": {
+                        "$ref": "#/components/schemas/SupplementaryPositionalDescription"
+                    }
+                },
+                "description": "Location representing a linear section with optional directionality defined between two points. "
+            },
+            "PointLocation": {
+                "title": "PointLocation",
+                "type": "object",
+                "properties": {
+                    "pointByCoordinates": {
+                        "$ref": "#/components/schemas/PointByCoordinates"
+                    },
+                    "pointAlongLinearElement": {
+                        "title": "pointAlongLinearElement",
+                        "minItems": 0,
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PointAlongLinearElement"
+                        }
+                    },
+                    "supplementaryPositionalDescription": {
+                        "$ref": "#/components/schemas/SupplementaryPositionalDescription"
+                    }
+                },
+                "description": "Location representing a single geospatial point."
+            },
+            "PointByCoordinates": {
+                "title": "PointByCoordinates",
+                "required": [
+                    "pointCoordinates"
+                ],
+                "type": "object",
+                "properties": {
+                    "pointCoordinates": {
+                        "$ref": "#/components/schemas/PointCoordinates"
+                    }
+                },
+                "additionalProperties": false,
+                "description": "A single point defined only by a coordinate set with an optional bearing direction."
+            },
+            "PointCoordinates": {
+                "title": "PointCoordinates",
+                "required": [
+                    "latitude",
+                    "longitude"
+                ],
+                "type": "object",
+                "properties": {
+                    "latitude": {
+                        "title": "latitude",
+                        "type": "number",
+                        "description": "Latitude in decimal degrees using the WGS84 Coordinate Refernce System."
+                    },
+                    "longitude": {
+                        "title": "longitude",
+                        "type": "number",
+                        "description": "Longitude in decimal degrees using the WGS84 Coordinate Refernce System."
+                    }
+                },
+                "additionalProperties": false,
+                "description": "A pair of planar coordinates defining the geodetic position of a single point using the WGS84 Coordinate Refernce System."
+            },
+            "PointAlongLinearElement": {
+                "title": "PointAlongLinearElement",
+                "required": [
+                    "distanceAlongLinearElement",
+                    "linearElement"
+                ],
+                "type": "object",
+                "properties": {
+                    "directionAtPoint": {
+                        "$ref": "#/components/schemas/DirectionEnum"
+                    },
+                    "directionRelativeAtPoint": {
+                        "$ref": "#/components/schemas/LinearDirectionEnum"
+                    },
+                    "heightGradeOfPoint": {
+                        "$ref": "#/components/schemas/HeightGradeEnumG"
+                    },
+                    "linearElement": {
+                        "$ref": "#/components/schemas/LinearElementG"
+                    },
+                    "distanceAlongLinearElement": {
+                        "$ref": "#/components/schemas/DistanceAlongLinearElementG"
+                    }
+                },
+                "additionalProperties": false,
+                "description": "A point on a linear element where the linear element is either a part of or the whole of a linear object (i.e. a road), consistent with EN ISO 19148 definitions. "
+            },
+            "SingleRoadLinearLocation": {
+                "title": "SingleRoadLinearLocation",
+                "type": "object",
+                "properties": {
+                    "linearWithinLinearElement": {
+                        "title": "linearWithinLinearElement",
+                        "minItems": 0,
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/LinearWithinLinearElement"
+                        }
+                    }
+                },
+                "description": "Location representing a linear section along a single road with optional directionality defined between two points on the same road. No matter the kind of linear reference it uses, the constraint of using only a single road must be preserved."
+            },
+            "LinearWithinLinearElement": {
+                "title": "LinearWithinLinearElement",
+                "required": [
+                    "fromPoint",
+                    "toPoint",
+                    "linearElement"
+                ],
+                "type": "object",
+                "properties": {
+                    "directionOnLinearSection": {
+                        "$ref": "#/components/schemas/DirectionEnum"
+                    },
+                    "directionRelativeOnLinearSection": {
+                        "$ref": "#/components/schemas/LinearDirectionEnum"
+                    },
+                    "heightGradeOfLinearSection": {
+                        "$ref": "#/components/schemas/HeightGradeEnumG"
+                    },
+                    "linearElement": {
+                        "$ref": "#/components/schemas/LinearElementG"
+                    },
+                    "fromPoint": {
+                        "$ref": "#/components/schemas/DistanceAlongLinearElementG"
+                    },
+                    "toPoint": {
+                        "$ref": "#/components/schemas/DistanceAlongLinearElementG"
+                    }
+                },
+                "description": "A linear section along a linear element where the linear element is either a part of or the whole of a linear object (i.e. a road), consistent with ISO 19148 definitions. "
+            },
+            "HeightGradeEnum": {
+                "title": "HeightGradeEnum",
+                "enum": [
+                    "aboveGrade",
+                    "atGrade",
+                    "belowGrade",
+                    "extendedG"
+                ],
+                "type": "string",
+                "description": "List of height or vertical gradings of road sections."
+            },
+            "HeightGradeEnumG": {
+                "title": "HeightGradeEnumG",
+                "required": [
+                    "value"
+                ],
+                "type": "object",
+                "properties": {
+                    "value": {
+                        "$ref": "#/components/schemas/HeightGradeEnum"
+                    },
+                    "extendedValueG": {
+                        "enum": [
+                            "start1End1",
+                            "start1End2",
+                            "start1End3",
+                            "start2End1",
+                            "start2End2",
+                            "start2End3",
+                            "start3End1",
+                            "start3End2",
+                            "start3End3"
+                        ],
+                        "type": "string",
+                        "description": "National Highways' extended values to specifically indicate the start and end grade separation of the linear element( The Network Model Link) of which the specific linear section is part of"
+                    }
+                }
+            },
+            "DistanceAlongLinearElementG": {
+                "title": "DistanceAlongLinearElementG",
+                "type": "object",
+                "properties": {
+                    "locDistanceFromLinearElementStart": {
+                        "$ref": "#/components/schemas/DistanceFromLinearElementStart"
+                    }
+                }
+            },
+            "DistanceFromLinearElementStart": {
+                "title": "DistanceFromLinearElementStart",
+                "required": [
+                    "distanceAlong"
+                ],
+                "type": "object",
+                "properties": {
+                    "distanceAlong": {
+                        "title": "distanceAlong",
+                        "type": "number",
+                        "description": "A measure of distance along a linear element in metres."
+                    }
+                },
+                "description": "Distance of a point along a linear element measured from the start node of the linear element, where start node is relative to the element definition rather than the direction of traffic flow."
+            },
+            "LinearElementG": {
+                "title": "LinearElementG",
+                "type": "object",
+                "properties": {
+                    "locLinearElementByCode": {
+                        "$ref": "#/components/schemas/LinearElementByCode"
+                    }
+                }
+            },
+            "LinearElementByCode": {
+                "title": "LinearElementByCode",
+                "required": [
+                    "linearElementIdentifier"
+                ],
+                "type": "object",
+                "properties": {
+                    "roadName": {
+                        "title": "roadName",
+                        "type": "string",
+                        "description": "Name of the road"
+                    },
+                    "linearElementReferenceModel": {
+                        "title": "linearElementReferenceModel",
+                        "type": "string",
+                        "description": "The identifier of a road network reference model which segments the road network according to specific business rules."
+                    },
+                    "linearElementIdentifier": {
+                        "title": "linearElementIdentifier",
+                        "type": "string",
+                        "description": "An identifier or code of a linear element (or link) in the road network reference model that is specified in the LinearElement class. "
+                    },
+                    "linearElementByCodeExtensionG": {
+                        "$ref": "#/components/schemas/LinearElementByCodeExtensionTypeG"
+                    }
+                },
+                "description": "A linear element along a single linear object defined by its identifier or code in a road network reference model (specified in LinearElement class) which segments the road network according to specific business rules."
+            },
+            "LinearElementByCodeExtensionTypeG": {
+                "title": "LinearElementByCodeExtensionTypeG",
+                "type": "object",
+                "properties": {
+                    "linearElementType": {
+                        "title": "linearElementType",
+                        "enum": [
+                            "aCarriageway",
+                            "bCarriageway",
+                            "aCarriagewayEntrySlip",
+                            "aCarriagewayExitSlip",
+                            "bCarriagewayEntrySlip",
+                            "bCarriagewayExitSlip",
+                            "other"
+                        ],
+                        "type": "string",
+                        "description": " Description of the carriageway type /linearElementType."
+                    }
+                },
+                "description": "National Highways  Extension for extending linear element attributes related to a Network Model Link."
+            },
+            "GmlLineStringG": {
+                "title": "GmlLineStringG",
+                "type": "object",
+                "properties": {
+                    "locGmlLineString": {
+                        "$ref": "#/components/schemas/GmlLineString"
+                    }
+                }
+            },
+            "GmlLineString": {
+                "title": "GmlLineString",
+                "required": [
+                    "posList"
+                ],
+                "type": "object",
+                "properties": {
+                    "srsDimension": {
+                        "title": "srsDimension",
+                        "minimum": 0,
+                        "type": "integer",
+                        "description": "Provides the size of the tuple of coordinates of each point. This number is 2 or 3. By default when omitted the dimension shall be interpreted as 2."
+                    },
+                    "srsName": {
+                        "title": "srsName",
+                        "type": "string",
+                        "description": "Specifies the Coordinate Reference System (CRS) used to interpret the coordinates in this GmlLineString"
+                    },
+                    "posList": {
+                        "$ref": "#/components/schemas/GmlPosList"
+                    }
+                },
+                "description": "Line string based on GML (EN ISO 19136) definition: a curve defined by a series of two or more coordinate tuples. Unlike GML may be self-intersecting. If srsName attribute is not present, posList is assumed to use \"ETRS89-LatLonh\" reference system."
+            },
+            "GmlPosList": {
+                "title": "GmlPosList",
+                "pattern": "[-+]?[0-9]*\\.?[0-9]+(\\s[-+]?[0-9]*\\.?[0-9]+){3,}",
+                "type": "string",
+                "description": "List of coordinates, space-separated, within the same coordinate reference system, defining a geometric entity. Modelled on DirectPositionListType in GML (EN ISO 19136), but constrained to represent a 2D or 3D polyline."
+            },
+            "SupplementaryPositionalDescription": {
+                "title": "SupplementaryPositionalDescription",
+                "type": "object",
+                "properties": {
+                    "locationDescription": {
+                        "title": "locationDescription",
+                        "type": "string",
+                        "description": "Supplementary human-readable description of the location.This has been maintained as string and not a multilingual string."
+                    },
+                    "carriageway": {
+                        "title": "carriageway",
+                        "minItems": 0,
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Carriageway"
+                        }
+                    }
+                },
+                "description": "A collection of supplementary positional information which improves the precision of the location."
+            },
+            "Carriageway": {
+                "title": "Carriageway",
+                "required": [
+                    "carriageway"
+                ],
+                "type": "object",
+                "properties": {
+                    "carriageway": {
+                        "$ref": "#/components/schemas/CarriagewayEnumG"
+                    },
+                    "lane": {
+                        "title": "lane",
+                        "minItems": 0,
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Lane"
+                        }
+                    },
+                    "carriagewayExtensionG": {
+                        "$ref": "#/components/schemas/CarriagewayExtensionTypeG"
+                    }
+                },
+                "description": "Supplementary positional information which details carriageway and lane locations. Several instances may exist where the element being described extends over more than one carriageway."
+            },
+            "CarriagewayEnumG": {
+                "title": "CarriagewayEnumG",
+                "required": [
+                    "value"
+                ],
+                "type": "object",
+                "properties": {
+                    "value": {
+                        "$ref": "#/components/schemas/CarriagewayEnum"
+                    },
+                    "extendedValueG": {
+                        "enum": [
+                            "dualCarriageway",
+                            "singleCarriageway",
+                            "layBy",
+                            "emergencyArea",
+                            "distributorLane"
+                        ],
+                        "type": "string"
+                    }
+                }
+            },
+            "CarriagewayEnum": {
+                "title": "CarriagewayEnum",
+                "enum": [
+                    "connectingCarriageway",
+                    "cycleTrack",
+                    "entrySlipRoad",
+                    "exitSlipRoad",
+                    "flyover",
+                    "footpath",
+                    "leftHandParallelCarriageway",
+                    "leftHandFeederRoad",
+                    "mainCarriageway",
+                    "oppositeCarriageway",
+                    "parallelCarriageway",
+                    "rightHandFeederRoad",
+                    "rightHandParallelCarriageway",
+                    "roundabout",
+                    "serviceRoad",
+                    "slipRoads",
+                    "underpass",
+                    "unspecifiedCarriageway",
+                    "extendedG"
+                ],
+                "type": "string",
+                "description": "List of descriptors identifying specific carriageway details."
+            },
+            "CarriagewayExtensionTypeG": {
+                "title": "CarriagewayExtensionTypeG",
+                "type": "object",
+                "properties": {
+                    "impactOnCarriageway": {
+                        "$ref": "#/components/schemas/Impact"
+                    }
+                },
+                "description": "National Highways  Extension for representing impact w.r.t Carriageway- numberOfLanesRestricted,numberOfOperationalLanes."
+            },
+            "Lane": {
+                "title": "Lane",
+                "type": "object",
+                "properties": {
+                    "laneUsage": {
+                        "$ref": "#/components/schemas/LaneEnumG"
+                    },
+                    "laneNumber": {
+                        "title": "laneNumber",
+                        "type": "integer",
+                        "description": "The number of the lane, where 1 is nearest the hard shoulder/verge and the numbers increase towards the central reservation/road axis."
+                    },
+                    "laneExtensionG": {
+                        "$ref": "#/components/schemas/LaneExtensionTypeG"
+                    }
+                },
+                "description": "Indicates a specific lane or group of lanes."
+            },
+            "LaneEnumG": {
+                "title": "LaneEnumG",
+                "required": [
+                    "value"
+                ],
+                "type": "object",
+                "properties": {
+                    "value": {
+                        "$ref": "#/components/schemas/LaneEnum"
+                    },
+                    "extendedValueG": {
+                        "$ref": "#/components/schemas/LaneEnumExtensionTypeG"
+                    }
+                }
+            },
+            "LaneEnum": {
+                "title": "LaneEnum",
+                "enum": [
+                    "allLanesCompleteCarriageway",
+                    "busLane",
+                    "busStop",
+                    "carPoolLane",
+                    "centralReservation",
+                    "crawlerLane",
+                    "cycleLane",
+                    "emergencyLane",
+                    "escapeLane",
+                    "expressLane",
+                    "hardShoulder",
+                    "heavyVehicleLane",
+                    "layBy",
+                    "leftHandTurningLane",
+                    "leftLane",
+                    "localTrafficLane",
+                    "middleLane",
+                    "overtakingLane",
+                    "rightHandTurningLane",
+                    "rightLane",
+                    "rushHourLane",
+                    "setDownArea",
+                    "slowVehicleLane",
+                    "throughTrafficLane",
+                    "tidalFlowLane",
+                    "turningLane",
+                    "verge",
+                    "extendedG"
+                ],
+                "type": "string",
+                "description": "List of descriptors identifying specific lanes."
+            },
+            "LaneEnumExtensionTypeG": {
+                "title": "LaneEnumExtensionTypeG",
+                "enum": [
+                    "nl1",
+                    "nl2",
+                    "nl3",
+                    "ol1",
+                    "ol2",
+                    "ol3",
+                    "lh",
+                    "nr1",
+                    "nr2",
+                    "nr3",
+                    "or1",
+                    "or2",
+                    "or3",
+                    "rh",
+                    "cl1",
+                    "cl2",
+                    "cl3",
+                    "cl4",
+                    "cl5",
+                    "cl6",
+                    "cl7",
+                    "cl8",
+                    "cl9",
+                    "cr1",
+                    "cr2",
+                    "cr3",
+                    "cr4",
+                    "cr5",
+                    "cr6",
+                    "cr7",
+                    "cr8",
+                    "cr9"
+                ],
+                "type": "string",
+                "description": "NL1-Left Additional Nearside Lane 1, NL2-Left Additional Nearside Lane 2 , NL3-Left Additional Nearside Lane 3 , OL1-Left Additional Offside Lane 1 , OL2-Left Additional Offside Lane 2 , OL3-Left Additional Offside Lane 3 , LH-Left Hard Shoulder , NR1-Right Additional Nearside Lane 1 , NR2-Right Additional Nearside Lane 2 , NR3-Right Additional Nearside Lane 3 , OR1-Right Additional Offside Lane 1 , OR2-Right Additional Offside Lane 2 , OR3-Right Additional Offside Lane 3 , RH-Right Hard Shoulder , CL1-Left Permanent Lane 1 , CL2-Left Permanent Lane 2 , CL3-Left Permanent Lane 3 , CL4-Left Permanent Lane 4 , CL5-Left Permanent Lane 5 , CL6-Left Permanent Lane 6 , CL7-Left Permanent Lane 7 , CL8-Left Permanent Lane 8 , CL9-Left Permanent Lane 9 , CR1-Right Permanent Lane 1 , CR2-Right Permanent Lane 2 , CR3-Right Permanent Lane 3 , CR4-Right Permanent Lane 4 , CR5-Right Permanent Lane 5 , CR6-Right Permanent Lane 6 , CR7-Right Permanent Lane 7 , CR8-Right Permanent Lane 8 , CR9-Right Permanent Lane 9."
+            },
+            "LaneExtensionTypeG": {
+                "title": "LaneExtensionTypeG",
+                "type": "object",
+                "properties": {
+                    "impactOnLanes": {
+                        "$ref": "#/components/schemas/Impact"
+                    }
+                },
+                "description": "National Highways  Extension for representing impact w.r.t Lanes"
+            },
+            "Impact": {
+                "title": "Impact",
+                "type": "object",
+                "properties": {
+                    "numberOfLanesRestricted": {
+                        "title": "numberOfLanesRestricted",
+                        "type": "integer",
+                        "description": "The number of normally usable lanes on the carriageway which are now restricted either fully or partially (this may include the hard shoulder if it is normally available for operational use, e.g. in hard shoulder running schemes). For National Highways, this represents the net number of fully closed lanes including the benefit of opening additional lanes such as the hard shoulder or a contraflow lane. The hard shoulder is not normally considered a usable lane and would not be counted as being closed.",
+                        "nullable": true
+                    },
+                    "numberOfOperationalLanes": {
+                        "title": "numberOfOperationalLanes",
+                        "type": "integer",
+                        "description": "The number of usable lanes in the specified direction which remain fully operational (this may include the hard shoulder if it is being used as an operational lane). For National Highways, this represents the number of lanes open or partially restricted (eg narrow).",
+                        "nullable": true
+                    },
+                    "impactExtensionG": {
+                        "$ref": "#/components/schemas/ImpactExtensionTypeG"
+                    }
+                },
+                "description": "An assessment of the impact that an event or operator action defined by the situation record has on the driving conditions."
+            },
+            "ImpactExtensionTypeG": {
+                "title": "ImpactExtensionTypeG",
+                "type": "object",
+                "properties": {
+                    "lanesStatus": {
+                        "title": "laneStatus",
+                        "enum": [
+                            "narrow",
+                            "loaned",
+                            "opened",
+                            "closed",
+                            "borrowed"
+                        ],
+                        "type": "string",
+                        "description": "National Highways  Extension for representing impact w.r.t Lanes"
+                    },
+                    "laneImpactDirection": {
+                        "$ref": "#/components/schemas/LinearDirectionEnum"
+                    }
+                },
+                "description": "National Highways  Extension for representing impact w.r.t Lanes"
+            },
+            "DirectionEnum": {
+                "title": "DirectionEnum",
+                "enum": [
+                    "aligned",
+                    "allDirections",
+                    "anticlockwise",
+                    "bothWays",
+                    "clockwise",
+                    "innerRing",
+                    "outerRing",
+                    "eastBound",
+                    "northBound",
+                    "northEastBound",
+                    "northWestBound",
+                    "southBound",
+                    "southEastBound",
+                    "southWestBound",
+                    "westBound",
+                    "inboundTowardsTown",
+                    "outboundFromTown",
+                    "opposite",
+                    "unknown",
+                    "other",
+                    "extendedG"
+                ],
+                "type": "string",
+                "description": "List of directions of travel."
+            },
+            "LinearDirectionEnum": {
+                "title": "LinearDirectionEnum",
+                "enum": [
+                    "both",
+                    "opposite",
+                    "aligned",
+                    "unknown",
+                    "extendedG"
+                ],
+                "type": "string",
+                "description": "Directions of traffic flow relative to the direction in which the linear element is defined."
+            },
+            "ClosureType": {
+                "enum": [
+                    "planned",
+                    "unplanned"
+                ],
+                "type": "string"
+            },
+            "StartEndModifiedDateTime": {
+                "type": "string",
+                "format": "YYYY-MM-DDThh:mm:ss"
+            },
+            "PageCursor": {
+                "type": "number"
+            },
+            "Ocp-Apim-Subscription-Key": {
+                "type": "string"
+            },
+            "X-Response-MediaType": {
+                "enum": [
+                    "application/xml",
+                    "application/json"
+                ],
+                "type": "string"
+            },
+            "X-Data-Format": {
+                "enum": [
+                    "DATEXII"
+                ],
+                "type": "string"
+            },
+            "X-Next": {
+                "type": "string",
+                "example": "https://api.data.nationalhighways.co.uk/roads/v2.0/closures/*************&PageCursor=nextPageCursorValue"
+            },
+            "Error": {
+                "required": [
+                    "message"
+                ],
+                "type": "object",
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "description": "A human readable error message"
+                    }
+                }
+            }
+        },
+        "securitySchemes": {
+            "apiKeyHeader": {
+                "type": "apiKey",
+                "name": "Ocp-Apim-Subscription-Key",
+                "in": "header"
+            },
+            "apiKeyQuery": {
+                "type": "apiKey",
+                "name": "subscription-key",
+                "in": "query"
+            }
+        }
+    },
+    "security": [
+        {
+            "apiKeyHeader": []
+        },
+        {
+            "apiKeyQuery": []
+        }
+    ],
+    "tags": [
+        {
+            "name": "roadClosures",
+            "description": "Road Closures"
+        }
+    ]
+}
