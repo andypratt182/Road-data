@@ -1,4 +1,5 @@
 import json
+import re
 from pathlib import Path
 from html import escape
 
@@ -10,17 +11,19 @@ OUTPUT_FILE = OUTPUT_DIR / "index.html"
 
 
 # ============================================================
-# ROUTE CONFIGURATION
+# ROUTE DEFINITIONS
 # ============================================================
 
 ROUTES = {
-    "Omega": ["M6", "M62"],
-    "Axis": ["M6", "M58", "M57"],
-}
-
-DIRECTIONS = {
-    "Northbound": "northbound",
-    "Southbound": "southbound",
+    "Omega": {
+        "M6": (45, 20),
+        "M62": (10, 8),
+    },
+    "Axis": {
+        "M6": (45, 26),
+        "M58": None,          # Entire road
+        "M57": (6, 4),
+    },
 }
 
 
@@ -33,91 +36,311 @@ def load_data():
         return json.load(file)
 
 
-def route_for_closure(closure):
+# ============================================================
+# JUNCTION PARSING
+# ============================================================
+
+def normalise_junction(value):
     """
-    Determine which configured route a closure belongs to.
-
-    A closure can belong to more than one route because M6 is
-    shared by Omega and Axis.
+    Convert a junction value such as J15A, 15A or j15
+    into a numeric junction number where possible.
     """
-    road = str(closure.get("road") or "").upper()
 
-    matches = []
+    if value is None:
+        return None
 
-    for route_name, roads in ROUTES.items():
-        if road in roads:
-            matches.append(route_name)
+    match = re.search(r"\bJ?(\d+)", str(value).upper())
 
-    return matches
+    if not match:
+        return None
+
+    try:
+        return int(match.group(1))
+    except ValueError:
+        return None
+
+
+def extract_junctions(description):
+    """
+    Extract junction numbers from a National Highways
+    human-readable closure description.
+
+    Examples:
+
+        M6 northbound between J18 and J19
+        M1 southbound within J21
+        M57 southbound between J6 and J4
+        M6 between J45 and J20
+    """
+
+    if not description:
+        return []
+
+    matches = re.findall(
+        r"\bJ(\d+)(?:[A-Z])?\b",
+        str(description).upper(),
+    )
+
+    junctions = []
+
+    for value in matches:
+        try:
+            junctions.append(int(value))
+        except ValueError:
+            continue
+
+    return junctions
 
 
 # ============================================================
-# PAGE GENERATION
+# ROUTE FILTERING
+# ============================================================
+
+def closure_matches_route(closure, route_name):
+    """
+    Determine whether a closure belongs inside one of the
+    configured Omega or Axis route boundaries.
+
+    The junctions are deliberately NOT selectable by the user.
+    They are enforced internally here.
+    """
+
+    route = ROUTES.get(route_name)
+
+    if not route:
+        return False
+
+    road = str(closure.get("road") or "").upper().strip()
+
+    if road not in route:
+        return False
+
+    description = str(
+        closure.get("description") or ""
+    )
+
+    # --------------------------------------------------------
+    # Entire-road route
+    # --------------------------------------------------------
+
+    boundaries = route[road]
+
+    if boundaries is None:
+        return True
+
+    start_junction, end_junction = boundaries
+
+    closure_junctions = extract_junctions(
+        description
+    )
+
+    if not closure_junctions:
+        return False
+
+    # --------------------------------------------------------
+    # "between Jx and Jy"
+    # --------------------------------------------------------
+
+    if len(closure_junctions) >= 2:
+
+        first = closure_junctions[0]
+        second = closure_junctions[1]
+
+        closure_high = max(first, second)
+        closure_low = min(first, second)
+
+        route_high = max(
+            start_junction,
+            end_junction,
+        )
+
+        route_low = min(
+            start_junction,
+            end_junction,
+        )
+
+        # The closure must sit completely inside the route.
+        if (
+            closure_high <= route_high
+            and closure_low >= route_low
+        ):
+            return True
+
+        # Also allow a closure which overlaps the route.
+        if (
+            closure_high >= route_low
+            and closure_low <= route_high
+        ):
+            return True
+
+        return False
+
+    # --------------------------------------------------------
+    # "within Jx"
+    # --------------------------------------------------------
+
+    junction = closure_junctions[0]
+
+    route_high = max(
+        start_junction,
+        end_junction,
+    )
+
+    route_low = min(
+        start_junction,
+        end_junction,
+    )
+
+    return (
+        route_low <= junction <= route_high
+    )
+
+
+def get_route_closures(closures, route_name):
+    """
+    Return closures belonging to the selected route.
+    """
+
+    return [
+        closure
+        for closure in closures
+        if closure_matches_route(
+            closure,
+            route_name,
+        )
+    ]
+
+
+# ============================================================
+# HTML
 # ============================================================
 
 def build_page(data):
-    closures = data.get("closures", [])
-    updated = data.get("updated", "Unknown")
+
+    closures = data.get(
+        "closures",
+        [],
+    )
+
+    updated = data.get(
+        "updated",
+        "Unknown",
+    )
+
+    # --------------------------------------------------------
+    # Build closure cards
+    # --------------------------------------------------------
 
     closure_cards = []
 
-    for closure in closures:
-        raw_road = str(closure.get("road") or "")
-        raw_direction = str(closure.get("direction") or "")
-        raw_status = str(closure.get("status") or "Unknown")
+    for index, closure in enumerate(closures):
 
-        road = escape(raw_road)
-        direction = escape(raw_direction)
-        status = escape(raw_status)
+        road = escape(
+            str(
+                closure.get("road")
+                or "Unknown"
+            )
+        )
+
+        direction = escape(
+            str(
+                closure.get("direction")
+                or ""
+            )
+        )
+
+        status = escape(
+            str(
+                closure.get("status")
+                or "Unknown"
+            )
+        )
 
         description = escape(
-            str(closure.get("description") or "")
+            str(
+                closure.get("description")
+                or ""
+            )
         )
 
         closure_type = escape(
-            str(closure.get("type") or "Unknown")
+            str(
+                closure.get("type")
+                or "Unknown"
+            )
         )
 
         cause = escape(
-            str(closure.get("cause") or "Unknown")
+            str(
+                closure.get("cause")
+                or "Unknown"
+            )
         )
 
         start = escape(
-            str(closure.get("start") or "Unknown")
+            str(
+                closure.get("start")
+                or "Unknown"
+            )
         )
 
         end = escape(
-            str(closure.get("end") or "Unknown")
+            str(
+                closure.get("end")
+                or "Unknown"
+            )
         )
 
-        # Determine configured routes.
-        routes = route_for_closure(closure)
+        # Store the raw values as data attributes so the
+        # JavaScript filtering can operate on them.
 
-        # Store route names as a data attribute so JavaScript
-        # can filter the card.
-        route_data = ",".join(routes)
+        raw_road = escape(
+            str(
+                closure.get("road")
+                or ""
+            )
+        )
 
-        # Road order is handled in JavaScript using the route
-        # definitions below.
+        raw_direction = escape(
+            str(
+                closure.get("direction")
+                or ""
+            )
+        )
+
+        raw_status = escape(
+            str(
+                closure.get("status")
+                or ""
+            )
+        )
+
+        raw_description = escape(
+            str(
+                closure.get("description")
+                or ""
+            )
+        )
+
+        title = road
+
+        if direction:
+            title += f" {direction}"
+
         closure_cards.append(
             f"""
             <article
                 class="closure"
-                data-road="{road}"
-                data-direction="{direction}"
-                data-status="{status}"
-                data-routes="{escape(route_data)}"
+                data-index="{index}"
+                data-road="{raw_road}"
+                data-direction="{raw_direction}"
+                data-status="{raw_status}"
+                data-description="{raw_description}"
             >
 
                 <div class="closure-header">
 
-                    <div>
-                        <h3>{road}</h3>
-
-                        <div class="route-label">
-                            {direction or "Direction unknown"}
-                        </div>
-                    </div>
+                    <h3>{title}</h3>
 
                     <span class="status status-{status}">
                         {status}
@@ -165,32 +388,34 @@ def build_page(data):
             """
         )
 
-    route_options = "".join(
-        f'<option value="{escape(route)}">'
-        f'{escape(route)}'
-        f'</option>'
-        for route in ROUTES
+    # --------------------------------------------------------
+    # Route configuration for JavaScript
+    # --------------------------------------------------------
+
+    routes_json = json.dumps(
+        ROUTES
     )
 
-    direction_options = "".join(
-        f'<option value="{escape(value)}">'
-        f'{escape(name)}'
-        f'</option>'
-        for name, value in DIRECTIONS.items()
+    closures_json = json.dumps(
+        closures,
+        ensure_ascii=False,
     )
 
-    route_config_js = json.dumps(ROUTES)
+    # --------------------------------------------------------
+    # HTML
+    # --------------------------------------------------------
 
     html = f"""<!DOCTYPE html>
-
 <html lang="en">
 
 <head>
 
 <meta charset="UTF-8">
 
-<meta name="viewport"
-      content="width=device-width, initial-scale=1.0">
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
 
 <title>National Highways Road Data</title>
 
@@ -242,10 +467,6 @@ header p {{
     box-shadow: 0 2px 6px rgba(0,0,0,.08);
 }}
 
-.filters h2 {{
-    margin-top: 0;
-}}
-
 .filter-row {{
     display: flex;
     flex-wrap: wrap;
@@ -255,7 +476,7 @@ header p {{
 .filter-group {{
     display: flex;
     flex-direction: column;
-    min-width: 220px;
+    min-width: 200px;
 }}
 
 label {{
@@ -292,6 +513,15 @@ select {{
     margin-top: 5px;
 }}
 
+.route-description {{
+    margin-top: 10px;
+    padding: 12px;
+    background: #eef5f8;
+    border-left: 4px solid #003b5c;
+    border-radius: 4px;
+    font-size: 14px;
+}}
+
 .closures {{
     display: grid;
     gap: 15px;
@@ -313,14 +543,7 @@ select {{
 }}
 
 .closure-header h3 {{
-    margin: 0 0 5px;
-    font-size: 20px;
-}}
-
-.route-label {{
-    color: #666;
-    font-size: 14px;
-    text-transform: capitalize;
+    margin: 0;
 }}
 
 .status {{
@@ -372,12 +595,6 @@ select {{
     border-radius: 8px;
 }}
 
-.route-description {{
-    margin-top: 8px;
-    color: #666;
-    font-size: 14px;
-}}
-
 @media (max-width: 600px) {{
 
     .container {{
@@ -401,15 +618,15 @@ select {{
 
 <div class="container">
 
-<h1>National Highways Road Data</h1>
+    <h1>National Highways Road Data</h1>
 
-<p>
-Omega &amp; Axis route monitoring
-</p>
+    <p>
+        Omega &amp; Axis route monitoring
+    </p>
 
-<div class="updated">
-Last updated: {escape(str(updated))}
-</div>
+    <div class="updated">
+        Last updated: {escape(str(updated))}
+    </div>
 
 </div>
 
@@ -418,350 +635,511 @@ Last updated: {escape(str(updated))}
 
 <main class="container">
 
-
 <section class="filters">
 
-<h2>Route filters</h2>
+    <h2>Route Filters</h2>
 
-<div class="filter-row">
+    <div class="filter-row">
 
-<div class="filter-group">
+        <div class="filter-group">
 
-<label for="route">
-Route
-</label>
+            <label for="route">
+                Route
+            </label>
 
-<select id="route">
+            <select id="route">
 
-<option value="">
-Select route
-</option>
+                <option value="">
+                    Select route
+                </option>
 
-{route_options}
+                <option value="Omega">
+                    Omega
+                </option>
 
-</select>
+                <option value="Axis">
+                    Axis
+                </option>
 
-</div>
+            </select>
 
-
-<div class="filter-group">
-
-<label for="direction">
-Direction
-</label>
-
-<select id="direction">
-
-<option value="">
-Select direction
-</option>
-
-{direction_options}
-
-</select>
-
-</div>
-
-</div>
+        </div>
 
 
-<div id="route-description"
-     class="route-description">
+        <div class="filter-group">
 
-Select a route and direction to view road closures.
+            <label for="direction">
+                Direction
+            </label>
 
-</div>
+            <select id="direction">
+
+                <option value="">
+                    Select direction
+                </option>
+
+                <option value="southbound">
+                    Southbound
+                </option>
+
+                <option value="northbound">
+                    Northbound
+                </option>
+
+            </select>
+
+        </div>
+
+    </div>
+
+
+    <div
+        id="route-description"
+        class="route-description"
+    >
+        Select a route and direction to display
+        the relevant closures.
+    </div>
 
 </section>
 
 
 <section class="summary">
 
-<div class="summary-card">
+    <div class="summary-card">
 
-Total closures
+        Matching closures
 
-<strong id="total-count">
-0
-</strong>
+        <strong id="total-count">
+            0
+        </strong>
 
-</div>
-
-
-<div class="summary-card">
-
-Active
-
-<strong id="active-count">
-0
-</strong>
-
-</div>
+    </div>
 
 
-<div class="summary-card">
+    <div class="summary-card">
 
-Planned
+        Active
 
-<strong id="planned-count">
-0
-</strong>
+        <strong id="active-count">
+            0
+        </strong>
 
-</div>
-
-</section>
+    </div>
 
 
-<section id="closures"
-         class="closures">
+    <div class="summary-card">
 
-{''.join(closure_cards)}
+        Planned
+
+        <strong id="planned-count">
+            0
+        </strong>
+
+    </div>
 
 </section>
 
 
-<div id="empty"
-     class="empty"
-     style="display:none;">
+<section
+    id="closures"
+    class="closures"
+>
 
-No closures found for the selected route and direction.
+    <div class="empty">
 
-</div>
+        Select a route and direction above.
 
+    </div>
+
+</section>
 
 </main>
 
 
 <script>
 
-const ROUTES = {route_config_js};
+const closures = {closures_json};
+
+const routes = {routes_json};
 
 
-const routeSelect =
-    document.getElementById("route");
+function extractJunctions(description) {{
 
-const directionSelect =
-    document.getElementById("direction");
+    if (!description) {{
+        return [];
+    }}
 
-const routeDescription =
-    document.getElementById("route-description");
+    const matches = description
+        .toUpperCase()
+        .match(/\\bJ(\\d+)(?:[A-Z])?\\b/g);
 
-const closureContainer =
-    document.getElementById("closures");
+    if (!matches) {{
+        return [];
+    }}
 
-const emptyMessage =
-    document.getElementById("empty");
-
-const totalCount =
-    document.getElementById("total-count");
-
-const activeCount =
-    document.getElementById("active-count");
-
-const plannedCount =
-    document.getElementById("planned-count");
+    return matches.map(
+        value => parseInt(
+            value.replace(/[^0-9]/g, ""),
+            10
+        )
+    );
+}}
 
 
-const cards =
-    Array.from(
-        document.querySelectorAll(".closure")
+function closureMatchesRoute(
+    closure,
+    routeName
+) {{
+
+    const route = routes[routeName];
+
+    if (!route) {{
+        return false;
+    }}
+
+    const road = (
+        closure.road || ""
+    ).toUpperCase().trim();
+
+    if (!Object.prototype.hasOwnProperty.call(
+        route,
+        road
+    )) {{
+        return false;
+    }}
+
+    const boundaries = route[road];
+
+    // null means the entire road is included.
+    if (boundaries === null) {{
+        return true;
+    }}
+
+    const description = (
+        closure.description || ""
     );
 
+    const junctions = extractJunctions(
+        description
+    );
 
-function updatePage() {{
+    if (!junctions.length) {{
+        return false;
+    }}
 
-    const route =
-        routeSelect.value;
+    const routeHigh = Math.max(
+        boundaries[0],
+        boundaries[1]
+    );
 
-    const direction =
-        directionSelect.value;
+    const routeLow = Math.min(
+        boundaries[0],
+        boundaries[1]
+    );
+
+    // A closure between two junctions.
+    if (junctions.length >= 2) {{
+
+        const closureHigh = Math.max(
+            junctions[0],
+            junctions[1]
+        );
+
+        const closureLow = Math.min(
+            junctions[0],
+            junctions[1]
+        );
+
+        return (
+            closureHigh >= routeLow &&
+            closureLow <= routeHigh
+        );
+    }}
+
+    // A closure within one junction.
+    const junction = junctions[0];
+
+    return (
+        junction >= routeLow &&
+        junction <= routeHigh
+    );
+}}
 
 
-    if (route) {{
+function getRouteDescription(routeName) {{
 
-        const roads =
-            ROUTES[route];
+    if (routeName === "Omega") {{
 
-        routeDescription.textContent =
-            route +
-            " route: " +
-            roads.join(" → ") +
-            (direction
-                ? " • " + direction
-                : "");
-
-    }} else {{
-
-        routeDescription.textContent =
-            "Select a route and direction to view road closures.";
+        return `
+            <strong>Omega:</strong>
+            M6 J45–J20,
+            M62 J10–J8
+        `;
 
     }}
 
+    if (routeName === "Axis") {{
 
-    let visibleCards = [];
+        return `
+            <strong>Axis:</strong>
+            M6 J45–J26,
+            M58 entire road,
+            M57 J6–J4
+        `;
 
+    }}
 
-    cards.forEach(card => {{
-
-        const road =
-            card.dataset.road;
-
-        const cardDirection =
-            card.dataset.direction.toLowerCase();
-
-        const cardRoutes =
-            card.dataset.routes
-                .split(",")
-                .filter(Boolean);
+    return "Select a route and direction to display the relevant closures.";
+}}
 
 
-        let routeMatch = true;
-        let directionMatch = true;
+function render() {{
+
+    const routeName =
+        document.getElementById(
+            "route"
+        ).value;
+
+    const direction =
+        document.getElementById(
+            "direction"
+        ).value.toLowerCase();
 
 
-        if (route) {{
+    const description =
+        document.getElementById(
+            "route-description"
+        );
 
-            routeMatch =
-                cardRoutes.includes(route) &&
-                ROUTES[route].includes(road);
-
-        }}
-
-
-        if (direction) {{
-
-            directionMatch =
-                cardDirection === direction;
-
-        }}
-
-
-        const visible =
-            routeMatch &&
-            directionMatch;
-
-
-        card.style.display =
-            visible ? "" : "none";
-
-
-        if (visible) {{
-            visibleCards.push(card);
-        }}
-
-    }});
-
-
-    /*
-     * Sort visible closures according to the
-     * configured route order.
-     */
-    if (route) {{
-
-        const roadOrder =
-            ROUTES[route];
-
-        visibleCards.sort(
-            (a, b) => {{
-
-                const roadA =
-                    a.dataset.road;
-
-                const roadB =
-                    b.dataset.road;
-
-                const indexA =
-                    roadOrder.indexOf(roadA);
-
-                const indexB =
-                    roadOrder.indexOf(roadB);
-
-                return indexA - indexB;
-
-            }}
+    const container =
+        document.getElementById(
+            "closures"
         );
 
 
-        visibleCards.forEach(card => {{
-            closureContainer.appendChild(card);
-        }});
+    if (!routeName || !direction) {{
 
+        description.innerHTML =
+            "Select a route and direction to display the relevant closures.";
+
+        container.innerHTML = `
+            <div class="empty">
+                Select a route and direction above.
+            </div>
+        `;
+
+        document.getElementById(
+            "total-count"
+        ).textContent = "0";
+
+        document.getElementById(
+            "active-count"
+        ).textContent = "0";
+
+        document.getElementById(
+            "planned-count"
+        ).textContent = "0";
+
+        return;
     }}
 
 
-    /*
-     * Update summary counters.
-     */
-    let active = 0;
-    let planned = 0;
+    description.innerHTML =
+        getRouteDescription(
+            routeName
+        );
 
 
-    visibleCards.forEach(card => {{
+    const filtered = closures.filter(
+        closure => {{
 
-        const status =
-            card.dataset.status
-                .toLowerCase();
+            const closureDirection = (
+                closure.direction || ""
+            ).toLowerCase();
 
-        if (status === "active") {{
-            active++;
+            return (
+                closureDirection === direction &&
+                closureMatchesRoute(
+                    closure,
+                    routeName
+                )
+            );
+
         }}
-
-        if (status === "planned") {{
-            planned++;
-        }}
-
-    }});
+    );
 
 
-    totalCount.textContent =
-        visibleCards.length;
-
-    activeCount.textContent =
-        active;
-
-    plannedCount.textContent =
-        planned;
+    document.getElementById(
+        "total-count"
+    ).textContent =
+        filtered.length;
 
 
-    emptyMessage.style.display =
-        visibleCards.length === 0
-            ? "block"
-            : "none";
+    document.getElementById(
+        "active-count"
+    ).textContent =
+        filtered.filter(
+            closure =>
+                (
+                    closure.status || ""
+                ).toLowerCase() === "active"
+        ).length;
+
+
+    document.getElementById(
+        "planned-count"
+    ).textContent =
+        filtered.filter(
+            closure =>
+                (
+                    closure.status || ""
+                ).toLowerCase() === "planned"
+        ).length;
+
+
+    if (!filtered.length) {{
+
+        container.innerHTML = `
+            <div class="empty">
+                No closures found for this
+                route and direction.
+            </div>
+        `;
+
+        return;
+    }}
+
+
+    container.innerHTML =
+        filtered.map(
+            closure => {{
+
+                const road =
+                    closure.road || "Unknown";
+
+                const direction =
+                    closure.direction || "";
+
+                const status =
+                    closure.status || "Unknown";
+
+                const description =
+                    closure.description || "";
+
+                const type =
+                    closure.type || "Unknown";
+
+                const cause =
+                    closure.cause || "Unknown";
+
+                const start =
+                    closure.start || "Unknown";
+
+                const end =
+                    closure.end || "Unknown";
+
+
+                return `
+
+                    <article class="closure">
+
+                        <div class="closure-header">
+
+                            <h3>
+                                ${{road}}
+                                ${{direction}}
+                            </h3>
+
+                            <span
+                                class="status status-${{status}}"
+                            >
+                                ${{status}}
+                            </span>
+
+                        </div>
+
+
+                        <p>
+                            ${{description}}
+                        </p>
+
+
+                        <div class="details">
+
+                            <div class="detail">
+                                <strong>Road</strong>
+                                ${{road}}
+                            </div>
+
+                            <div class="detail">
+                                <strong>Direction</strong>
+                                ${{direction || "Unknown"}}
+                            </div>
+
+                            <div class="detail">
+                                <strong>Type</strong>
+                                ${{type}}
+                            </div>
+
+                            <div class="detail">
+                                <strong>Cause</strong>
+                                ${{cause}}
+                            </div>
+
+                            <div class="detail">
+                                <strong>Start</strong>
+                                ${{start}}
+                            </div>
+
+                            <div class="detail">
+                                <strong>End</strong>
+                                ${{end}}
+                            </div>
+
+                        </div>
+
+                    </article>
+
+                `;
+
+            }}
+        ).join("");
 
 }}
 
 
-routeSelect.addEventListener(
-    "change",
-    updatePage
-);
-
-directionSelect.addEventListener(
-    "change",
-    updatePage
-);
+document
+    .getElementById("route")
+    .addEventListener(
+        "change",
+        render
+    );
 
 
-/*
- * Start with no closures displayed until
- * the user chooses a route and direction.
- */
-updatePage();
+document
+    .getElementById("direction")
+    .addEventListener(
+        "change",
+        render
+    );
 
 </script>
-
 
 </body>
 
 </html>
 """
 
-    OUTPUT_DIR.mkdir(exist_ok=True)
+    OUTPUT_DIR.mkdir(
+        exist_ok=True
+    )
 
     with OUTPUT_FILE.open(
         "w",
-        encoding="utf-8"
+        encoding="utf-8",
     ) as file:
+
         file.write(html)
 
     print(
@@ -774,5 +1152,7 @@ updatePage();
 
 
 if __name__ == "__main__":
+
     data = load_data()
+
     build_page(data)
