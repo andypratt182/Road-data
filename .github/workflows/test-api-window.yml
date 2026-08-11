@@ -1,382 +1,690 @@
-name: Test National Highways API Window Limits
+name: Test API Date Window
 
 on:
   workflow_dispatch:
 
-permissions:
-  contents: read
-
 jobs:
-  compare-windows:
+  test-api-window:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Compare 7-day and two 3.5-day windows
+      - name: Run single-request date filter diagnostic
         env:
           NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
         run: |
           python - <<'PY'
           import json
-          import time
+          import os
+          import re
           from datetime import datetime, timedelta, timezone
 
-          from fetch_closures import fetch_closures
+          import requests
 
-          UTC = timezone.utc
 
-          now = datetime.now(UTC).replace(microsecond=0)
-
-          seven_days = now + timedelta(days=7)
-
-          midpoint = now + timedelta(
-              days=3,
-              hours=12,
+          API_URL = (
+              "https://api.data.nationalhighways.co.uk"
+              "/roads/v2.0/closures"
           )
 
-          def api_datetime(dt):
-              """
-              National Highways requires:
-              YYYY-MM-DDThh:mm:ss
+          API_KEY = os.environ["NATIONAL_HIGHWAYS_API_KEY"]
 
-              Do NOT include the Z suffix.
-              """
-              return dt.strftime(
-                  "%Y-%m-%dT%H:%M:%S"
-              )
+          # --------------------------------------------------
+          # ONE REQUEST ONLY
+          # --------------------------------------------------
 
-          def fingerprint(record):
-              return json.dumps(
-                  record,
-                  sort_keys=True,
-                  ensure_ascii=False,
-              )
+          start = datetime.now(
+              timezone.utc
+          ).replace(
+              microsecond=0,
+              tzinfo=None,
+          )
 
-          windows = {
-              "7-day": (
-                  now,
-                  seven_days,
-              ),
-              "first-3.5-day": (
-                  now,
-                  midpoint,
-              ),
-              "second-3.5-day": (
-                  midpoint,
-                  seven_days,
-              ),
+          end = start + timedelta(
+              hours=6
+          )
+
+          start_string = start.strftime(
+              "%Y-%m-%dT%H:%M:%S"
+          )
+
+          end_string = end.strftime(
+              "%Y-%m-%dT%H:%M:%S"
+          )
+
+          params = {
+              "closureType": "planned",
+              "startDateTime": start_string,
+              "endDateTime": end_string,
           }
 
-          results = {}
+          headers = {
+              "Ocp-Apim-Subscription-Key": API_KEY,
+              "X-Response-MediaType": "application/json",
+              "X-Data-Format": "DATEXII",
+          }
 
-          print("=" * 80)
-          print(
-              "NATIONAL HIGHWAYS API "
-              "500-RECORD WINDOW TEST"
+          print("=" * 70)
+          print("NATIONAL HIGHWAYS DATE FILTER DIAGNOSTIC")
+          print("=" * 70)
+          print()
+          print("THIS TEST MAKES EXACTLY ONE API REQUEST.")
+          print("NO RETRIES.")
+          print("NO SPLITTING.")
+          print()
+          print("REQUEST WINDOW")
+          print("-" * 70)
+          print(f"Start: {start_string}")
+          print(f"End:   {end_string}")
+          print()
+          print("Parameters:")
+          print(json.dumps(params, indent=2))
+          print()
+          print("Requesting API...")
+          print()
+
+          response = requests.get(
+              API_URL,
+              params=params,
+              headers=headers,
+              timeout=60,
           )
-          print("=" * 80)
+
+          print(f"HTTP status: {response.status_code}")
+          print()
+          print("Final URL:")
+          print(response.url)
+          print()
+
+          # --------------------------------------------------
+          # RATE LIMIT
+          # --------------------------------------------------
+
+          if response.status_code == 429:
+
+              print("RATE LIMIT REACHED")
+              print()
+
+              print("Retry-After:")
+              print(
+                  response.headers.get(
+                      "Retry-After",
+                      "not supplied",
+                  )
+              )
+
+              print()
+              print(
+                  "No retry was attempted. "
+                  "This diagnostic intentionally makes "
+                  "one request only."
+              )
+
+              raise SystemExit(1)
+
+          # --------------------------------------------------
+          # OTHER HTTP ERRORS
+          # --------------------------------------------------
+
+          if response.status_code != 200:
+
+              print("REQUEST FAILED")
+              print()
+              print("Response body:")
+              print(response.text[:5000])
+
+              raise SystemExit(1)
+
+          # --------------------------------------------------
+          # PARSE RESPONSE
+          # --------------------------------------------------
+
+          try:
+              payload = response.json()
+          except Exception as exc:
+
+              print(
+                  "Unable to decode JSON response:"
+              )
+              print(exc)
+              print()
+              print(response.text[:5000])
+
+              raise SystemExit(1)
+
+          # --------------------------------------------------
+          # FIND RECORD LIST
+          # --------------------------------------------------
+
+          records = []
+
+          if isinstance(payload, list):
+              records = payload
+
+          elif isinstance(payload, dict):
+
+              for key in (
+                  "closures",
+                  "data",
+                  "results",
+                  "items",
+                  "features",
+              ):
+
+                  value = payload.get(key)
+
+                  if isinstance(value, list):
+                      records = value
+                      break
+
+          print("=" * 70)
+          print("RESPONSE")
+          print("=" * 70)
+          print()
+          print(
+              f"Records returned: {len(records)}"
+          )
+          print()
+
+          # --------------------------------------------------
+          # DATETIME PARSING
+          # --------------------------------------------------
+
+          def parse_datetime(value):
+
+              if not value:
+                  return None
+
+              if isinstance(value, datetime):
+                  return value
+
+              text = str(value).strip()
+
+              # Normalise Z.
+              if text.endswith("Z"):
+                  text = (
+                      text[:-1]
+                      + "+00:00"
+                  )
+
+              try:
+                  dt = datetime.fromisoformat(
+                      text
+                  )
+              except ValueError:
+                  return None
+
+              if dt.tzinfo is None:
+                  dt = dt.replace(
+                      tzinfo=timezone.utc
+                  )
+              else:
+                  dt = dt.astimezone(
+                      timezone.utc
+                  )
+
+              return dt
+
+          requested_start = start.replace(
+              tzinfo=timezone.utc
+          )
+
+          requested_end = end.replace(
+              tzinfo=timezone.utc
+          )
+
+          # --------------------------------------------------
+          # EXTRACT FIELD
+          # --------------------------------------------------
+
+          def get_field(record, *names):
+
+              if not isinstance(record, dict):
+                  return None
+
+              for name in names:
+
+                  if name in record:
+                      return record[name]
+
+              return None
+
+          def extract_start(record):
+
+              return get_field(
+                  record,
+                  "start",
+                  "startDateTime",
+                  "start_datetime",
+                  "startDate",
+                  "from",
+              )
+
+          def extract_end(record):
+
+              return get_field(
+                  record,
+                  "end",
+                  "endDateTime",
+                  "end_datetime",
+                  "endDate",
+                  "to",
+              )
+
+          # --------------------------------------------------
+          # TIMESTAMP ANALYSIS
+          # --------------------------------------------------
+
+          start_values = []
+          end_values = []
+
+          inside_start = 0
+          outside_start = 0
+
+          inside_end = 0
+          outside_end = 0
+
+          unknown_start = 0
+          unknown_end = 0
+
+          outside_records = []
+
+          for record in records:
+
+              raw_start = extract_start(
+                  record
+              )
+
+              raw_end = extract_end(
+                  record
+              )
+
+              parsed_start = parse_datetime(
+                  raw_start
+              )
+
+              parsed_end = parse_datetime(
+                  raw_end
+              )
+
+              if parsed_start:
+
+                  start_values.append(
+                      parsed_start
+                  )
+
+                  if (
+                      requested_start
+                      <= parsed_start
+                      <= requested_end
+                  ):
+                      inside_start += 1
+                  else:
+                      outside_start += 1
+
+                      if len(
+                          outside_records
+                      ) < 10:
+
+                          outside_records.append(
+                              (
+                                  record,
+                                  "start",
+                                  raw_start,
+                              )
+                          )
+
+              else:
+                  unknown_start += 1
+
+              if parsed_end:
+
+                  end_values.append(
+                      parsed_end
+                  )
+
+                  if (
+                      requested_start
+                      <= parsed_end
+                      <= requested_end
+                  ):
+                      inside_end += 1
+                  else:
+                      outside_end += 1
+
+              else:
+                  unknown_end += 1
+
+          # --------------------------------------------------
+          # RANGE ANALYSIS
+          # --------------------------------------------------
+
+          print(
+              "START TIMESTAMP ANALYSIS"
+          )
+          print("-" * 70)
+
+          if start_values:
+
+              earliest_start = min(
+                  start_values
+              )
+
+              latest_start = max(
+                  start_values
+              )
+
+              print(
+                  "Earliest closure start:"
+              )
+              print(
+                  earliest_start.isoformat()
+              )
+
+              print()
+
+              print(
+                  "Latest closure start:"
+              )
+              print(
+                  latest_start.isoformat()
+              )
+
+          else:
+
+              print(
+                  "No usable start timestamps "
+                  "were found."
+              )
+
+          print()
+
+          print(
+              "Records starting INSIDE "
+              "requested window:"
+          )
+          print(inside_start)
+
+          print()
+
+          print(
+              "Records starting OUTSIDE "
+              "requested window:"
+          )
+          print(outside_start)
+
+          print()
+
+          print(
+              "Records with unknown start:"
+          )
+          print(unknown_start)
+
+          print()
+
+          print(
+              "END TIMESTAMP ANALYSIS"
+          )
+          print("-" * 70)
+
+          if end_values:
+
+              earliest_end = min(
+                  end_values
+              )
+
+              latest_end = max(
+                  end_values
+              )
+
+              print(
+                  "Earliest closure end:"
+              )
+              print(
+                  earliest_end.isoformat()
+              )
+
+              print()
+
+              print(
+                  "Latest closure end:"
+              )
+              print(
+                  latest_end.isoformat()
+              )
+
+          else:
+
+              print(
+                  "No usable end timestamps "
+                  "were found."
+              )
+
+          print()
+
+          print(
+              "Records ending INSIDE "
+              "requested window:"
+          )
+          print(inside_end)
+
+          print()
+
+          print(
+              "Records ending OUTSIDE "
+              "requested window:"
+          )
+          print(outside_end)
+
+          print()
+
+          print(
+              "Records with unknown end:"
+          )
+          print(unknown_end)
+
+          # --------------------------------------------------
+          # ROAD ANALYSIS
+          # --------------------------------------------------
+
+          roads = {}
+
+          for record in records:
+
+              road = get_field(
+                  record,
+                  "road",
+                  "roadName",
+                  "roadNumber",
+              )
+
+              if road:
+                  roads[str(road)] = (
+                      roads.get(
+                          str(road),
+                          0,
+                      )
+                      + 1
+                  )
 
           print()
           print(
-              f"Test start: "
-              f"{api_datetime(now)}"
+              "ROADS REPRESENTED"
           )
+          print("-" * 70)
 
-          print(
-              f"Test end:   "
-              f"{api_datetime(seven_days)}"
-          )
-
-          print()
-          print(
-              "Each request is separated by "
-              "12 seconds."
-          )
-
-          print()
-
-          for closure_type in (
-              "planned",
-              "unplanned",
+          for road, count in sorted(
+              roads.items(),
+              key=lambda item: (
+                  -item[1],
+                  item[0],
+              ),
           ):
 
-              print()
-              print("=" * 80)
               print(
-                  f"CLOSURE TYPE: "
-                  f"{closure_type.upper()}"
-              )
-              print("=" * 80)
-
-              for name, (
-                  start,
-                  end,
-              ) in windows.items():
-
-                  print()
-                  print("-" * 80)
-                  print(name)
-                  print("-" * 80)
-
-                  start_string = api_datetime(
-                      start
-                  )
-
-                  end_string = api_datetime(
-                      end
-                  )
-
-                  print(
-                      f"Start: {start_string}"
-                  )
-
-                  print(
-                      f"End:   {end_string}"
-                  )
-
-                  print()
-                  print(
-                      "Requesting API..."
-                  )
-
-                  try:
-
-                      records = fetch_closures(
-                          closure_type=closure_type,
-                          start_datetime=start_string,
-                          end_datetime=end_string,
-                      )
-
-                      results[
-                          (
-                              closure_type,
-                              name,
-                          )
-                      ] = records
-
-                      print()
-                      print(
-                          f"Records returned: "
-                          f"{len(records)}"
-                      )
-
-                  except Exception as exc:
-
-                      print()
-                      print(
-                          "REQUEST FAILED:"
-                      )
-
-                      print(
-                          repr(exc)
-                      )
-
-                      raise
-
-                  print()
-                  print(
-                      "Waiting 12 seconds "
-                      "before next request..."
-                  )
-
-                  time.sleep(12)
-
-              full = results[
-                  (
-                      closure_type,
-                      "7-day",
-                  )
-              ]
-
-              first = results[
-                  (
-                      closure_type,
-                      "first-3.5-day",
-                  )
-              ]
-
-              second = results[
-                  (
-                      closure_type,
-                      "second-3.5-day",
-                  )
-              ]
-
-              full_set = {
-                  fingerprint(record)
-                  for record in full
-              }
-
-              first_set = {
-                  fingerprint(record)
-                  for record in first
-              }
-
-              second_set = {
-                  fingerprint(record)
-                  for record in second
-              }
-
-              split_union = (
-                  first_set
-                  | second_set
+                  f"{road}: {count}"
               )
 
-              overlap = (
-                  first_set
-                  & second_set
-              )
+          # --------------------------------------------------
+          # SAMPLE OUTSIDE RECORDS
+          # --------------------------------------------------
 
-              only_in_full = (
-                  full_set
-                  - split_union
-              )
+          print()
+          print(
+              "SAMPLE RECORDS OUTSIDE "
+              "REQUESTED START WINDOW"
+          )
+          print("-" * 70)
 
-              only_in_split = (
-                  split_union
-                  - full_set
-              )
-
-              print()
-              print()
-              print("=" * 80)
-              print(
-                  f"COMPARISON: "
-                  f"{closure_type.upper()}"
-              )
-              print("=" * 80)
-
-              print()
-              print(
-                  f"7-day result:           "
-                  f"{len(full_set)}"
-              )
+          if not outside_records:
 
               print(
-                  f"First 3.5-day result:   "
-                  f"{len(first_set)}"
+                  "No outside-window records "
+                  "were found."
               )
 
-              print(
-                  f"Second 3.5-day result:  "
-                  f"{len(second_set)}"
-              )
+          else:
 
-              print(
-                  f"Split union:             "
-                  f"{len(split_union)}"
-              )
-
-              print(
-                  f"Split overlap:           "
-                  f"{len(overlap)}"
-              )
-
-              print(
-                  f"Split total:             "
-                  f"{len(first_set) + len(second_set)}"
-              )
-
-              print(
-                  f"Only in 7-day request:   "
-                  f"{len(only_in_full)}"
-              )
-
-              print(
-                  f"Only in split requests:  "
-                  f"{len(only_in_split)}"
-              )
-
-              print()
-
-              if (
-                  len(full_set) == 500
-                  and len(split_union) > 500
+              for number, (
+                  record,
+                  field,
+                  raw_value,
+              ) in enumerate(
+                  outside_records,
+                  start=1,
               ):
+
+                  road = get_field(
+                      record,
+                      "road",
+                      "roadName",
+                      "roadNumber",
+                  )
+
+                  direction = get_field(
+                      record,
+                      "direction",
+                      "directionDescription",
+                  )
+
+                  description = get_field(
+                      record,
+                      "description",
+                      "comment",
+                      "remarks",
+                  )
+
+                  print()
+                  print(
+                      f"Record {number}"
+                  )
+                  print(
+                      f"Road: {road}"
+                  )
+                  print(
+                      f"Direction: {direction}"
+                  )
+                  print(
+                      f"Start: {raw_value}"
+                  )
+                  print(
+                      f"Description: "
+                      f"{description}"
+                  )
+
+          # --------------------------------------------------
+          # CONCLUSION
+          # --------------------------------------------------
+
+          print()
+          print("=" * 70)
+          print("DIAGNOSTIC RESULT")
+          print("=" * 70)
+          print()
+
+          total_with_start = (
+              inside_start
+              + outside_start
+          )
+
+          if total_with_start == 0:
+
+              print(
+                  "Unable to determine whether "
+                  "startDateTime is filtering."
+              )
+
+          else:
+
+              outside_percentage = (
+                  outside_start
+                  / total_with_start
+                  * 100
+              )
+
+              inside_percentage = (
+                  inside_start
+                  / total_with_start
+                  * 100
+              )
+
+              print(
+                  f"{inside_start} records "
+                  f"({inside_percentage:.1f}%) "
+                  "start inside the requested "
+                  "6-hour window."
+              )
+
+              print(
+                  f"{outside_start} records "
+                  f"({outside_percentage:.1f}%) "
+                  "start outside the requested "
+                  "6-hour window."
+              )
+
+              print()
+
+              if outside_start == 0:
 
                   print(
                       "RESULT: STRONG EVIDENCE "
-                      "OF A 500-RECORD CAP."
+                      "that startDateTime is "
+                      "filtering the returned records."
                   )
 
-                  print(
-                      "The 7-day request returned "
-                      "exactly 500 records, while "
-                      "the split requests returned "
-                      "more than 500 unique records "
-                      "combined."
-                  )
-
-              elif (
-                  len(full_set) < 500
-              ):
+              elif inside_start > 0:
 
                   print(
-                      "RESULT: The 7-day request "
-                      "did not reach 500 records."
-                  )
-
-                  print(
-                      "No 500-record cap was "
-                      "demonstrated for this "
-                      "closure type."
-                  )
-
-              elif (
-                  len(full_set)
-                  == len(split_union)
-                  and full_set
-                  == split_union
-              ):
-
-                  print(
-                      "RESULT: The 7-day request "
-                      "returned the same records "
-                      "as the two split requests."
-                  )
-
-                  print(
-                      "No evidence of records being "
-                      "lost because of the 500-record "
-                      "limit."
+                      "RESULT: startDateTime "
+                      "appears to have some "
+                      "filtering effect, but "
+                      "records outside the requested "
+                      "window are also being returned."
                   )
 
               else:
 
                   print(
-                      "RESULT: DIFFERENCE DETECTED."
+                      "RESULT: NO returned records "
+                      "start inside the requested "
+                      "window. This suggests that "
+                      "startDateTime may not be "
+                      "filtering as expected."
                   )
 
-                  print(
-                      "The 7-day request and split "
-                      "requests returned different "
-                      "record sets."
-                  )
-
           print()
-          print()
-          print("=" * 80)
-          print("TEST COMPLETE")
-          print("=" * 80)
-
-          print()
+          print(
+              "TEST COMPLETE."
+          )
+          print(
+              "Exactly one API request was made."
+          )
+          print(
+              "No retries were performed."
+          )
           print(
               "Production workflow was not modified."
-          )
-
-          print(
-              "This workflow only runs manually."
           )
           PY
