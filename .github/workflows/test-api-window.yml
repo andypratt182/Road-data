@@ -1,4 +1,3 @@
-```yaml
 name: Test National Highways API Date Window
 
 on:
@@ -293,4 +292,3 @@ jobs:
               "Production workflows were not modified."
           )
           PY
-```
