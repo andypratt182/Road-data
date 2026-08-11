@@ -1,4 +1,4 @@
-name: Test API Pagination
+name: Test API Pagination - Two Pages
 
 on:
   workflow_dispatch:
@@ -11,14 +11,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run single-request pagination diagnostic
+      - name: Run controlled two-page pagination test
         env:
           NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
         run: |
           python - <<'PY'
           import json
           import os
-          from datetime import datetime, timezone
+          from collections import Counter
 
           import requests
 
@@ -48,104 +48,400 @@ jobs:
               "X-Data-Format": "DATEXII",
           }
 
+          TARGET_ROADS = {
+              "M6",
+              "M57",
+              "M58",
+              "M62",
+          }
+
           print("=" * 70)
-          print("NATIONAL HIGHWAYS PAGINATION TEST")
+          print("NATIONAL HIGHWAYS TEST 6")
+          print("CONTROLLED TWO-PAGE PAGINATION TEST")
           print("=" * 70)
           print()
-          print("THIS TEST MAKES EXACTLY ONE API REQUEST.")
+          print("THIS TEST MAKES EXACTLY TWO API REQUESTS.")
           print("NO RETRIES.")
-          print("NO SPLITTING.")
-          print("NO FOLLOWING OF x-next.")
+          print("NO REQUEST SPLITTING.")
+          print("NO THIRD REQUEST.")
           print()
           print("PURPOSE:")
           print(
-              "Determine whether the live API returns an x-next "
-              "pagination URL and whether the observed 500 records "
-              "represent a paginated first page."
+              "Confirm that the x-next URL returned by page 1 "
+              "actually retrieves a different second page."
           )
           print()
           print("IMPORTANT:")
           print("closureType is intentionally NOT supplied.")
-          print("pageCursor is intentionally NOT supplied.")
+          print("pageCursor is NOT manually supplied.")
+          print("The page 2 URL will be taken directly from x-next.")
           print()
           print("REQUEST WINDOW")
           print("-" * 70)
           print(f"Start: {start_string}")
           print(f"End:   {end_string}")
           print()
-          print("Parameters:")
+          print("Initial parameters:")
           print(json.dumps(params, indent=2))
           print()
-          print("Requesting API...")
+
+          # --------------------------------------------------
+          # REQUEST COUNTER
+          # --------------------------------------------------
+
+          request_count = 0
+
+          session = requests.Session()
+
+          # --------------------------------------------------
+          # DATEX II EXTRACTION
+          # --------------------------------------------------
+
+          def extract_records(payload):
+
+              records = []
+
+              if not isinstance(payload, dict):
+                  return records
+
+              d2payload = payload.get(
+                  "D2Payload"
+              )
+
+              if not isinstance(
+                  d2payload,
+                  dict,
+              ):
+                  return records
+
+              situations = d2payload.get(
+                  "situation",
+                  []
+              )
+
+              if not isinstance(
+                  situations,
+                  list,
+              ):
+                  return records
+
+              for situation in situations:
+
+                  if not isinstance(
+                      situation,
+                      dict,
+                  ):
+                      continue
+
+                  situation_records = situation.get(
+                      "situationRecord",
+                      []
+                  )
+
+                  if not isinstance(
+                      situation_records,
+                      list,
+                  ):
+                      continue
+
+                  records.extend(
+                      situation_records
+                  )
+
+              return records
+
+          # --------------------------------------------------
+          # RECORD ID
+          # --------------------------------------------------
+
+          def get_record_id(record):
+
+              if not isinstance(
+                  record,
+                  dict,
+              ):
+                  return None
+
+              # Most DATEX II records use idG.
+              if record.get("idG"):
+                  return str(
+                      record["idG"]
+                  )
+
+              # Fallbacks for diagnostic purposes.
+              for key in (
+                  "id",
+                  "recordId",
+                  "situationRecordId",
+              ):
+
+                  if record.get(key):
+                      return str(
+                          record[key]
+                      )
+
+              return None
+
+          # --------------------------------------------------
+          # ROAD EXTRACTION
+          # --------------------------------------------------
+
+          def extract_roads(record):
+
+              found = set()
+
+              if not isinstance(
+                  record,
+                  dict,
+              ):
+                  return found
+
+              def walk(obj):
+
+                  if isinstance(
+                      obj,
+                      dict,
+                  ):
+
+                      for key, value in obj.items():
+
+                          key_lower = str(
+                              key
+                          ).lower()
+
+                          if key_lower in {
+                              "roadname",
+                              "roadnumber",
+                          }:
+
+                              if value:
+
+                                  text = str(
+                                      value
+                                  ).strip().upper()
+
+                                  # Normalise obvious
+                                  # road-number forms.
+                                  text = text.replace(
+                                      " ",
+                                      "",
+                                  )
+
+                                  found.add(
+                                      text
+                                  )
+
+                          walk(value)
+
+                  elif isinstance(
+                      obj,
+                      list,
+                  ):
+
+                      for item in obj:
+                          walk(item)
+
+              walk(record)
+
+              return found
+
+          # --------------------------------------------------
+          # PAGE ANALYSIS
+          # --------------------------------------------------
+
+          def analyse_page(
+              page_number,
+              response,
+              payload,
+          ):
+
+              print("=" * 70)
+              print(
+                  f"PAGE {page_number} ANALYSIS"
+              )
+              print("=" * 70)
+              print()
+
+              records = extract_records(
+                  payload
+              )
+
+              print(
+                  f"HTTP status: "
+                  f"{response.status_code}"
+              )
+
+              print()
+
+              print(
+                  f"Response characters: "
+                  f"{len(response.text)}"
+              )
+
+              print()
+
+              print(
+                  f"Situation records: "
+                  f"{len(records)}"
+              )
+
+              print()
+
+              ids = []
+
+              records_without_ids = 0
+
+              for record in records:
+
+                  record_id = get_record_id(
+                      record
+                  )
+
+                  if record_id:
+
+                      ids.append(
+                          record_id
+                      )
+
+                  else:
+
+                      records_without_ids += 1
+
+              duplicate_ids = [
+                  record_id
+                  for record_id, count
+                  in Counter(ids).items()
+                  if count > 1
+              ]
+
+              print(
+                  f"Records with IDs: "
+                  f"{len(ids)}"
+              )
+
+              print(
+                  f"Records without IDs: "
+                  f"{records_without_ids}"
+              )
+
+              print(
+                  f"Duplicate IDs within page: "
+                  f"{len(duplicate_ids)}"
+              )
+
+              print()
+
+              # --------------------------------------------------
+              # TARGET ROAD ANALYSIS
+              # --------------------------------------------------
+
+              target_counts = Counter()
+
+              for record in records:
+
+                  roads = extract_roads(
+                      record
+                  )
+
+                  for road in roads:
+
+                      if road in TARGET_ROADS:
+
+                          target_counts[
+                              road
+                          ] += 1
+
+              print(
+                  "TARGET ROAD RECORDS"
+              )
+              print("-" * 70)
+
+              if target_counts:
+
+                  for road, count in sorted(
+                      target_counts.items()
+                  ):
+
+                      print(
+                          f"{road}: {count}"
+                      )
+
+              else:
+
+                  print(
+                      "No M6/M57/M58/M62 "
+                      "road fields identified."
+                  )
+
+              print()
+
+              # --------------------------------------------------
+              # x-next
+              # --------------------------------------------------
+
+              next_url = response.headers.get(
+                  "x-next"
+              )
+
+              print(
+                  "x-next:"
+              )
+
+              if next_url:
+
+                  print(
+                      next_url
+                  )
+
+              else:
+
+                  print(
+                      "NOT PRESENT"
+                  )
+
+              print()
+
+              return {
+                  "records": records,
+                  "ids": set(ids),
+                  "next_url": next_url,
+                  "target_counts": target_counts,
+              }
+
+          # ==================================================
+          # REQUEST 1: FIRST PAGE
+          # ==================================================
+
+          print("=" * 70)
+          print("REQUEST 1 OF 2 - FIRST PAGE")
+          print("=" * 70)
           print()
 
-          # --------------------------------------------------
-          # EXACTLY ONE REQUEST
-          # --------------------------------------------------
+          request_count += 1
 
-          response = requests.get(
+          response1 = session.get(
               API_URL,
               params=params,
               headers=headers,
               timeout=60,
           )
 
-          print(f"HTTP status: {response.status_code}")
-          print()
-
-          print("Final URL:")
-          print(response.url)
-          print()
-
-          # --------------------------------------------------
-          # RESPONSE HEADERS
-          # --------------------------------------------------
-
-          print("=" * 70)
-          print("RESPONSE HEADERS")
-          print("=" * 70)
-          print()
-
-          print("Content-Type:")
           print(
-              response.headers.get(
-                  "Content-Type",
-                  "not supplied",
-              )
+              f"Request count: "
+              f"{request_count}"
           )
 
           print()
 
-          print("x-next:")
-          x_next = response.headers.get("x-next")
+          if response1.status_code == 429:
 
-          if x_next:
-              print(x_next)
-          else:
-              print("NOT PRESENT")
-
-          print()
-
-          print("All response headers:")
-          for key, value in response.headers.items():
-              print(f"{key}: {value}")
-
-          print()
-
-          # --------------------------------------------------
-          # RATE LIMIT
-          # --------------------------------------------------
-
-          if response.status_code == 429:
-
-              print("=" * 70)
-              print("RATE LIMIT REACHED")
-              print("=" * 70)
-              print()
-
-              print("Retry-After:")
               print(
-                  response.headers.get(
+                  "RATE LIMIT RECEIVED."
+              )
+
+              print(
+                  "Retry-After:",
+                  response1.headers.get(
                       "Retry-After",
                       "not supplied",
                   )
@@ -153,213 +449,293 @@ jobs:
 
               print()
               print(
-                  "No retry was attempted."
+                  "No retry performed."
               )
 
               raise SystemExit(1)
 
-          # --------------------------------------------------
-          # OTHER HTTP ERRORS
-          # --------------------------------------------------
+          if response1.status_code != 200:
 
-          if response.status_code != 200:
+              print(
+                  "FIRST REQUEST FAILED."
+              )
 
-              print("=" * 70)
-              print("REQUEST FAILED")
-              print("=" * 70)
-              print()
-
-              print("Response body:")
-              print(response.text[:5000])
+              print(
+                  response1.text[:5000]
+              )
 
               raise SystemExit(1)
 
-          # --------------------------------------------------
-          # RESPONSE SIZE
-          # --------------------------------------------------
-
-          print("=" * 70)
-          print("RESPONSE SIZE")
-          print("=" * 70)
-          print()
-
           print(
-              f"Response character count: "
-              f"{len(response.text)}"
+              "Final URL:"
           )
-
+          print(
+              response1.url
+          )
           print()
-
-          # --------------------------------------------------
-          # RAW RESPONSE SAMPLE
-          # --------------------------------------------------
-
-          print("=" * 70)
-          print("FIRST 3000 CHARACTERS OF RESPONSE")
-          print("=" * 70)
-          print()
-
-          print(response.text[:3000])
-
-          print()
-
-          # --------------------------------------------------
-          # JSON PARSE
-          # --------------------------------------------------
 
           try:
-              payload = response.json()
+
+              payload1 = response1.json()
 
           except Exception as exc:
 
-              print("=" * 70)
-              print("JSON PARSE FAILED")
-              print("=" * 70)
-              print()
-
+              print(
+                  "Unable to parse page 1 JSON:"
+              )
               print(exc)
 
               raise SystemExit(1)
 
+          page1 = analyse_page(
+              1,
+              response1,
+              payload1,
+          )
+
+          next_url = page1[
+              "next_url"
+          ]
+
+          # ==================================================
+          # REQUIRE x-next FOR PAGE 2
+          # ==================================================
+
+          if not next_url:
+
+              print("=" * 70)
+              print(
+                  "TEST STOPPED SAFELY"
+              )
+              print("=" * 70)
+              print()
+              print(
+                  "Page 1 did not contain an x-next "
+                  "header."
+              )
+              print()
+              print(
+                  "Therefore page 2 was NOT requested."
+              )
+              print()
+              print(
+                  f"Exactly {request_count} "
+                  "API request was made."
+              )
+              print(
+                  "No retry was performed."
+              )
+              print(
+                  "No request splitting was performed."
+              )
+              print()
+              print(
+                  "RESULT: PAGINATION COULD NOT "
+                  "BE TESTED BEYOND PAGE 1."
+              )
+
+              raise SystemExit(1)
+
+          # ==================================================
+          # REQUEST 2: FOLLOW x-next
+          # ==================================================
+
           print("=" * 70)
-          print("JSON STRUCTURE")
+          print("REQUEST 2 OF 2 - FOLLOW x-next")
           print("=" * 70)
           print()
 
           print(
-              "Top-level Python type:",
-              type(payload).__name__,
+              "Following the exact x-next URL "
+              "returned by page 1."
           )
 
-          if isinstance(payload, dict):
+          print()
+
+          request_count += 1
+
+          response2 = session.get(
+              next_url,
+              headers=headers,
+              timeout=60,
+          )
+
+          print(
+              f"Request count: "
+              f"{request_count}"
+          )
+
+          print()
+
+          if response2.status_code == 429:
+
+              print(
+                  "RATE LIMIT RECEIVED."
+              )
+
+              print(
+                  "Retry-After:",
+                  response2.headers.get(
+                      "Retry-After",
+                      "not supplied",
+                  )
+              )
 
               print()
-              print("Top-level keys:")
-
-              for key in payload.keys():
-                  print(f"- {key}")
-
-          print()
-
-          # --------------------------------------------------
-          # DATEX II RECORD EXTRACTION
-          # --------------------------------------------------
-
-          records = []
-
-          if isinstance(payload, dict):
-
-              d2payload = payload.get(
-                  "D2Payload"
+              print(
+                  "No retry performed."
               )
 
-              if isinstance(
-                  d2payload,
-                  dict,
-              ):
+              raise SystemExit(1)
 
-                  situations = d2payload.get(
-                      "situation",
-                      [],
-                  )
+          if response2.status_code != 200:
 
-                  if isinstance(
-                      situations,
-                      list,
-                  ):
-
-                      for situation in situations:
-
-                          if not isinstance(
-                              situation,
-                              dict,
-                          ):
-                              continue
-
-                          situation_records = (
-                              situation.get(
-                                  "situationRecord",
-                                  [],
-                              )
-                          )
-
-                          if isinstance(
-                              situation_records,
-                              list,
-                          ):
-
-                              records.extend(
-                                  situation_records
-                              )
-
-          # --------------------------------------------------
-          # RECORD COUNTS
-          # --------------------------------------------------
-
-          print("=" * 70)
-          print("DATEX II RECORD COUNTS")
-          print("=" * 70)
-          print()
-
-          print(
-              f"Situation records identified: "
-              f"{len(records)}"
-          )
-
-          print()
-
-          # --------------------------------------------------
-          # SITUATION COUNT
-          # --------------------------------------------------
-
-          situation_count = 0
-
-          if isinstance(payload, dict):
-
-              d2payload = payload.get(
-                  "D2Payload"
+              print(
+                  "SECOND REQUEST FAILED."
               )
 
-              if isinstance(
-                  d2payload,
-                  dict,
-              ):
+              print(
+                  response2.text[:5000]
+              )
 
-                  situations = d2payload.get(
-                      "situation",
-                      []
+              raise SystemExit(1)
+
+          print(
+              "Final URL:"
+          )
+          print(
+              response2.url
+          )
+          print()
+
+          try:
+
+              payload2 = response2.json()
+
+          except Exception as exc:
+
+              print(
+                  "Unable to parse page 2 JSON:"
+              )
+              print(exc)
+
+              raise SystemExit(1)
+
+          page2 = analyse_page(
+              2,
+              response2,
+              payload2,
+          )
+
+          # ==================================================
+          # PAGE COMPARISON
+          # ==================================================
+
+          print("=" * 70)
+          print("PAGE COMPARISON")
+          print("=" * 70)
+          print()
+
+          ids1 = page1["ids"]
+          ids2 = page2["ids"]
+
+          common_ids = ids1 & ids2
+
+          page1_only = ids1 - ids2
+          page2_only = ids2 - ids1
+
+          print(
+              f"Page 1 IDs: "
+              f"{len(ids1)}"
+          )
+
+          print(
+              f"Page 2 IDs: "
+              f"{len(ids2)}"
+          )
+
+          print(
+              f"IDs appearing on BOTH pages: "
+              f"{len(common_ids)}"
+          )
+
+          print(
+              f"IDs unique to page 1: "
+              f"{len(page1_only)}"
+          )
+
+          print(
+              f"IDs unique to page 2: "
+              f"{len(page2_only)}"
+          )
+
+          print()
+
+          if common_ids:
+
+              print(
+                  "WARNING: Some record IDs "
+                  "appear on both pages."
+              )
+
+              print()
+
+              print(
+                  "First duplicate IDs:"
+              )
+
+              for record_id in sorted(
+                  common_ids
+              )[:20]:
+
+                  print(
+                      f"- {record_id}"
                   )
 
-                  if isinstance(
-                      situations,
-                      list,
-                  ):
+          else:
 
-                      situation_count = len(
-                          situations
-                      )
+              print(
+                  "No record IDs overlap "
+                  "between page 1 and page 2."
+              )
+
+          print()
+
+          # --------------------------------------------------
+          # RECORD COUNT COMPARISON
+          # --------------------------------------------------
+
+          records1 = page1["records"]
+          records2 = page2["records"]
 
           print(
-              f"Situations identified: "
-              f"{situation_count}"
+              "RECORD COUNT COMPARISON"
+          )
+          print("-" * 70)
+
+          print(
+              f"Page 1: {len(records1)}"
+          )
+
+          print(
+              f"Page 2: {len(records2)}"
           )
 
           print()
 
           # --------------------------------------------------
-          # LOOK FOR PAGINATION INFORMATION
+          # SECOND PAGE x-next
           # --------------------------------------------------
 
-          print("=" * 70)
-          print("PAGINATION ANALYSIS")
-          print("=" * 70)
-          print()
+          page2_next = page2[
+              "next_url"
+          ]
 
           print(
-              "x-next response header:"
+              "PAGE 2 x-next:"
           )
 
-          if x_next:
+          if page2_next:
 
               print(
                   "PRESENT"
@@ -367,14 +743,14 @@ jobs:
 
               print()
               print(
-                  "The API supplied a continuation "
-                  "URL for another page."
+                  "This proves that pagination "
+                  "continues beyond page 2."
               )
 
               print()
               print(
-                  "The continuation URL WILL NOT "
-                  "be followed by this test."
+                  "IMPORTANT: The third page "
+                  "WAS NOT requested."
               )
 
           else:
@@ -385,220 +761,71 @@ jobs:
 
               print()
               print(
-                  "No continuation URL was supplied "
-                  "in the response headers."
+                  "The API did not advertise "
+                  "a third page."
               )
 
           print()
 
-          # --------------------------------------------------
-          # CHECK WHETHER 500 RECORDS WERE RETURNED
-          # --------------------------------------------------
+          # ==================================================
+          # FINAL RESULT
+          # ==================================================
 
           print("=" * 70)
-          print("500-RECORD LIMIT ANALYSIS")
-          print("=" * 70)
-          print()
-
-          if len(records) == 500:
-
-              print(
-                  "EXACTLY 500 situation records "
-                  "were returned."
-              )
-
-              print()
-
-              if x_next:
-
-                  print(
-                      "RESULT: STRONG EVIDENCE that "
-                      "500 is the first-page result "
-                      "size and x-next provides the "
-                      "next page."
-                  )
-
-              else:
-
-                  print(
-                      "RESULT: 500 records were "
-                      "returned, but no x-next "
-                      "header was supplied."
-                  )
-
-                  print(
-                      "Pagination cannot be confirmed "
-                      "from this response alone."
-                  )
-
-          elif len(records) < 500:
-
-              print(
-                  f"Only {len(records)} situation "
-                  "records were returned."
-              )
-
-              if x_next:
-
-                  print(
-                      "An x-next header is present "
-                      "despite fewer than 500 records."
-                  )
-
-              else:
-
-                  print(
-                      "No x-next header is present."
-                  )
-
-          else:
-
-              print(
-                  f"{len(records)} situation records "
-                  "were returned."
-              )
-
-              print(
-                  "The observed response exceeds "
-                  "the previously observed 500-record "
-                  "boundary."
-              )
-
-          print()
-
-          # --------------------------------------------------
-          # LOOK FOR PAGINATION METADATA INSIDE JSON
-          # --------------------------------------------------
-
-          print("=" * 70)
-          print("JSON PAGINATION METADATA SEARCH")
+          print("TEST 6 RESULT")
           print("=" * 70)
           print()
 
-          pagination_keywords = (
-              "next",
-              "nextLink",
-              "continuation",
-              "continuationToken",
-              "page",
-              "pageCursor",
-              "cursor",
-              "total",
-              "count",
-              "limit",
-              "offset",
-          )
-
-          found_metadata = []
-
-          def inspect_object(
-              obj,
-              path="",
+          if (
+              len(records1) > 0
+              and len(records2) > 0
+              and not common_ids
           ):
 
-              if isinstance(obj, dict):
-
-                  for key, value in obj.items():
-
-                      key_lower = str(
-                          key
-                      ).lower()
-
-                      if any(
-                          keyword.lower()
-                          in key_lower
-                          for keyword
-                          in pagination_keywords
-                      ):
-
-                          found_metadata.append(
-                              (
-                                  f"{path}.{key}",
-                                  value,
-                              )
-                          )
-
-                      inspect_object(
-                          value,
-                          f"{path}.{key}",
-                      )
-
-              elif isinstance(obj, list):
-
-                  for index, value in enumerate(
-                      obj
-                  ):
-
-                      inspect_object(
-                          value,
-                          f"{path}[{index}]",
-                      )
-
-          inspect_object(payload)
-
-          if found_metadata:
-
-              for path, value in found_metadata[:50]:
-
-                  print(
-                      f"{path}: "
-                      f"{repr(value)[:500]}"
-                  )
-
-          else:
-
               print(
-                  "No pagination-related fields "
-                  "were identified inside the JSON."
-              )
-
-          print()
-
-          # --------------------------------------------------
-          # FINAL RESULT
-          # --------------------------------------------------
-
-          print("=" * 70)
-          print("TEST 5 RESULT")
-          print("=" * 70)
-          print()
-
-          if x_next:
-
-              print(
-                  "RESULT: PAGINATION CONFIRMED."
+                  "RESULT: PAGINATION BEHAVIOUR "
+                  "CONFIRMED."
               )
 
               print()
               print(
-                  "The live API returned an x-next "
-                  "continuation URL."
+                  "Page 1 and page 2 contain "
+                  "different situation records."
+              )
+
+          elif (
+              len(records1) > 0
+              and len(records2) > 0
+              and common_ids
+          ):
+
+              print(
+                  "RESULT: PAGE 2 WAS RETRIEVED, "
+                  "BUT SOME RECORD IDs OVERLAP."
               )
 
               print(
-                  "The URL was NOT followed."
+                  "Further investigation may be "
+                  "required before production use."
               )
 
+          elif len(records2) == 0:
+
               print(
-                  "The next page must be retrieved "
-                  "using the supplied x-next URL."
+                  "RESULT: PAGE 2 RETURNED ZERO "
+                  "SITUATION RECORDS."
               )
 
           else:
 
               print(
-                  "RESULT: PAGINATION NOT CONFIRMED "
-                  "FROM THIS REQUEST."
-              )
-
-              print()
-              print(
-                  "No x-next response header was found."
+                  "RESULT: INCONCLUSIVE."
               )
 
           print()
           print(
-              "Exactly one API request was made."
+              f"Exactly {request_count} "
+              "API requests were made."
           )
           print(
               "No retries were performed."
@@ -607,18 +834,18 @@ jobs:
               "No request splitting was performed."
           )
           print(
-              "No pageCursor was supplied."
+              "No third request was made."
           )
           print(
-              "No x-next URL was followed."
-          )
-          print(
-              "closureType was NOT supplied."
+              "Page 2 was obtained exclusively "
+              "using the x-next URL supplied "
+              "by page 1."
           )
           print(
               "Production workflow was not modified."
           )
           print()
-          print("TEST COMPLETE.")
+          print(
+              "TEST COMPLETE."
+          )
           PY
-      
