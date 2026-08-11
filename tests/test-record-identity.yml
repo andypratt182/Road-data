@@ -1,0 +1,891 @@
+name: Test Record Identity
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-record-identity:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests python-dotenv
+
+      - name: Run record identity test
+        env:
+          NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import time
+          from collections import Counter, defaultdict
+          from datetime import datetime, timezone
+
+          import requests
+
+
+          API_URL = (
+              "https://api.data.nationalhighways.co.uk"
+              "/roads/v2.0/closures"
+          )
+
+          API_KEY = os.environ["NATIONAL_HIGHWAYS_API_KEY"]
+
+          START = "2026-08-11T00:00:00"
+          END = "2026-08-18T23:59:59"
+
+          MAX_PAGES = 100
+          MAX_REQUESTS = 120
+
+          TARGET_ROADS = {
+              "M6",
+              "M57",
+              "M58",
+              "M62",
+          }
+
+          headers = {
+              "Ocp-Apim-Subscription-Key": API_KEY,
+              "X-Response-MediaType": "application/json",
+              "X-Data-Format": "DATEXII",
+          }
+
+          params = {
+              "startDateTime": START,
+              "endDateTime": END,
+          }
+
+          print("=" * 70)
+          print("STEP 3")
+          print("NATIONAL HIGHWAYS RECORD IDENTITY TEST")
+          print("=" * 70)
+          print()
+          print("Purpose:")
+          print(
+              "Determine whether idG is a reliable unique "
+              "identifier across the complete paginated dataset."
+          )
+          print()
+          print("closureType: NOT supplied")
+          print("Initial pageCursor: NOT supplied")
+          print("Pagination: exact x-next URL")
+          print("Rate limiting: Retry-After")
+          print()
+          print(f"Start: {START}")
+          print(f"End:   {END}")
+          print()
+          print("Production workflow: NOT modified")
+          print("Database: NOT modified")
+          print()
+
+          all_records = []
+
+          next_url = API_URL
+          next_params = params
+
+          page_number = 0
+          request_count = 0
+
+          while True:
+
+              page_number += 1
+
+              if page_number > MAX_PAGES:
+                  raise RuntimeError(
+                      f"Maximum page limit of {MAX_PAGES} reached."
+                  )
+
+              while True:
+
+                  request_count += 1
+
+                  if request_count > MAX_REQUESTS:
+                      raise RuntimeError(
+                          f"Maximum request limit of "
+                          f"{MAX_REQUESTS} reached."
+                      )
+
+                  print("=" * 70)
+                  print(f"REQUEST {request_count}")
+                  print(f"PAGE {page_number}")
+                  print("=" * 70)
+                  print()
+                  print(f"URL: {next_url}")
+
+                  if next_params:
+                      print()
+                      print("Parameters:")
+                      print(
+                          json.dumps(
+                              next_params,
+                              indent=2,
+                          )
+                      )
+
+                  started = time.monotonic()
+
+                  response = requests.get(
+                      next_url,
+                      params=next_params,
+                      headers=headers,
+                      timeout=60,
+                  )
+
+                  elapsed = (
+                      time.monotonic()
+                      - started
+                  )
+
+                  print()
+                  print(
+                      f"HTTP status: "
+                      f"{response.status_code}"
+                  )
+                  print(
+                      f"Elapsed: "
+                      f"{elapsed:.3f} seconds"
+                  )
+
+                  if response.status_code == 429:
+
+                      retry_after = response.headers.get(
+                          "Retry-After"
+                      )
+
+                      print()
+                      print("HTTP 429 RATE LIMIT")
+                      print(
+                          "Retry-After:",
+                          retry_after or "not supplied",
+                      )
+
+                      if not retry_after:
+                          raise RuntimeError(
+                              "HTTP 429 received without "
+                              "Retry-After."
+                          )
+
+                      try:
+                          wait_seconds = int(
+                              retry_after
+                          )
+                      except ValueError:
+                          raise RuntimeError(
+                              "Invalid Retry-After value: "
+                              f"{retry_after}"
+                          )
+
+                      print()
+                      print(
+                          f"Waiting {wait_seconds} "
+                          "seconds before retrying."
+                      )
+
+                      time.sleep(
+                          max(
+                              0,
+                              wait_seconds,
+                          )
+                      )
+
+                      continue
+
+                  if response.status_code != 200:
+
+                      print()
+                      print("REQUEST FAILED")
+                      print()
+                      print(
+                          response.text[:5000]
+                      )
+
+                      raise RuntimeError(
+                          f"HTTP {response.status_code}"
+                      )
+
+                  break
+
+              try:
+                  payload = response.json()
+              except Exception as exc:
+                  raise RuntimeError(
+                      "Response was not valid JSON."
+                  ) from exc
+
+              if not isinstance(payload, dict):
+                  raise RuntimeError(
+                      "Top-level JSON object was not a dict."
+                  )
+
+              d2payload = payload.get(
+                  "D2Payload"
+              )
+
+              if not isinstance(
+                  d2payload,
+                  dict,
+              ):
+                  raise RuntimeError(
+                      "D2Payload was not found."
+                  )
+
+              situations = d2payload.get(
+                  "situation"
+              )
+
+              if not isinstance(
+                  situations,
+                  list,
+              ):
+                  raise RuntimeError(
+                      "D2Payload.situation was not a list."
+                  )
+
+              page_records = []
+
+              for situation in situations:
+
+                  if not isinstance(
+                      situation,
+                      dict,
+                  ):
+                      continue
+
+                  records = situation.get(
+                      "situationRecord"
+                  )
+
+                  if not isinstance(
+                      records,
+                      list,
+                  ):
+                      continue
+
+                  for record in records:
+
+                      if isinstance(
+                          record,
+                          dict,
+                      ):
+                          page_records.append(
+                              record
+                          )
+
+              print()
+              print(
+                  f"Situation records: "
+                  f"{len(page_records)}"
+              )
+
+              all_records.extend(
+                  page_records
+              )
+
+              x_next = response.headers.get(
+                  "x-next"
+              )
+
+              print()
+
+              if x_next:
+
+                  print(
+                      "x-next: PRESENT"
+                  )
+
+                  print(
+                      x_next
+                  )
+
+                  next_url = x_next
+                  next_params = None
+
+                  print()
+                  print(
+                      "Following the exact x-next "
+                      "URL supplied by the API."
+                  )
+
+                  continue
+
+              print(
+                  "x-next: NOT PRESENT"
+              )
+
+              print()
+              print(
+                  "Pagination complete."
+              )
+
+              break
+
+          # ============================================================
+          # RECORD IDENTITY ANALYSIS
+          # ============================================================
+
+          print()
+          print("=" * 70)
+          print("RECORD IDENTITY ANALYSIS")
+          print("=" * 70)
+          print()
+
+          total_records = len(
+              all_records
+          )
+
+          id_values = []
+
+          missing_id_records = []
+
+          for record in all_records:
+
+              value = record.get(
+                  "idG"
+              )
+
+              if value is None or str(
+                  value
+              ).strip() == "":
+
+                  missing_id_records.append(
+                      record
+                  )
+
+              else:
+
+                  id_values.append(
+                      str(value).strip()
+                  )
+
+          unique_ids = set(
+              id_values
+          )
+
+          duplicate_counts = Counter(
+              id_values
+          )
+
+          duplicate_ids = {
+              value: count
+              for value, count
+              in duplicate_counts.items()
+              if count > 1
+          }
+
+          print(
+              f"Total situation records: "
+              f"{total_records}"
+          )
+
+          print(
+              f"Records with idG: "
+              f"{len(id_values)}"
+          )
+
+          print(
+              f"Records without idG: "
+              f"{len(missing_id_records)}"
+          )
+
+          print(
+              f"Unique idG values: "
+              f"{len(unique_ids)}"
+          )
+
+          print(
+              f"Duplicate idG values: "
+              f"{len(duplicate_ids)}"
+          )
+
+          print()
+
+          # ============================================================
+          # DUPLICATE DETAILS
+          # ============================================================
+
+          if duplicate_ids:
+
+              print(
+                  "DUPLICATE idG VALUES"
+              )
+              print("-" * 70)
+
+              records_by_id = defaultdict(
+                  list
+              )
+
+              for record in all_records:
+
+                  value = record.get(
+                      "idG"
+                  )
+
+                  if value:
+
+                      records_by_id[
+                          str(value).strip()
+                      ].append(
+                          record
+                      )
+
+              for number, (
+                  record_id,
+                  count,
+              ) in enumerate(
+                  sorted(
+                      duplicate_ids.items(),
+                      key=lambda item: (
+                          -item[1],
+                          item[0],
+                      ),
+                  )[:50],
+                  start=1,
+              ):
+
+                  print()
+                  print(
+                      f"Duplicate {number}"
+                  )
+
+                  print(
+                      f"idG: {record_id}"
+                  )
+
+                  print(
+                      f"Occurrences: {count}"
+                  )
+
+                  for index, record in enumerate(
+                      records_by_id[
+                          record_id
+                      ],
+                      start=1,
+                  ):
+
+                      validity = record.get(
+                          "validity",
+                          {}
+                      )
+
+                      validity_spec = (
+                          validity.get(
+                              "validityTimeSpecification",
+                              {}
+                          )
+                          if isinstance(
+                              validity,
+                              dict,
+                          )
+                          else {}
+                      )
+
+                      comments = record.get(
+                          "generalPublicComment",
+                          []
+                      )
+
+                      description = ""
+
+                      if isinstance(
+                          comments,
+                          list,
+                      ) and comments:
+
+                          first_comment = comments[0]
+
+                          if isinstance(
+                              first_comment,
+                              dict,
+                          ):
+                              description = (
+                                  first_comment.get(
+                                      "comment",
+                                      "",
+                                  )
+                              )
+
+                      road_names = []
+
+                      location_reference = record.get(
+                          "locationReference",
+                          {}
+                      )
+
+                      if isinstance(
+                          location_reference,
+                          dict,
+                      ):
+
+                          groups = (
+                              location_reference
+                              .get(
+                                  "locLocationGroupByList",
+                                  {}
+                              )
+                          )
+
+                          contained = (
+                              groups.get(
+                                  "locationContainedInGroup",
+                                  []
+                              )
+                              if isinstance(
+                                  groups,
+                                  dict,
+                              )
+                              else []
+                          )
+
+                          for location in contained:
+
+                              if not isinstance(
+                                  location,
+                                  dict,
+                              ):
+                                  continue
+
+                              linear = location.get(
+                                  "locSingleRoadLinearLocation",
+                                  {}
+                              )
+
+                              if not isinstance(
+                                  linear,
+                                  dict,
+                              ):
+                                  continue
+
+                              sections = linear.get(
+                                  "linearWithinLinearElement",
+                                  []
+                              )
+
+                              if not isinstance(
+                                  sections,
+                                  list,
+                              ):
+                                  continue
+
+                              for section in sections:
+
+                                  if not isinstance(
+                                      section,
+                                      dict,
+                                  ):
+                                      continue
+
+                                  element = section.get(
+                                      "linearElement",
+                                      {}
+                                  )
+
+                                  if not isinstance(
+                                      element,
+                                      dict,
+                                  ):
+                                      continue
+
+                                  by_code = element.get(
+                                      "locLinearElementByCode",
+                                      {}
+                                  )
+
+                                  if not isinstance(
+                                      by_code,
+                                      dict,
+                                  ):
+                                      continue
+
+                                  road_name = by_code.get(
+                                      "roadName"
+                                  )
+
+                                  if road_name:
+                                      road_names.append(
+                                          str(
+                                              road_name
+                                          )
+                                      )
+
+                      print(
+                          f"  Record {index}: "
+                          f"roads={sorted(set(road_names))}, "
+                          f"start="
+                          f"{validity_spec.get('overallStartTime')}, "
+                          f"end="
+                          f"{validity_spec.get('overallEndTime')}, "
+                          f"description="
+                          f"{description[:150]}"
+                      )
+
+          else:
+
+              print(
+                  "No duplicate idG values were found."
+              )
+
+          print()
+
+          # ============================================================
+          # MISSING ID DETAILS
+          # ============================================================
+
+          if missing_id_records:
+
+              print(
+                  "RECORDS WITHOUT idG"
+              )
+              print("-" * 70)
+
+              road_counter = Counter()
+
+              for record in missing_id_records:
+
+                  found_roads = set()
+
+                  location_reference = record.get(
+                      "locationReference",
+                      {}
+                  )
+
+                  if isinstance(
+                      location_reference,
+                      dict,
+                  ):
+
+                      groups = (
+                          location_reference.get(
+                              "locLocationGroupByList",
+                              {}
+                          )
+                      )
+
+                      contained = (
+                          groups.get(
+                              "locationContainedInGroup",
+                              []
+                          )
+                          if isinstance(
+                              groups,
+                              dict,
+                          )
+                          else []
+                      )
+
+                      for location in contained:
+
+                          if not isinstance(
+                              location,
+                              dict,
+                          ):
+                              continue
+
+                          linear = location.get(
+                              "locSingleRoadLinearLocation",
+                              {}
+                          )
+
+                          if not isinstance(
+                              linear,
+                              dict,
+                          ):
+                              continue
+
+                          sections = linear.get(
+                              "linearWithinLinearElement",
+                              []
+                          )
+
+                          if not isinstance(
+                              sections,
+                              list,
+                          ):
+                              continue
+
+                          for section in sections:
+
+                              if not isinstance(
+                                  section,
+                                  dict,
+                              ):
+                                  continue
+
+                              element = section.get(
+                                  "linearElement",
+                                  {}
+                              )
+
+                              if not isinstance(
+                                  element,
+                                  dict,
+                              ):
+                                  continue
+
+                              by_code = element.get(
+                                  "locLinearElementByCode",
+                                  {}
+                              )
+
+                              if not isinstance(
+                                  by_code,
+                                  dict,
+                              ):
+                                  continue
+
+                              road_name = by_code.get(
+                                  "roadName"
+                              )
+
+                              if road_name:
+                                  found_roads.add(
+                                      str(
+                                          road_name
+                                      )
+                                  )
+
+                  for road in found_roads:
+                      road_counter[road] += 1
+
+              print(
+                  f"Total records without idG: "
+                  f"{len(missing_id_records)}"
+              )
+
+              print()
+
+              for road, count in sorted(
+                  road_counter.items()
+              ):
+
+                  print(
+                      f"{road}: {count}"
+                  )
+
+              print()
+
+              print(
+                  "A sample of records without idG:"
+              )
+
+              for index, record in enumerate(
+                  missing_id_records[:10],
+                  start=1,
+              ):
+
+                  print()
+                  print(
+                      f"Record {index}"
+                  )
+
+                  print(
+                      json.dumps(
+                          record,
+                          indent=2,
+                      )[:3000]
+                  )
+
+          else:
+
+              print(
+                  "Every returned situation record "
+                  "contains idG."
+              )
+
+          # ============================================================
+          # FINAL RESULT
+          # ============================================================
+
+          print()
+          print("=" * 70)
+          print("STEP 3 RESULT")
+          print("=" * 70)
+          print()
+
+          if total_records == 0:
+
+              print(
+                  "RESULT: NO RECORDS WERE RETURNED."
+              )
+
+          elif len(missing_id_records) > 0:
+
+              print(
+                  "RESULT: idG IS NOT PRESENT ON "
+                  "EVERY RECORD."
+              )
+
+              print(
+                  "A database design must therefore "
+                  "account for records without idG."
+              )
+
+          elif duplicate_ids:
+
+              print(
+                  "RESULT: idG IS PRESENT ON EVERY "
+                  "RECORD, BUT DUPLICATES WERE FOUND."
+              )
+
+              print(
+                  "idG should NOT yet be treated as "
+                  "a globally unique database key."
+              )
+
+          elif len(unique_ids) == total_records:
+
+              print(
+                  "RESULT: idG IS PRESENT ON EVERY "
+                  "RECORD AND IS UNIQUE WITHIN "
+                  "THE COMPLETE PAGINATED DATASET."
+              )
+
+              print(
+                  "This provides strong evidence that "
+                  "idG is suitable as the National "
+                  "Highways record identity."
+              )
+
+          else:
+
+              print(
+                  "RESULT: RECORD IDENTITY REQUIRES "
+                  "FURTHER INVESTIGATION."
+              )
+
+          print()
+          print(
+              f"Pages retrieved: {page_number}"
+          )
+
+          print(
+              f"API requests made: {request_count}"
+          )
+
+          print(
+              "No manual PageCursor was supplied."
+          )
+
+          print(
+              "No production files were modified."
+          )
+
+          print(
+              "No database writes were performed."
+          )
+
+          print()
+          print(
+              "STEP 3 COMPLETE."
+          )
+          PY
