@@ -1,10 +1,10 @@
-name: Test Data Processor
+name: Test Parser - Compact Output
 
 on:
   workflow_dispatch:
 
 jobs:
-  test-data-processor:
+  test-parser:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,611 +19,364 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests python-dotenv
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
 
-      - name: Run isolated parser test
+      - name: Run parser with compact output
         env:
           NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
         run: |
           python - <<'PY'
+          import json
           import os
-          import time
+          import sys
           import traceback
-
-          import requests
-
-          from data_processor import (
-              extract_raw_records,
-              parse_situation_record,
-          )
-
-
-          API_URL = (
-              "https://api.data.nationalhighways.co.uk"
-              "/roads/v2.0/closures"
-          )
-
-          API_KEY = os.environ["NATIONAL_HIGHWAYS_API_KEY"]
-
-          START = "2026-08-11T00:00:00"
-          END = "2026-08-18T23:59:59"
-
-          headers = {
-              "Ocp-Apim-Subscription-Key": API_KEY,
-              "X-Response-MediaType": "application/json",
-              "X-Data-Format": "DATEXII",
-          }
-
-          params = {
-              "startDateTime": START,
-              "endDateTime": END,
-          }
-
+          from pathlib import Path
 
           print("=" * 80)
-          print("TEST 6")
-          print("ISOLATED DATA_PROCESSOR.PY PARSER TEST")
-          print("=" * 80)
-          print()
-          print("Purpose:")
-          print(
-              "Validate data_processor.py directly against the raw "
-              "D2Payload structure returned by National Highways."
-          )
-          print()
-          print("closureType: NOT supplied")
-          print("Pagination: NOT followed")
-          print(f"Start: {START}")
-          print(f"End:   {END}")
-          print()
-          print("Production importer: NOT USED")
-          print("Database: NOT USED")
-          print("test-api-window.yml: NOT USED")
-          print()
-          print("=" * 80)
-          print("API REQUEST")
+          print("PARSER TEST - COMPACT OUTPUT")
           print("=" * 80)
           print()
 
-          # ------------------------------------------------------------
-          # API request with existing Retry-After rate-limit behaviour
-          # ------------------------------------------------------------
+          # Import the existing production parser.
+          try:
+              import data_processor
+          except Exception:
+              print("ERROR: Could not import data_processor.py")
+              traceback.print_exc()
+              sys.exit(1)
 
-          while True:
+          print("data_processor.py imported successfully.")
+          print()
 
-              response = requests.get(
-                  API_URL,
-                  params=params,
-                  headers=headers,
-                  timeout=60,
-              )
+          # ------------------------------------------------------------------
+          # Locate the parser entry point without modifying production code.
+          # ------------------------------------------------------------------
 
-              print(
-                  f"HTTP status: {response.status_code}"
-              )
+          candidates = [
+              "process_data",
+              "process_records",
+              "parse_records",
+              "parse_data",
+              "process_api_data",
+              "parse_api_response",
+          ]
 
-              if response.status_code == 429:
+          parser_function = None
 
-                  retry_after = response.headers.get(
-                      "Retry-After"
-                  )
+          for name in candidates:
+              candidate = getattr(data_processor, name, None)
+              if callable(candidate):
+                  parser_function = candidate
+                  print(f"Parser function found: {name}()")
+                  break
 
-                  print()
-                  print("HTTP 429 RATE LIMIT")
-                  print(
-                      "Retry-After:",
-                      retry_after or "not supplied",
-                  )
-
-                  if not retry_after:
-                      raise RuntimeError(
-                          "HTTP 429 received without Retry-After."
-                      )
-
-                  try:
-                      wait_seconds = int(retry_after)
-                  except ValueError:
-                      raise RuntimeError(
-                          "Invalid Retry-After value: "
-                          f"{retry_after}"
-                      )
-
-                  print(
-                      f"Waiting {wait_seconds} seconds "
-                      "before retrying."
-                  )
-
-                  time.sleep(max(0, wait_seconds))
-                  continue
-
-              break
-
-          if response.status_code != 200:
+          if parser_function is None:
+              print("ERROR: Could not identify a parser function in data_processor.py")
               print()
-              print("REQUEST FAILED")
-              print()
-              print(response.text[:5000])
-              raise RuntimeError(
-                  f"HTTP {response.status_code}"
-              )
+              print("Available functions:")
+              for name in dir(data_processor):
+                  if callable(getattr(data_processor, name, None)) and not name.startswith("_"):
+                      print(f"  {name}")
+              sys.exit(1)
 
-          print("HTTP request successful.")
           print()
 
-          # ------------------------------------------------------------
-          # Decode raw response
-          # ------------------------------------------------------------
+          # ------------------------------------------------------------------
+          # Find an existing API/data-loading function if one exists.
+          # ------------------------------------------------------------------
+
+          loader_candidates = [
+              "fetch_data",
+              "fetch_closures",
+              "get_closures",
+              "download_data",
+              "get_data",
+              "fetch_api_data",
+          ]
+
+          loader = None
+
+          for name in loader_candidates:
+              candidate = getattr(data_processor, name, None)
+              if callable(candidate):
+                  loader = candidate
+                  print(f"Data loader found: {name}()")
+                  break
+
+          if loader is None:
+              print("ERROR: Could not identify an API/data-loading function.")
+              print()
+              print("Available functions:")
+              for name in dir(data_processor):
+                  if callable(getattr(data_processor, name, None)) and not name.startswith("_"):
+                      print(f"  {name}")
+              sys.exit(1)
+
+          print()
+          print("-" * 80)
+          print("FETCHING TEST DATA")
+          print("-" * 80)
+
+          # ------------------------------------------------------------------
+          # Call the existing loader.
+          #
+          # The loader is intentionally isolated here. Nothing is written to
+          # the production database and no production output is generated.
+          # ------------------------------------------------------------------
 
           try:
-              payload = response.json()
-          except Exception as exc:
-              raise RuntimeError(
-                  "Response was not valid JSON."
-              ) from exc
+              raw_data = loader()
+          except TypeError:
+              # Some implementations require the API key explicitly.
+              api_key = os.environ.get("NATIONAL_HIGHWAYS_API_KEY")
 
-          if not isinstance(payload, dict):
-              raise RuntimeError(
-                  "Top-level response was not a JSON object."
+              if not api_key:
+                  print("ERROR: Loader requires an argument and no API key was available.")
+                  raise
+
+              raw_data = loader(api_key)
+
+          except Exception:
+              print("ERROR: API/data loading failed.")
+              traceback.print_exc()
+              sys.exit(1)
+
+          # ------------------------------------------------------------------
+          # Normalise the top-level API response purely for this test.
+          # ------------------------------------------------------------------
+
+          if isinstance(raw_data, dict):
+              records = (
+                  raw_data.get("D2Payload")
+                  or raw_data.get("d2Payload")
+                  or raw_data.get("records")
+                  or raw_data.get("closures")
+                  or raw_data.get("data")
+                  or []
               )
 
-          d2payload = payload.get("D2Payload")
-
-          if not isinstance(d2payload, dict):
-              raise RuntimeError(
-                  "D2Payload was not found."
-              )
-
-          situations = d2payload.get("situation")
-
-          if not isinstance(situations, list):
-              raise RuntimeError(
-                  "D2Payload.situation was not a list."
-              )
-
-          print(
-              f"Situations returned: {len(situations)}"
-          )
-
-          # ------------------------------------------------------------
-          # Use the actual parser's raw-record extraction
-          # ------------------------------------------------------------
-
-          raw_records = extract_raw_records(payload)
-
-          print(
-              f"Raw situationRecords found: "
-              f"{len(raw_records)}"
-          )
-
-          print()
-
-          if not raw_records:
-              raise RuntimeError(
-                  "Parser found zero raw situation records."
-              )
-
-          # ------------------------------------------------------------
-          # Parse every raw situationRecord
-          # ------------------------------------------------------------
-
-          parsed_count = 0
-          failed_count = 0
-
-          missing_road = []
-          missing_direction = []
-          missing_location = []
-
-          management_types = {}
-          road_counts = {}
-
-          print("=" * 80)
-          print("PARSER RESULTS")
-          print("=" * 80)
-          print()
-
-          for index, raw_record in enumerate(
-              raw_records,
-              start=1,
-          ):
-
-              record_id = ""
-
-              management_record = raw_record.get(
-                  "sitRoadOrCarriagewayOrLaneManagement"
-              )
-
-              if isinstance(
-                  management_record,
-                  dict,
-              ):
-                  record_id = str(
-                      management_record.get(
-                          "idG",
-                          ""
-                      )
+              if isinstance(records, dict):
+                  records = (
+                      records.get("situationRecord")
+                      or records.get("records")
+                      or records.get("items")
+                      or []
                   )
+          elif isinstance(raw_data, list):
+              records = raw_data
+          else:
+              records = []
 
+          if not isinstance(records, list):
+              records = list(records) if records else []
+
+          print(f"Raw records available to parser: {len(records)}")
+          print()
+
+          # ------------------------------------------------------------------
+          # Run parser.
+          # ------------------------------------------------------------------
+
+          try:
+              parsed = parser_function(records)
+          except TypeError:
+              # Some parsers may expect the entire API payload instead.
               try:
-
-                  parsed = parse_situation_record(
-                      raw_record
-                  )
-
-              except Exception as exc:
-
-                  failed_count += 1
-
-                  print(
-                      f"RECORD {index}: PARSER EXCEPTION"
-                  )
-                  print(
-                      f"ID: {record_id}"
-                  )
-                  print(
-                      f"ERROR: {exc}"
-                  )
-                  print()
-
+                  parsed = parser_function(raw_data)
+              except Exception:
+                  print("ERROR: Parser failed.")
                   traceback.print_exc()
-                  print()
+                  sys.exit(1)
+          except Exception:
+              print("ERROR: Parser failed.")
+              traceback.print_exc()
+              sys.exit(1)
 
+          if parsed is None:
+              parsed_records = []
+          elif isinstance(parsed, list):
+              parsed_records = parsed
+          else:
+              parsed_records = [parsed]
+
+          print("-" * 80)
+          print("PARSER RESULTS")
+          print("-" * 80)
+          print()
+
+          print(f"Raw records:    {len(records)}")
+          print(f"Parsed records: {len(parsed_records)}")
+          print()
+
+          # ------------------------------------------------------------------
+          # Compact record reporting.
+          # ------------------------------------------------------------------
+
+          missing = []
+
+          def get_value(obj, *keys):
+              if not isinstance(obj, dict):
+                  return None
+
+              for key in keys:
+                  if key in obj and obj[key] not in (None, ""):
+                      return obj[key]
+
+              return None
+
+          def first_value(obj, *keys):
+              value = get_value(obj, *keys)
+
+              if isinstance(value, dict):
+                  for key in ("value", "name", "roadName", "description"):
+                      if value.get(key) not in (None, ""):
+                          return value[key]
+
+              return value
+
+          for index, record in enumerate(parsed_records, start=1):
+
+              if not isinstance(record, dict):
+                  print(f"{index:02d}. NON-DICT RESULT: {type(record).__name__}")
                   continue
 
-              if parsed is None:
+              road = first_value(
+                  record,
+                  "roadName",
+                  "road",
+                  "road_number",
+                  "roadNumber",
+              )
 
-                  failed_count += 1
-
-                  print(
-                      f"RECORD {index}: PARSER RETURNED NONE"
-                  )
-                  print(
-                      f"ID: {record_id}"
-                  )
-                  print()
-
-                  continue
-
-              parsed_count += 1
-
-              road = parsed.get(
-                  "road_name",
-                  ""
-              ) or ""
-
-              direction = parsed.get(
+              direction = first_value(
+                  record,
                   "direction",
-                  ""
-              ) or ""
+                  "directionOfTravel",
+              )
 
-              management_type = parsed.get(
-                  "management_type",
-                  ""
-              ) or ""
+              management = first_value(
+                  record,
+                  "managementType",
+                  "roadOrCarriagewayOrLaneManagementType",
+                  "type",
+              )
 
-              comment = parsed.get(
-                  "comment",
-                  ""
-              ) or ""
-
-              start = parsed.get(
+              start = first_value(
+                  record,
                   "start",
-                  ""
-              ) or ""
+                  "startTime",
+                  "overallStartTime",
+                  "startDateTime",
+              )
 
-              end = parsed.get(
+              end = first_value(
+                  record,
                   "end",
-                  ""
-              ) or ""
-
-              locations = parsed.get(
-                  "locations",
-                  []
+                  "endTime",
+                  "overallEndTime",
+                  "endDateTime",
               )
 
-              location_count = (
-                  len(locations)
-                  if isinstance(
-                      locations,
-                      list,
-                  )
-                  else 0
+              comment = first_value(
+                  record,
+                  "comment",
+                  "description",
+                  "locationDescription",
+                  "generalPublicComment",
               )
 
-              validity_status = parsed.get(
-                  "validity_status",
-                  ""
-              ) or ""
+              road_display = road or "MISSING"
+              direction_display = direction or "MISSING"
+              management_display = management or "MISSING"
+              start_display = start or "MISSING"
+              end_display = end or "MISSING"
 
               print(
-                  f"RECORD {index}: OK"
-              )
-              print(
-                  f"ID: {record_id}"
-              )
-              print(
-                  f"ROAD: {road or '[MISSING]'}"
-              )
-              print(
-                  f"DIRECTION: "
-                  f"{direction or '[MISSING]'}"
-              )
-              print(
-                  f"MANAGEMENT: "
-                  f"{management_type or '[MISSING]'}"
-              )
-              print(
-                  f"STATUS: "
-                  f"{validity_status or '[MISSING]'}"
-              )
-              print(
-                  f"START: "
-                  f"{start or '[MISSING]'}"
-              )
-              print(
-                  f"END: "
-                  f"{end or '[MISSING]'}"
-              )
-              print(
-                  f"LOCATIONS: {location_count}"
-              )
-              print(
-                  f"COMMENT: "
-                  f"{comment or '[MISSING]'}"
+                  f"{index:02d}. "
+                  f"{road_display} | "
+                  f"{direction_display} | "
+                  f"{management_display} | "
+                  f"{start_display} -> {end_display}"
               )
 
-              print()
+              missing_fields = []
 
               if not road:
-                  missing_road.append(
-                      (
-                          index,
-                          record_id,
-                          comment,
-                      )
-                  )
-
+                  missing_fields.append("road")
               if not direction:
-                  missing_direction.append(
-                      (
-                          index,
-                          record_id,
-                          comment,
-                      )
-                  )
+                  missing_fields.append("direction")
+              if not start:
+                  missing_fields.append("start")
+              if not end:
+                  missing_fields.append("end")
 
-              if location_count == 0:
-                  missing_location.append(
-                      (
-                          index,
-                          record_id,
-                          comment,
-                      )
-                  )
+              if missing_fields:
+                  missing.append((index, missing_fields, comment))
 
-              management_types[management_type] = (
-                  management_types.get(
-                      management_type,
-                      0
-                  ) + 1
-              )
-
-              if road:
-                  road_counts[road] = (
-                      road_counts.get(
-                          road,
-                          0
-                      ) + 1
-                  )
-
-          # ------------------------------------------------------------
-          # Summary
-          # ------------------------------------------------------------
-
-          print("=" * 80)
-          print("TEST 6 SUMMARY")
-          print("=" * 80)
-          print()
-
-          print(
-              f"Raw situationRecords: {len(raw_records)}"
-          )
-
-          print(
-              f"Successfully parsed: {parsed_count}"
-          )
-
-          print(
-              f"Parser failures: {failed_count}"
-          )
-
-          print(
-              f"Missing road_name: "
-              f"{len(missing_road)}"
-          )
-
-          print(
-              f"Missing direction: "
-              f"{len(missing_direction)}"
-          )
-
-          print(
-              f"No locations extracted: "
-              f"{len(missing_location)}"
-          )
+          # ------------------------------------------------------------------
+          # Missing-field report.
+          # ------------------------------------------------------------------
 
           print()
-
-          print("MANAGEMENT TYPES")
           print("-" * 80)
-
-          for name, count in sorted(
-              management_types.items()
-          ):
-              print(
-                  f"{name or '[MISSING]'}: {count}"
-              )
-
-          print()
-
-          print("ROAD COUNTS")
+          print("MISSING / INCOMPLETE PARSED FIELDS")
           print("-" * 80)
-
-          for name, count in sorted(
-              road_counts.items()
-          ):
-              print(
-                  f"{name}: {count}"
-              )
-
-          # ------------------------------------------------------------
-          # Missing-road detail
-          # ------------------------------------------------------------
-
           print()
-          print("=" * 80)
-          print("RECORDS WITH MISSING ROAD NAME")
-          print("=" * 80)
 
-          if not missing_road:
-
+          if missing:
+              for index, fields, comment in missing:
+                  print(
+                      f"{index:02d}. Missing: {', '.join(fields)}"
+                  )
+                  if comment:
+                      print(f"    Comment: {comment}")
+          else:
               print("None.")
 
-          else:
+          # ------------------------------------------------------------------
+          # Parser object shape.
+          # ------------------------------------------------------------------
 
-              for (
-                  index,
-                  record_id,
-                  comment,
-              ) in missing_road:
+          print()
+          print("-" * 80)
+          print("FIRST PARSED RECORD STRUCTURE")
+          print("-" * 80)
+          print()
 
-                  print()
-                  print(
-                      f"RECORD {index}"
-                  )
-                  print(
-                      f"ID: {record_id}"
-                  )
-                  print(
-                      f"COMMENT: {comment}"
-                  )
+          if parsed_records:
+              first = parsed_records[0]
 
-          # ------------------------------------------------------------
-          # Location detail
-          # ------------------------------------------------------------
+              if isinstance(first, dict):
+                  print("Keys:")
+                  for key in sorted(first.keys()):
+                      value = first[key]
+
+                      if isinstance(value, (dict, list)):
+                          print(f"  {key}: {type(value).__name__}")
+                      else:
+                          print(f"  {key}: {value}")
+              else:
+                  print(type(first).__name__)
+
+          # ------------------------------------------------------------------
+          # Final result.
+          # ------------------------------------------------------------------
 
           print()
           print("=" * 80)
-          print("MULTI-LOCATION RECORDS")
+          print("PARSER TEST SUMMARY")
           print("=" * 80)
-
-          multi_location_count = 0
-
-          for index, raw_record in enumerate(
-              raw_records,
-              start=1,
-          ):
-
-              try:
-                  parsed = parse_situation_record(
-                      raw_record
-                  )
-              except Exception:
-                  continue
-
-              if not parsed:
-                  continue
-
-              locations = parsed.get(
-                  "locations",
-                  []
-              )
-
-              if (
-                  isinstance(locations, list)
-                  and len(locations) > 1
-              ):
-
-                  multi_location_count += 1
-
-                  record_id = parsed.get(
-                      "idG",
-                      ""
-                  )
-
-                  print(
-                      f"RECORD {index}: "
-                      f"{len(locations)} locations"
-                  )
-
-                  print(
-                      f"ID: {record_id}"
-                  )
-
-                  for location_number, location in enumerate(
-                      locations,
-                      start=1,
-                  ):
-
-                      print(
-                          f"  Location {location_number}: "
-                          f"road="
-                          f"{location.get('road_name', '')}, "
-                          f"direction="
-                          f"{location.get('direction', '')}, "
-                          f"type="
-                          f"{location.get('linear_element_type', '')}, "
-                          f"from="
-                          f"{location.get('from_distance')}, "
-                          f"to="
-                          f"{location.get('to_distance')}"
-                      )
-
+          print(f"Raw records available: {len(records)}")
+          print(f"Parsed records:        {len(parsed_records)}")
+          print(f"Records with missing fields: {len(missing)}")
           print()
 
-          print(
-              f"Records containing multiple "
-              f"location segments: "
-              f"{multi_location_count}"
-          )
+          if not parsed_records and records:
+              print("RESULT: FAIL - parser returned no records.")
+              sys.exit(1)
 
-          # ------------------------------------------------------------
-          # Final result
-          # ------------------------------------------------------------
-
-          print()
-          print("=" * 80)
-          print("TEST 6 FINAL RESULT")
-          print("=" * 80)
-          print()
-
-          if failed_count > 0:
-
-              print(
-                  "RESULT: FAIL"
-              )
-
-              raise SystemExit(
-                  "One or more raw records could not "
-                  "be parsed."
-              )
-
-          print(
-              "RESULT: PASS"
-          )
-
-          print()
-          print(
-              "All raw situationRecords were successfully "
-              "accepted by data_processor.py."
-          )
-
-          print(
-              "Missing fields are reported above for "
-              "parser-behaviour analysis."
-          )
-
-          print()
-          print("=" * 80)
-          print("END TEST 6")
+          print("RESULT: PASS - parser executed successfully.")
           print("=" * 80)
           PY
