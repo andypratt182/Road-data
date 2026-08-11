@@ -1,4 +1,5 @@
 from typing import Any
+import time
 
 import requests
 
@@ -15,11 +16,8 @@ def fetch_closures(
     """
     Fetch road closure data from the National Highways API.
 
-    The API requires datetime parameters in the format:
-
-        YYYY-MM-DDThh:mm:ss
-
-    Returns a list of simplified closure records.
+    Automatically retries when the API returns HTTP 429
+    (Too Many Requests).
     """
 
     url = f"{API_BASE_URL}/closures"
@@ -43,15 +41,44 @@ def fetch_closures(
         "X-Data-Format": "DATEXII",
     }
 
-    response = requests.get(
-        url,
-        params=params,
-        headers=headers,
-        timeout=30,
+    max_attempts = 5
+
+    for attempt in range(1, max_attempts + 1):
+
+        response = requests.get(
+            url,
+            params=params,
+            headers=headers,
+            timeout=30,
+        )
+
+        if response.status_code == 429:
+
+            retry_after = response.headers.get("Retry-After")
+
+            try:
+                wait_seconds = int(retry_after)
+            except (TypeError, ValueError):
+                wait_seconds = 30 * attempt
+
+            if attempt == max_attempts:
+                response.raise_for_status()
+
+            print(
+                f"National Highways API rate limit reached. "
+                f"Retrying in {wait_seconds} seconds "
+                f"(attempt {attempt}/{max_attempts})..."
+            )
+
+            time.sleep(wait_seconds)
+            continue
+
+        response.raise_for_status()
+
+        payload = response.json()
+
+        return process_payload(payload)
+
+    raise RuntimeError(
+        "Unable to fetch National Highways road closure data."
     )
-
-    response.raise_for_status()
-
-    payload = response.json()
-
-    return process_payload(payload)
