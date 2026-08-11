@@ -30,3 +30,7 @@ jobs:
           NATIONAL_HIGHWAYS_API_BASE_URL: https://api.data.nationalhighways.co.uk/roads/v2.0
         run: |
           python test_api.py
+
+      - name: Test Flask application
+        run: |
+          python -c "from app import app; print('Flask application imported successfully')"
