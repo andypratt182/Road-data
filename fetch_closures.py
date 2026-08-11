@@ -1,109 +1,100 @@
 import json
 import os
 from datetime import datetime, timedelta
+from pathlib import Path
 
 import requests
+from dotenv import load_dotenv
 
-API_URL = "https://api.data.nationalhighways.co.uk/roads/v2.0/closures"
-
-# How far back and forward we ask the API for data.
-
-HOURS_BACK = 6
-HOURS_FORWARD = 24
-
-# Roads we initially care about.
-
-TARGET_ROADS = {
-"M1",
-"M6",
-"M57",
-"M58",
-"M62",
-}
-
-def get_api_key():
-"""Return the National Highways API subscription key."""
-
-```
-api_key = os.environ.get(
-    "NATIONAL_HIGHWAYS_API_KEY"
+from config import (
+API_URL,
+HOURS_BACK,
+HOURS_FORWARD,
+RAW_DATA_DIR,
+REQUEST_TIMEOUT,
 )
 
-if not api_key:
-    raise RuntimeError(
-        "NATIONAL_HIGHWAYS_API_KEY environment variable "
-        "has not been set."
-    )
+# ============================================================
 
-return api_key
-```
+# ENVIRONMENT
 
-def build_date_range():
+# ============================================================
+
+load_dotenv()
+
+API_KEY = os.getenv(
+"NATIONAL_HIGHWAYS_API_KEY"
+)
+
+# ============================================================
+
+# API REQUEST
+
+# ============================================================
+
+def fetch_closures():
 """
-Build the API date range.
+Fetch road closure data from the National Highways API.
 
 ```
-National Highways requires:
+The API requires startDateTime and endDateTime in the
+format:
 
     YYYY-MM-DDThh:mm:ss
 
-No timezone suffix is included.
+The API response is returned as JSON.
 """
 
-now = datetime.now()
+if not API_KEY:
+    raise RuntimeError(
+        "NATIONAL_HIGHWAYS_API_KEY is not set."
+    )
 
-start = now - timedelta(
-    hours=HOURS_BACK
+now = datetime.utcnow().replace(
+    microsecond=0
 )
 
-end = now + timedelta(
-    hours=HOURS_FORWARD
+start_time = (
+    now - timedelta(
+        hours=HOURS_BACK
+    )
 )
 
-return (
-    start.strftime("%Y-%m-%dT%H:%M:%S"),
-    end.strftime("%Y-%m-%dT%H:%M:%S"),
+end_time = (
+    now + timedelta(
+        hours=HOURS_FORWARD
+    )
 )
-```
 
-def fetch_page(
-api_key,
-start_datetime,
-end_datetime,
-closure_type="unplanned",
-):
-"""Fetch one page from the National Highways API."""
-
-```
 params = {
-    "closureType": closure_type,
-    "startDateTime": start_datetime,
-    "endDateTime": end_datetime,
+    "closureType": "unplanned",
+    "startDateTime": start_time.strftime(
+        "%Y-%m-%dT%H:%M:%S"
+    ),
+    "endDateTime": end_time.strftime(
+        "%Y-%m-%dT%H:%M:%S"
+    ),
 }
 
 headers = {
-    "Ocp-Apim-Subscription-Key": api_key,
+    "Ocp-Apim-Subscription-Key": API_KEY,
     "X-Response-MediaType": "application/json",
     "X-Data-Format": "DATEXII",
 }
 
-print(
-    f"Requesting {closure_type} closures:"
-)
-
-print(
-    f"  Start: {start_datetime}"
-)
-
-print(
-    f"  End:   {end_datetime}"
-)
+print("=" * 60)
+print("NATIONAL HIGHWAYS API")
+print("=" * 60)
+print(f"URL: {API_URL}")
+print(f"Start: {params['startDateTime']}")
+print(f"End:   {params['endDateTime']}")
+print()
 
 response = requests.get(
     API_URL,
     params=params,
     headers=headers,
-    timeout=60,
+    timeout=REQUEST_TIMEOUT,
 )
 
 print(
@@ -112,32 +103,36 @@ print(
 
 response.raise_for_status()
 
-return response
+data = response.json()
+
+return data
 ```
 
-def save_raw_response(
-response,
-closure_type,
-):
-"""Save the raw API response for inspection."""
+# ============================================================
+
+# SAVE RAW RESPONSE
+
+# ============================================================
+
+def save_raw_response(data):
+"""
+Save the complete API response locally.
 
 ```
-output_folder = "raw"
+Raw API responses are deliberately kept outside Git
+through .gitignore.
+"""
 
-os.makedirs(
-    output_folder,
-    exist_ok=True,
+timestamp = datetime.utcnow().strftime(
+    "%Y%m%d_%H%M%S"
 )
 
 filename = (
-    f"{output_folder}/"
-    f"{closure_type}_closures.json"
+    RAW_DATA_DIR
+    / f"closures_{timestamp}.json"
 )
 
-data = response.json()
-
-with open(
-    filename,
+with filename.open(
     "w",
     encoding="utf-8",
 ) as file:
@@ -149,227 +144,74 @@ with open(
         ensure_ascii=False,
     )
 
+print()
 print(
-    f"Raw response saved to {filename}"
+    f"Raw response saved to: {filename}"
 )
 
-return data
+return filename
 ```
 
-def extract_situations(data):
-"""Return the situation list from a National Highways response."""
+# ============================================================
+
+# MAIN
+
+# ============================================================
+
+def main():
 
 ```
-payload = data.get(
-    "D2Payload",
-    {}
-)
+try:
 
-return payload.get(
-    "situation",
-    []
-)
-```
+    data = fetch_closures()
 
-def find_roads(situations):
-"""
-Inspect situation records and identify the roads they relate to.
+    save_raw_response(
+        data
+    )
 
-```
-This is deliberately diagnostic for now.
+    payload = data.get(
+        "D2Payload",
+        {}
+    )
 
-We are NOT filtering the API response yet because the
-road information can occur at different levels within
-the DATEX II location structure.
-"""
-
-roads = set()
-
-for situation in situations:
-
-    records = situation.get(
-        "situationRecord",
+    situations = payload.get(
+        "situation",
         []
     )
 
-    for record in records:
-
-        management = record.get(
-            "sitRoadOrCarriagewayOrLaneManagement",
-            {}
-        )
-
-        location_reference = management.get(
-            "locationReference",
-            {}
-        )
-
-        linear_location = (
-            location_reference.get(
-                "locLinearLocation",
-                {}
-            )
-        )
-
-        single_road_location = (
-            location_reference.get(
-                "locSingleRoadLinearLocation",
-                {}
-            )
-        )
-
-        linear_sections = (
-            single_road_location.get(
-                "linearWithinLinearElement",
-                []
-            )
-        )
-
-        for section in linear_sections:
-
-            linear_element = (
-                section.get(
-                    "linearElement",
-                    {}
-                )
-            )
-
-            by_code = (
-                linear_element.get(
-                    "locLinearElementByCode",
-                    {}
-                )
-            )
-
-            road_name = by_code.get(
-                "roadName"
-            )
-
-            if road_name:
-                roads.add(
-                    road_name
-                )
-
-        # Keep this variable referenced so the
-        # structure remains obvious while we inspect
-        # future variants of the API response.
-        _ = linear_location
-
-return sorted(roads)
-```
-
-def inspect_response(
-data,
-closure_type,
-):
-"""Print a basic summary of the returned data."""
-
-```
-situations = extract_situations(
-    data
-)
-
-print()
-print("==============================")
-print(
-    f"{closure_type.upper()} CLOSURES"
-)
-print("==============================")
-
-print(
-    f"Situations returned: "
-    f"{len(situations)}"
-)
-
-roads = find_roads(
-    situations
-)
-
-print(
-    f"Roads discovered: "
-    f"{len(roads)}"
-)
-
-if roads:
-
     print(
-        "Road names:"
+        f"Situations returned: "
+        f"{len(situations)}"
     )
 
-    for road in roads:
-        print(
-            f"  {road}"
-        )
+    print()
+    print(
+        "API request completed successfully."
+    )
 
-print()
-```
+except requests.HTTPError as error:
 
-def main():
-print(
-"===================================="
-)
+    print()
+    print(
+        f"HTTP ERROR: {error}"
+    )
 
-```
-print(
-    "NATIONAL HIGHWAYS API COLLECTOR"
-)
-
-print(
-    "===================================="
-)
-
-api_key = get_api_key()
-
-start_datetime, end_datetime = (
-    build_date_range()
-)
-
-for closure_type in (
-    "unplanned",
-    "planned",
-):
-
-    try:
-
-        response = fetch_page(
-            api_key,
-            start_datetime,
-            end_datetime,
-            closure_type,
-        )
-
-        data = save_raw_response(
-            response,
-            closure_type,
-        )
-
-        inspect_response(
-            data,
-            closure_type,
-        )
-
-    except requests.RequestException as error:
+    if error.response is not None:
 
         print(
-            f"ERROR fetching "
-            f"{closure_type} closures:"
+            error.response.text
         )
 
-        print(
-            error
-        )
+    raise
 
-print(
-    "===================================="
-)
+except Exception as error:
 
-print(
-    "Collection complete"
-)
+    print()
+    print(
+        f"ERROR: {error}"
+    )
 
-print(
-    "===================================="
-)
+    raise
 ```
 
 if **name** == "**main**":
