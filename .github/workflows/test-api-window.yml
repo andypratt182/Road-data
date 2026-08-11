@@ -11,7 +11,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run controlled single-request date filter diagnostic
+      - name: Run Test 3 - single request with raw response inspection
         env:
           NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
         run: |
@@ -31,18 +31,24 @@ jobs:
           API_KEY = os.environ["NATIONAL_HIGHWAYS_API_KEY"]
 
           # ==================================================
-          # CONTROLLED TEST WINDOW
+          # TEST 3
+          #
+          # PURPOSE:
+          # Determine whether closureType=planned was
+          # responsible for the previous zero-record result.
           #
           # EXACTLY ONE REQUEST
           # NO RETRIES
           # NO SPLITTING
+          #
+          # IMPORTANT:
+          # closureType is intentionally NOT supplied.
           # ==================================================
 
           start_string = "2026-08-11T00:00:00"
           end_string = "2026-08-18T23:59:59"
 
           params = {
-              "closureType": "planned",
               "startDateTime": start_string,
               "endDateTime": end_string,
           }
@@ -62,14 +68,24 @@ jobs:
           ).replace(tzinfo=timezone.utc)
 
           print("=" * 70)
-          print("NATIONAL HIGHWAYS DATE FILTER DIAGNOSTIC")
+          print("NATIONAL HIGHWAYS API TEST 3")
           print("=" * 70)
           print()
-          print("CONTROLLED POPULATED-PERIOD TEST")
+          print("CONTROLLED SINGLE-REQUEST TEST")
+          print()
+          print("PURPOSE:")
+          print(
+              "Determine whether closureType=planned "
+              "was responsible for the previous "
+              "zero-record result."
+          )
           print()
           print("THIS TEST MAKES EXACTLY ONE API REQUEST.")
           print("NO RETRIES.")
           print("NO SPLITTING.")
+          print()
+          print("IMPORTANT:")
+          print("closureType is intentionally NOT supplied.")
           print()
           print("REQUEST WINDOW")
           print("-" * 70)
@@ -100,6 +116,31 @@ jobs:
           print()
 
           # ==================================================
+          # RESPONSE HEADERS
+          # ==================================================
+
+          print("RESPONSE HEADERS")
+          print("-" * 70)
+
+          interesting_headers = (
+              "content-type",
+              "content-length",
+              "x-request-id",
+              "request-id",
+              "retry-after",
+          )
+
+          for key, value in response.headers.items():
+
+              if key.lower() in interesting_headers:
+
+                  print(
+                      f"{key}: {value}"
+                  )
+
+          print()
+
+          # ==================================================
           # RATE LIMIT
           # ==================================================
 
@@ -107,26 +148,28 @@ jobs:
 
               print("RATE LIMIT REACHED")
               print()
-
-              print("Retry-After:")
+              print(
+                  "Retry-After:"
+              )
               print(
                   response.headers.get(
                       "Retry-After",
                       "not supplied",
                   )
               )
-
               print()
               print(
-                  "No retry was attempted. "
-                  "This diagnostic intentionally makes "
-                  "one request only."
+                  "No retry was attempted."
+              )
+              print(
+                  "This diagnostic intentionally "
+                  "makes one request only."
               )
 
               raise SystemExit(1)
 
           # ==================================================
-          # OTHER HTTP ERRORS
+          # HTTP ERROR
           # ==================================================
 
           if response.status_code != 200:
@@ -134,28 +177,131 @@ jobs:
               print("REQUEST FAILED")
               print()
               print("Response body:")
-              print(response.text[:5000])
+              print(
+                  response.text[:10000]
+              )
 
               raise SystemExit(1)
 
           # ==================================================
-          # PARSE RESPONSE
+          # RAW RESPONSE INSPECTION
+          #
+          # This happens locally after the ONE request.
+          # It does NOT make another API request.
+          # ==================================================
+
+          raw_text = response.text
+
+          print("=" * 70)
+          print("RAW RESPONSE INSPECTION")
+          print("=" * 70)
+          print()
+          print(
+              f"Response character count: "
+              f"{len(raw_text)}"
+          )
+          print()
+
+          if not raw_text.strip():
+
+              print(
+                  "Response body is completely empty."
+              )
+
+              print()
+              print(
+                  "This is important: HTTP 200 was "
+                  "returned, but the response body "
+                  "contains no data."
+              )
+
+              raise SystemExit(0)
+
+          print(
+              "First 5000 characters of response:"
+          )
+          print("-" * 70)
+          print(
+              raw_text[:5000]
+          )
+          print("-" * 70)
+          print()
+
+          # ==================================================
+          # JSON PARSING
           # ==================================================
 
           try:
+
               payload = response.json()
 
           except Exception as exc:
 
-              print("Unable to decode JSON response:")
-              print(exc)
+              print(
+                  "Response is NOT valid JSON."
+              )
               print()
-              print(response.text[:5000])
+              print(
+                  f"JSON parsing error: {exc}"
+              )
+              print()
+              print(
+                  "The raw response above is the "
+                  "authoritative diagnostic output."
+              )
 
-              raise SystemExit(1)
+              raise SystemExit(0)
+
+          print(
+              "Response IS valid JSON."
+          )
+          print()
 
           # ==================================================
-          # FIND RECORD LIST
+          # JSON STRUCTURE INSPECTION
+          # ==================================================
+
+          print("JSON STRUCTURE")
+          print("-" * 70)
+
+          print(
+              f"Top-level Python type: "
+              f"{type(payload).__name__}"
+          )
+
+          if isinstance(payload, dict):
+
+              print(
+                  "Top-level keys:"
+              )
+
+              for key in payload.keys():
+
+                  print(
+                      f"  - {key}"
+                  )
+
+          elif isinstance(payload, list):
+
+              print(
+                  f"Top-level list length: "
+                  f"{len(payload)}"
+              )
+
+          else:
+
+              print(
+                  "Top-level JSON value:"
+              )
+
+              print(
+                  repr(payload)
+              )
+
+          print()
+
+          # ==================================================
+          # SAFE RECORD DISCOVERY
           # ==================================================
 
           records = []
@@ -164,694 +310,396 @@ jobs:
 
               records = payload
 
+              print(
+                  "Records interpreted from "
+                  "top-level JSON list."
+              )
+
           elif isinstance(payload, dict):
 
-              for key in (
+              candidate_keys = (
                   "closures",
                   "data",
                   "results",
                   "items",
                   "features",
-              ):
+                  "events",
+                  "roadClosures",
+                  "closure",
+              )
 
-                  value = payload.get(key)
+              print(
+                  "Checking common record containers:"
+              )
+
+              for key in candidate_keys:
+
+                  if key not in payload:
+                      continue
+
+                  value = payload[key]
+
+                  print(
+                      f"  {key}: "
+                      f"{type(value).__name__}"
+                  )
 
                   if isinstance(value, list):
 
-                      records = value
-                      break
+                      print(
+                          f"    list length: "
+                          f"{len(value)}"
+                      )
 
-          print("=" * 70)
-          print("RESPONSE")
-          print("=" * 70)
+                      if not records:
+
+                          records = value
+
           print()
-          print(f"Records returned: {len(records)}")
-          print()
+
+          print(
+              f"Records identified: "
+              f"{len(records)}"
+          )
 
           # ==================================================
-          # DATETIME PARSING
+          # SAMPLE RECORD STRUCTURE
           # ==================================================
 
-          def parse_datetime(value):
+          if records:
 
-              if not value:
-                  return None
+              print()
+              print(
+                  "FIRST RECORD STRUCTURE"
+              )
+              print("-" * 70)
 
-              if isinstance(value, datetime):
-                  dt = value
+              first_record = records[0]
 
-              else:
+              print(
+                  json.dumps(
+                      first_record,
+                      indent=2,
+                      default=str,
+                  )[:15000]
+              )
 
-                  text = str(value).strip()
+              print()
+
+              if isinstance(
+                  first_record,
+                  dict,
+              ):
+
+                  print(
+                      "First-record keys:"
+                  )
+
+                  for key in first_record.keys():
+
+                      print(
+                          f"  - {key}"
+                      )
+
+          # ==================================================
+          # GENERIC DATETIME DISCOVERY
+          #
+          # Instead of assuming field names, inspect the
+          # actual returned record recursively.
+          # ==================================================
+
+          def find_datetime_values(
+              value,
+              path="root",
+              results=None,
+          ):
+
+              if results is None:
+                  results = []
+
+              if isinstance(value, dict):
+
+                  for key, child in value.items():
+
+                      child_path = (
+                          f"{path}.{key}"
+                      )
+
+                      find_datetime_values(
+                          child,
+                          child_path,
+                          results,
+                      )
+
+              elif isinstance(value, list):
+
+                  for index, child in enumerate(
+                      value
+                  ):
+
+                      child_path = (
+                          f"{path}[{index}]"
+                      )
+
+                      find_datetime_values(
+                          child,
+                          child_path,
+                          results,
+                      )
+
+              elif isinstance(value, str):
+
+                  text = value.strip()
 
                   if not text:
-                      return None
+                      return results
 
-                  # Normalise UTC Z suffix.
-                  if text.endswith("Z"):
-                      text = text[:-1] + "+00:00"
+                  candidate = text
+
+                  if candidate.endswith("Z"):
+
+                      candidate = (
+                          candidate[:-1]
+                          + "+00:00"
+                      )
 
                   try:
-                      dt = datetime.fromisoformat(text)
+
+                      dt = datetime.fromisoformat(
+                          candidate
+                      )
+
+                      if dt.tzinfo is None:
+
+                          dt = dt.replace(
+                              tzinfo=timezone.utc
+                          )
+
+                      else:
+
+                          dt = dt.astimezone(
+                              timezone.utc
+                          )
+
+                      results.append(
+                          (
+                              path,
+                              text,
+                              dt,
+                          )
+                      )
 
                   except ValueError:
-                      return None
+                      pass
 
-              if dt.tzinfo is None:
-
-                  dt = dt.replace(
-                      tzinfo=timezone.utc
-                  )
-
-              else:
-
-                  dt = dt.astimezone(
-                      timezone.utc
-                  )
-
-              return dt
+              return results
 
           # ==================================================
-          # FIELD EXTRACTION
+          # DATETIME ANALYSIS
           # ==================================================
 
-          def get_field(record, *names):
-
-              if not isinstance(record, dict):
-                  return None
-
-              for name in names:
-
-                  if name in record:
-                      return record[name]
-
-              return None
-
-
-          def extract_start(record):
-
-              return get_field(
-                  record,
-                  "start",
-                  "startDateTime",
-                  "start_datetime",
-                  "startDate",
-                  "from",
-              )
-
-
-          def extract_end(record):
-
-              return get_field(
-                  record,
-                  "end",
-                  "endDateTime",
-                  "end_datetime",
-                  "endDate",
-                  "to",
-              )
-
-
-          def extract_road(record):
-
-              return get_field(
-                  record,
-                  "road",
-                  "roadName",
-                  "roadNumber",
-              )
-
-
-          def extract_direction(record):
-
-              return get_field(
-                  record,
-                  "direction",
-                  "directionDescription",
-              )
-
-
-          def extract_description(record):
-
-              return get_field(
-                  record,
-                  "description",
-                  "comment",
-                  "remarks",
-              )
-
-          # ==================================================
-          # TIMESTAMP ANALYSIS
-          # ==================================================
-
-          start_values = []
-          end_values = []
-
-          starts_before = 0
-          starts_inside = 0
-          starts_after = 0
-          unknown_start = 0
-
-          ends_before = 0
-          ends_inside = 0
-          ends_after = 0
-          unknown_end = 0
-
-          before_start_records = []
-          after_start_records = []
-
-          for record in records:
-
-              raw_start = extract_start(record)
-              raw_end = extract_end(record)
-
-              parsed_start = parse_datetime(
-                  raw_start
-              )
-
-              parsed_end = parse_datetime(
-                  raw_end
-              )
-
-              # ----------------------------------------------
-              # START
-              # ----------------------------------------------
-
-              if parsed_start:
-
-                  start_values.append(
-                      parsed_start
-                  )
-
-                  if parsed_start < requested_start:
-
-                      starts_before += 1
-
-                      if len(
-                          before_start_records
-                      ) < 10:
-
-                          before_start_records.append(
-                              (
-                                  record,
-                                  raw_start,
-                                  raw_end,
-                              )
-                          )
-
-                  elif parsed_start <= requested_end:
-
-                      starts_inside += 1
-
-                  else:
-
-                      starts_after += 1
-
-                      if len(
-                          after_start_records
-                      ) < 10:
-
-                          after_start_records.append(
-                              (
-                                  record,
-                                  raw_start,
-                                  raw_end,
-                              )
-                          )
-
-              else:
-
-                  unknown_start += 1
-
-              # ----------------------------------------------
-              # END
-              # ----------------------------------------------
-
-              if parsed_end:
-
-                  end_values.append(
-                      parsed_end
-                  )
-
-                  if parsed_end < requested_start:
-
-                      ends_before += 1
-
-                  elif parsed_end <= requested_end:
-
-                      ends_inside += 1
-
-                  else:
-
-                      ends_after += 1
-
-              else:
-
-                  unknown_end += 1
-
-          # ==================================================
-          # START TIMESTAMP ANALYSIS
-          # ==================================================
-
-          print("START TIMESTAMP ANALYSIS")
+          print()
+          print(
+              "DATETIME FIELD DISCOVERY"
+          )
           print("-" * 70)
 
-          if start_values:
+          all_datetime_values = []
 
-              earliest_start = min(
-                  start_values
+          # Limit inspection to first 10 records so that
+          # diagnostic output remains manageable.
+
+          for index, record in enumerate(
+              records[:10]
+          ):
+
+              values = find_datetime_values(
+                  record,
+                  path=f"record[{index}]",
               )
 
-              latest_start = max(
-                  start_values
+              all_datetime_values.extend(
+                  values
               )
 
-              print("Earliest closure start:")
+          if not all_datetime_values:
+
               print(
-                  earliest_start.isoformat()
-              )
-
-              print()
-
-              print("Latest closure start:")
-              print(
-                  latest_start.isoformat()
+                  "No ISO-style datetime values "
+                  "were discovered in the first "
+                  "10 records."
               )
 
           else:
 
-              print(
-                  "No usable start timestamps "
-                  "were found."
-              )
+              for path, raw_value, dt in (
+                  all_datetime_values[:100]
+              ):
 
-          print()
+                  location = ""
 
-          print(
-              "Records starting BEFORE "
-              "requested window:"
-          )
-          print(starts_before)
+                  if (
+                      dt < requested_start
+                  ):
 
-          print()
-
-          print(
-              "Records starting INSIDE "
-              "requested window:"
-          )
-          print(starts_inside)
-
-          print()
-
-          print(
-              "Records starting AFTER "
-              "requested window:"
-          )
-          print(starts_after)
-
-          print()
-
-          print(
-              "Records with unknown start:"
-          )
-          print(unknown_start)
-
-          # ==================================================
-          # END TIMESTAMP ANALYSIS
-          # ==================================================
-
-          print()
-          print("END TIMESTAMP ANALYSIS")
-          print("-" * 70)
-
-          if end_values:
-
-              earliest_end = min(
-                  end_values
-              )
-
-              latest_end = max(
-                  end_values
-              )
-
-              print("Earliest closure end:")
-              print(
-                  earliest_end.isoformat()
-              )
-
-              print()
-
-              print("Latest closure end:")
-              print(
-                  latest_end.isoformat()
-              )
-
-          else:
-
-              print(
-                  "No usable end timestamps "
-                  "were found."
-              )
-
-          print()
-
-          print(
-              "Records ending BEFORE "
-              "requested window:"
-          )
-          print(ends_before)
-
-          print()
-
-          print(
-              "Records ending INSIDE "
-              "requested window:"
-          )
-          print(ends_inside)
-
-          print()
-
-          print(
-              "Records ending AFTER "
-              "requested window:"
-          )
-          print(ends_after)
-
-          print()
-
-          print(
-              "Records with unknown end:"
-          )
-          print(unknown_end)
-
-          # ==================================================
-          # ROAD ANALYSIS
-          # ==================================================
-
-          roads = {}
-
-          for record in records:
-
-              road = extract_road(
-                  record
-              )
-
-              if road:
-
-                  road_name = str(
-                      road
-                  )
-
-                  roads[road_name] = (
-                      roads.get(
-                          road_name,
-                          0,
+                      location = (
+                          "BEFORE REQUESTED WINDOW"
                       )
-                      + 1
-                  )
 
-          print()
-          print("ROADS REPRESENTED")
-          print("-" * 70)
+                  elif (
+                      dt <= requested_end
+                  ):
 
-          if not roads:
+                      location = (
+                          "INSIDE REQUESTED WINDOW"
+                      )
 
-              print(
-                  "No road fields were identified."
-              )
+                  else:
 
-          else:
-
-              for road, count in sorted(
-                  roads.items(),
-                  key=lambda item: (
-                      -item[1],
-                      item[0],
-                  ),
-              ):
+                      location = (
+                          "AFTER REQUESTED WINDOW"
+                      )
 
                   print(
-                      f"{road}: {count}"
+                      f"{path}"
                   )
 
-          # ==================================================
-          # SAMPLE RECORDS STARTING BEFORE WINDOW
-          # ==================================================
+                  print(
+                      f"  Raw: {raw_value}"
+                  )
 
-          print()
-          print(
-              "SAMPLE RECORDS STARTING "
-              "BEFORE REQUESTED WINDOW"
-          )
-          print("-" * 70)
+                  print(
+                      f"  UTC: {dt.isoformat()}"
+                  )
 
-          if not before_start_records:
-
-              print(
-                  "No records starting before "
-                  "the requested window were returned."
-              )
-
-          else:
-
-              for number, (
-                  record,
-                  raw_start,
-                  raw_end,
-              ) in enumerate(
-                  before_start_records,
-                  start=1,
-              ):
+                  print(
+                      f"  Position: {location}"
+                  )
 
                   print()
-                  print(
-                      f"Record {number}"
-                  )
-
-                  print(
-                      f"Road: "
-                      f"{extract_road(record)}"
-                  )
-
-                  print(
-                      f"Direction: "
-                      f"{extract_direction(record)}"
-                  )
-
-                  print(
-                      f"Start: "
-                      f"{raw_start}"
-                  )
-
-                  print(
-                      f"End: "
-                      f"{raw_end}"
-                  )
-
-                  print(
-                      f"Description: "
-                      f"{extract_description(record)}"
-                  )
 
           # ==================================================
-          # SAMPLE RECORDS STARTING AFTER WINDOW
+          # RAW PAYLOAD SUMMARY
           # ==================================================
 
           print()
           print(
-              "SAMPLE RECORDS STARTING "
-              "AFTER REQUESTED WINDOW"
+              "PAYLOAD SUMMARY"
           )
           print("-" * 70)
 
-          if not after_start_records:
+          if isinstance(payload, dict):
+
+              for key, value in payload.items():
+
+                  if isinstance(value, list):
+
+                      print(
+                          f"{key}: "
+                          f"list[{len(value)}]"
+                      )
+
+                  elif isinstance(value, dict):
+
+                      print(
+                          f"{key}: "
+                          f"object with "
+                          f"{len(value)} keys"
+                      )
+
+                  else:
+
+                      print(
+                          f"{key}: "
+                          f"{type(value).__name__} "
+                          f"= {repr(value)[:200]}"
+                      )
+
+          elif isinstance(payload, list):
 
               print(
-                  "No records starting after "
-                  "the requested window were returned."
-              )
-
-          else:
-
-              for number, (
-                  record,
-                  raw_start,
-                  raw_end,
-              ) in enumerate(
-                  after_start_records,
-                  start=1,
-              ):
-
-                  print()
-                  print(
-                      f"Record {number}"
-                  )
-
-                  print(
-                      f"Road: "
-                      f"{extract_road(record)}"
-                  )
-
-                  print(
-                      f"Direction: "
-                      f"{extract_direction(record)}"
-                  )
-
-                  print(
-                      f"Start: "
-                      f"{raw_start}"
-                  )
-
-                  print(
-                      f"End: "
-                      f"{raw_end}"
-                  )
-
-                  print(
-                      f"Description: "
-                      f"{extract_description(record)}"
-                  )
-
-          # ==================================================
-          # CONTROLLED TEST CONCLUSION
-          # ==================================================
-
-          print()
-          print("=" * 70)
-          print("DIAGNOSTIC RESULT")
-          print("=" * 70)
-          print()
-
-          total_with_start = (
-              starts_before
-              + starts_inside
-              + starts_after
-          )
-
-          if len(records) == 0:
-
-              print(
-                  "RESULT: INCONCLUSIVE"
-              )
-              print()
-              print(
-                  "The API returned zero records."
-              )
-              print(
-                  "There are no closure timestamps "
-                  "available to compare with the "
-                  "requested window."
-              )
-              print()
-              print(
-                  "The behaviour of startDateTime "
-                  "cannot be determined from this request."
-              )
-
-          elif total_with_start == 0:
-
-              print(
-                  "RESULT: INCONCLUSIVE"
-              )
-              print()
-              print(
-                  "Records were returned, but none "
-                  "contained a usable start timestamp."
+                  f"Top-level list containing "
+                  f"{len(payload)} items."
               )
 
           else:
 
               print(
-                  f"Records with usable start timestamps: "
-                  f"{total_with_start}"
+                  repr(payload)[:1000]
+              )
+
+          # ==================================================
+          # CONCLUSION
+          # ==================================================
+
+          print()
+          print("=" * 70)
+          print("TEST 3 RESULT")
+          print("=" * 70)
+          print()
+
+          if len(raw_text.strip()) == 0:
+
+              print(
+                  "RESULT: EMPTY HTTP 200 RESPONSE"
               )
 
               print()
-
               print(
-                  f"Starting before window: "
-                  f"{starts_before}"
+                  "The API returned HTTP 200 but "
+                  "no response body."
               )
 
-              print(
-                  f"Starting inside window: "
-                  f"{starts_inside}"
-              )
+          elif not isinstance(
+              payload,
+              (dict, list),
+          ):
 
               print(
-                  f"Starting after window: "
-                  f"{starts_after}"
+                  "RESULT: UNEXPECTED JSON RESPONSE"
+              )
+
+          elif not records:
+
+              print(
+                  "RESULT: NO RECORDS IDENTIFIED"
               )
 
               print()
+              print(
+                  "The request was accepted and "
+                  "returned HTTP 200, but no "
+                  "record collection was identified."
+              )
 
-              # ----------------------------------------------
-              # PRIMARY TEST
-              # ----------------------------------------------
+              print()
+              print(
+                  "This means the next investigation "
+                  "should focus on the API response "
+                  "contract rather than changing "
+                  "the production date filtering."
+              )
 
-              if starts_before > 0:
+          else:
 
-                  print(
-                      "RESULT: STARTDATETIME IS NOT "
-                      "A STRICT LOWER-BOUND FILTER."
-                  )
+              print(
+                  f"RESULT: {len(records)} "
+                  f"RECORDS IDENTIFIED"
+              )
 
-                  print()
+              print()
+              print(
+                  "Removing closureType=planned "
+                  "produced data."
+              )
 
-                  print(
-                      "The API returned one or more "
-                      "records whose actual closure "
-                      "start time is BEFORE the supplied "
-                      "startDateTime."
-                  )
-
-                  print()
-
-                  print(
-                      "This means the production importer "
-                      "must not assume that every returned "
-                      "record starts inside the requested "
-                      "window."
-                  )
-
-              elif starts_after > 0:
-
-                  print(
-                      "RESULT: PARTIAL/UNCERTAIN FILTERING."
-                  )
-
-                  print()
-
-                  print(
-                      "No records started before the "
-                      "requested window, but records "
-                      "starting after the requested end "
-                      "were returned."
-                  )
-
-                  print()
-
-                  print(
-                      "This indicates that the API response "
-                      "cannot simply be assumed to contain "
-                      "only records whose start time falls "
-                      "inside the requested window."
-                  )
-
-              else:
-
-                  print(
-                      "RESULT: STRONG EVIDENCE OF "
-                      "STARTDATETIME FILTERING."
-                  )
-
-                  print()
-
-                  print(
-                      "Every returned record with a usable "
-                      "start timestamp begins inside the "
-                      "requested window."
-                  )
+              print()
+              print(
+                  "The raw record structure and "
+                  "datetime paths above should now "
+                  "tell us exactly how the API "
+                  "represents closures."
+              )
 
           # ==================================================
           # FINAL SAFETY STATEMENT
@@ -870,6 +718,9 @@ jobs:
           )
           print(
               "No request splitting was performed."
+          )
+          print(
+              "closureType was NOT supplied."
           )
           print(
               "Production workflow was not modified."
