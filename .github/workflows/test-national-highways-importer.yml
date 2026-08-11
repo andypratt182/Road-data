@@ -1,0 +1,375 @@
+name: Test National Highways Importer
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-national-highways-importer:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Run National Highways importer test
+        env:
+          NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
+        run: |
+          python - <<'PY'
+          from collections import Counter
+          from datetime import datetime, timezone
+
+          from sources.national_highways import (
+              fetch_national_highways,
+              group_by_road,
+          )
+
+
+          # ============================================================
+          # TEST WINDOW
+          # ============================================================
+
+          START = "2026-08-11T00:00:00"
+          END = "2026-08-18T23:59:59"
+
+
+          print("=" * 70)
+          print("NATIONAL HIGHWAYS IMPORTER TEST")
+          print("=" * 70)
+          print()
+          print("This is an isolated importer test.")
+          print("Production workflow is NOT modified.")
+          print()
+          print("Request window:")
+          print(f"Start: {START}")
+          print(f"End:   {END}")
+          print()
+          print("closureType: NOT supplied")
+          print("Pagination: x-next")
+          print("PageCursor: NOT manually supplied")
+          print("Rate limiting: Retry-After")
+          print()
+          print("=" * 70)
+          print()
+
+
+          # ============================================================
+          # FETCH
+          # ============================================================
+
+          closures = fetch_national_highways(
+              start_datetime=START,
+              end_datetime=END,
+          )
+
+
+          # ============================================================
+          # BASIC RESULT
+          # ============================================================
+
+          print()
+          print("=" * 70)
+          print("IMPORTER RESULT")
+          print("=" * 70)
+          print()
+
+          print(
+              f"Target-road closures returned: "
+              f"{len(closures)}"
+          )
+
+          print()
+
+
+          # ============================================================
+          # ROAD COUNTS
+          # ============================================================
+
+          grouped = group_by_road(
+              closures
+          )
+
+          print("ROAD COUNTS")
+          print("-" * 70)
+
+          for road in (
+              "M6",
+              "M57",
+              "M58",
+              "M62",
+          ):
+              print(
+                  f"{road}: "
+                  f"{len(grouped.get(road, []))}"
+              )
+
+          print()
+
+
+          # ============================================================
+          # VALIDITY RANGE
+          # ============================================================
+
+          def parse_datetime(value):
+              if not value:
+                  return None
+
+              text = str(value).strip()
+
+              if text.endswith("Z"):
+                  text = (
+                      text[:-1]
+                      + "+00:00"
+                  )
+
+              try:
+                  value_datetime = (
+                      datetime.fromisoformat(
+                          text
+                      )
+                  )
+              except ValueError:
+                  return None
+
+              if value_datetime.tzinfo is None:
+                  value_datetime = (
+                      value_datetime.replace(
+                          tzinfo=timezone.utc
+                      )
+                  )
+              else:
+                  value_datetime = (
+                      value_datetime.astimezone(
+                          timezone.utc
+                      )
+                  )
+
+              return value_datetime
+
+
+          starts = []
+          ends = []
+
+          for closure in closures:
+
+              start = parse_datetime(
+                  closure.get("start")
+              )
+
+              end = parse_datetime(
+                  closure.get("end")
+              )
+
+              if start:
+                  starts.append(start)
+
+              if end:
+                  ends.append(end)
+
+
+          print("VALIDITY RANGE")
+          print("-" * 70)
+
+          if starts:
+              print(
+                  "Earliest start:"
+              )
+              print(
+                  min(starts).isoformat()
+              )
+
+              print()
+
+              print(
+                  "Latest start:"
+              )
+              print(
+                  max(starts).isoformat()
+              )
+
+          else:
+              print(
+                  "No usable start timestamps."
+              )
+
+          print()
+
+          if ends:
+              print(
+                  "Earliest end:"
+              )
+              print(
+                  min(ends).isoformat()
+              )
+
+              print()
+
+              print(
+                  "Latest end:"
+              )
+              print(
+                  max(ends).isoformat()
+              )
+
+          else:
+              print(
+                  "No usable end timestamps."
+              )
+
+          print()
+
+
+          # ============================================================
+          # FIELD AVAILABILITY
+          # ============================================================
+
+          print("FIELD AVAILABILITY")
+          print("-" * 70)
+
+          fields = (
+              "road",
+              "direction",
+              "start",
+              "end",
+              "description",
+              "location",
+              "latitude",
+              "longitude",
+              "lanes",
+          )
+
+          field_counts = Counter()
+
+          for closure in closures:
+
+              for field in fields:
+
+                  value = closure.get(
+                      field
+                  )
+
+                  if value not in (
+                      None,
+                      "",
+                      [],
+                  ):
+                      field_counts[field] += 1
+
+          total = len(closures)
+
+          for field in fields:
+
+              count = field_counts[field]
+
+              percentage = (
+                  count / total * 100
+                  if total
+                  else 0
+              )
+
+              print(
+                  f"{field}: "
+                  f"{count}/{total} "
+                  f"({percentage:.1f}%)"
+              )
+
+          print()
+
+
+          # ============================================================
+          # SAMPLE RECORDS
+          # ============================================================
+
+          print("SAMPLE NORMALISED RECORDS")
+          print("-" * 70)
+
+          for number, closure in enumerate(
+              closures[:10],
+              start=1,
+          ):
+
+              print()
+              print(
+                  f"Record {number}"
+              )
+
+              print(
+                  f"Road: "
+                  f"{closure.get('road')}"
+              )
+
+              print(
+                  f"Direction: "
+                  f"{closure.get('direction')}"
+              )
+
+              print(
+                  f"Start: "
+                  f"{closure.get('start')}"
+              )
+
+              print(
+                  f"End: "
+                  f"{closure.get('end')}"
+              )
+
+              print(
+                  f"Description: "
+                  f"{closure.get('description')}"
+              )
+
+              print(
+                  f"Location: "
+                  f"{closure.get('location')}"
+              )
+
+              print(
+                  f"Latitude: "
+                  f"{closure.get('latitude')}"
+              )
+
+              print(
+                  f"Longitude: "
+                  f"{closure.get('longitude')}"
+              )
+
+              print(
+                  f"Lanes: "
+                  f"{closure.get('lanes')}"
+              )
+
+
+          # ============================================================
+          # FINAL RESULT
+          # ============================================================
+
+          print()
+          print("=" * 70)
+          print("TEST COMPLETE")
+          print("=" * 70)
+          print()
+          print(
+              "The existing production workflow was "
+              "not modified."
+          )
+          print(
+              "The existing fetch_closures.py was "
+              "not modified."
+          )
+          print(
+              "No database writes were performed."
+          )
+          print(
+              "No EPG/XMLTV processing was performed."
+          )
+          PY
