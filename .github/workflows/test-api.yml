@@ -56,3 +56,31 @@ jobs:
 
           print("Flask homepage loaded successfully")
           PY
+       - name: Test Flask filters
+         env:
+            NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
+          run: |
+            python - <<'PY'
+            from app import app
+
+            client = app.test_client()
+
+            tests = [
+                ("/?road=M6", "M6 road filter"),
+                ("/?road=M1", "M1 road filter"),
+                ("/?road=M62", "M62 road filter"),
+                ("/?direction=northbound", "Northbound filter"),
+                ("/?status=active", "Active status filter"),
+                ]
+
+            for url, name in tests:
+                response = client.get(url)
+                
+                print(f"{name}: HTTP {response.status_code}")
+
+        if response.status_code != 200:
+            print(response.data.decode("utf-8", errors="replace"))
+            raise SystemExit(1)
+
+            print("All Flask filters loaded successfully")
+            PY
