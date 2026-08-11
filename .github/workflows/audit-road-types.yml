@@ -19,7 +19,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Audit closure types
+      - name: Audit "other" closure records
         run: |
           python - <<'PY'
           import json
@@ -30,24 +30,140 @@ jobs:
 
           closures = data.get("closures", [])
 
-          counts = Counter(
-              str(c.get("type") or "MISSING")
-              for c in closures
+          other_records = [
+              closure
+              for closure in closures
+              if str(closure.get("type") or "").strip().lower() == "other"
+          ]
+
+          print("=" * 80)
+          print("NATIONAL HIGHWAYS - 'OTHER' CLOSURE AUDIT")
+          print("=" * 80)
+          print(f"Total closures: {len(closures)}")
+          print(f"'other' closures: {len(other_records)}")
+          print("=" * 80)
+          print()
+
+          # --------------------------------------------------
+          # ROAD SUMMARY
+          # --------------------------------------------------
+
+          roads = Counter(
+              str(c.get("road") or "MISSING")
+              for c in other_records
           )
 
-          print("=" * 60)
-          print("ROAD CLOSURE TYPE AUDIT")
-          print("=" * 60)
-          print(f"Total closures: {len(closures)}")
-          print()
+          print("=" * 80)
+          print("BY ROAD")
+          print("=" * 80)
 
-          for closure_type, count in sorted(
-              counts.items(),
-              key=lambda x: (-x[1], x[0])
-          ):
-              print(f"{closure_type}: {count}")
+          for road, count in roads.most_common():
+              print(f"{road}: {count}")
 
           print()
-          print(f"Distinct types: {len(counts)}")
-          print("=" * 60)
+
+          # --------------------------------------------------
+          # DIRECTION SUMMARY
+          # --------------------------------------------------
+
+          directions = Counter(
+              str(c.get("direction") or "MISSING")
+              for c in other_records
+          )
+
+          print("=" * 80)
+          print("BY DIRECTION")
+          print("=" * 80)
+
+          for direction, count in directions.most_common():
+              print(f"{direction}: {count}")
+
+          print()
+
+          # --------------------------------------------------
+          # CAUSE SUMMARY
+          # --------------------------------------------------
+
+          causes = Counter(
+              str(c.get("cause") or "MISSING")
+              for c in other_records
+          )
+
+          print("=" * 80)
+          print("BY CAUSE")
+          print("=" * 80)
+
+          for cause, count in causes.most_common():
+              print(f"{cause}: {count}")
+
+          print()
+
+          # --------------------------------------------------
+          # DESCRIPTION SUMMARY
+          # --------------------------------------------------
+
+          descriptions = Counter(
+              str(c.get("description") or "MISSING").strip()
+              for c in other_records
+          )
+
+          print("=" * 80)
+          print("DESCRIPTION FREQUENCY")
+          print("=" * 80)
+
+          for description, count in descriptions.most_common():
+              print(f"[{count}] {description}")
+
+          print()
+
+          # --------------------------------------------------
+          # INDIVIDUAL RECORDS
+          # --------------------------------------------------
+
+          print("=" * 80)
+          print("INDIVIDUAL 'OTHER' RECORDS")
+          print("=" * 80)
+
+          for number, closure in enumerate(other_records, start=1):
+
+              print()
+              print("-" * 80)
+              print(f"RECORD {number}")
+              print("-" * 80)
+
+              print(
+                  f"Road:        {closure.get('road') or 'MISSING'}"
+              )
+
+              print(
+                  f"Direction:   {closure.get('direction') or 'MISSING'}"
+              )
+
+              print(
+                  f"Status:      {closure.get('status') or 'MISSING'}"
+              )
+
+              print(
+                  f"Cause:       {closure.get('cause') or 'MISSING'}"
+              )
+
+              print(
+                  f"Start:       {closure.get('start') or 'MISSING'}"
+              )
+
+              print(
+                  f"End:         {closure.get('end') or 'MISSING'}"
+              )
+
+              print(
+                  f"Description: {closure.get('description') or 'MISSING'}"
+              )
+
+          print()
+          print("=" * 80)
+          print("AUDIT COMPLETE")
+          print("=" * 80)
+          print(f"Total 'other' records audited: {len(other_records)}")
+          print("=" * 80)
           PY
+```
