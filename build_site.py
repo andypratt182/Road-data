@@ -9,93 +9,120 @@ OUTPUT_DIR = ROOT / "site"
 OUTPUT_FILE = OUTPUT_DIR / "index.html"
 
 
+# ============================================================
+# ROUTE CONFIGURATION
+# ============================================================
+
+ROUTES = {
+    "Omega": ["M6", "M62"],
+    "Axis": ["M6", "M58", "M57"],
+}
+
+DIRECTIONS = {
+    "Northbound": "northbound",
+    "Southbound": "southbound",
+}
+
+
+# ============================================================
+# DATA
+# ============================================================
+
 def load_data():
     with DATA_FILE.open("r", encoding="utf-8") as file:
         return json.load(file)
 
 
+def route_for_closure(closure):
+    """
+    Determine which configured route a closure belongs to.
+
+    A closure can belong to more than one route because M6 is
+    shared by Omega and Axis.
+    """
+    road = str(closure.get("road") or "").upper()
+
+    matches = []
+
+    for route_name, roads in ROUTES.items():
+        if road in roads:
+            matches.append(route_name)
+
+    return matches
+
+
+# ============================================================
+# PAGE GENERATION
+# ============================================================
+
 def build_page(data):
     closures = data.get("closures", [])
     updated = data.get("updated", "Unknown")
 
-    roads = sorted(
-        {
-            closure.get("road")
-            for closure in closures
-            if closure.get("road")
-        }
-    )
-
-    directions = sorted(
-        {
-            closure.get("direction")
-            for closure in closures
-            if closure.get("direction")
-        }
-    )
-
-    statuses = sorted(
-        {
-            closure.get("status")
-            for closure in closures
-            if closure.get("status")
-        }
-    )
-
-    road_options = "".join(
-        f'<option value="{escape(road)}">{escape(road)}</option>'
-        for road in roads
-    )
-
-    direction_options = "".join(
-        f'<option value="{escape(direction)}">{escape(direction)}</option>'
-        for direction in directions
-    )
-
-    status_options = "".join(
-        f'<option value="{escape(status)}">{escape(status)}</option>'
-        for status in statuses
-    )
-
     closure_cards = []
 
     for closure in closures:
-        road = escape(str(closure.get("road") or "Unknown"))
-        direction = escape(str(closure.get("direction") or ""))
-        status = escape(str(closure.get("status") or "Unknown"))
+        raw_road = str(closure.get("road") or "")
+        raw_direction = str(closure.get("direction") or "")
+        raw_status = str(closure.get("status") or "Unknown")
+
+        road = escape(raw_road)
+        direction = escape(raw_direction)
+        status = escape(raw_status)
+
         description = escape(
             str(closure.get("description") or "")
         )
+
         closure_type = escape(
             str(closure.get("type") or "Unknown")
         )
+
         cause = escape(
             str(closure.get("cause") or "Unknown")
         )
+
         start = escape(
             str(closure.get("start") or "Unknown")
         )
+
         end = escape(
             str(closure.get("end") or "Unknown")
         )
 
-        title = road
+        # Determine configured routes.
+        routes = route_for_closure(closure)
 
-        if direction:
-            title += f" {direction}"
+        # Store route names as a data attribute so JavaScript
+        # can filter the card.
+        route_data = ",".join(routes)
 
+        # Road order is handled in JavaScript using the route
+        # definitions below.
         closure_cards.append(
             f"""
-            <article class="closure"
-                     data-road="{road}"
-                     data-direction="{direction}"
-                     data-status="{status}">
+            <article
+                class="closure"
+                data-road="{road}"
+                data-direction="{direction}"
+                data-status="{status}"
+                data-routes="{escape(route_data)}"
+            >
 
                 <div class="closure-header">
-                    <h3>{title}</h3>
+
+                    <div>
+                        <h3>{road}</h3>
+
+                        <div class="route-label">
+                            {direction or "Direction unknown"}
+                        </div>
+                    </div>
+
                     <span class="status status-{status}">
                         {status}
                     </span>
+
                 </div>
 
                 <p>{description}</p>
@@ -138,370 +165,612 @@ def build_page(data):
             """
         )
 
+    route_options = "".join(
+        f'<option value="{escape(route)}">'
+        f'{escape(route)}'
+        f'</option>'
+        for route in ROUTES
+    )
+
+    direction_options = "".join(
+        f'<option value="{escape(value)}">'
+        f'{escape(name)}'
+        f'</option>'
+        for name, value in DIRECTIONS.items()
+    )
+
+    route_config_js = json.dumps(ROUTES)
+
     html = f"""<!DOCTYPE html>
+
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport"
-          content="width=device-width, initial-scale=1.0">
 
-    <title>National Highways Road Data</title>
+<meta charset="UTF-8">
 
-    <style>
-        * {{
-            box-sizing: border-box;
-        }}
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0">
 
-        body {{
-            font-family: Arial, sans-serif;
-            margin: 0;
-            background: #f4f6f8;
-            color: #222;
-        }}
+<title>National Highways Road Data</title>
 
-        header {{
-            background: #003b5c;
-            color: white;
-            padding: 25px 20px;
-        }}
+<style>
 
-        .container {{
-            max-width: 1400px;
-            margin: auto;
-            padding: 0 20px;
-        }}
+* {{
+    box-sizing: border-box;
+}}
 
-        header h1 {{
-            margin: 0 0 5px;
-        }}
+body {{
+    font-family: Arial, sans-serif;
+    margin: 0;
+    background: #f4f6f8;
+    color: #222;
+}}
 
-        header p {{
-            margin: 0;
-            opacity: 0.9;
-        }}
+header {{
+    background: #003b5c;
+    color: white;
+    padding: 25px 20px;
+}}
 
-        .updated {{
-            margin-top: 10px;
-            font-size: 13px;
-            opacity: 0.8;
-        }}
+.container {{
+    max-width: 1400px;
+    margin: auto;
+    padding: 0 20px;
+}}
 
-        .filters {{
-            background: white;
-            padding: 20px;
-            margin: 20px 0;
-            border-radius: 8px;
-            box-shadow: 0 2px 6px rgba(0,0,0,.08);
-        }}
+header h1 {{
+    margin: 0 0 5px;
+}}
 
-        .filter-row {{
-            display: flex;
-            flex-wrap: wrap;
-            gap: 15px;
-        }}
+header p {{
+    margin: 0;
+    opacity: 0.9;
+}}
 
-        .filter-group {{
-            display: flex;
-            flex-direction: column;
-            min-width: 180px;
-        }}
+.updated {{
+    margin-top: 10px;
+    font-size: 13px;
+    opacity: 0.8;
+}}
 
-        label {{
-            font-weight: bold;
-            margin-bottom: 5px;
-        }}
+.filters {{
+    background: white;
+    padding: 20px;
+    margin: 20px 0;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.08);
+}}
 
-        select {{
-            padding: 9px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 14px;
-        }}
+.filters h2 {{
+    margin-top: 0;
+}}
 
-        .summary {{
-            display: grid;
-            grid-template-columns:
-                repeat(auto-fit, minmax(180px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
-        }}
+.filter-row {{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}}
 
-        .summary-card {{
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 6px rgba(0,0,0,.08);
-        }}
+.filter-group {{
+    display: flex;
+    flex-direction: column;
+    min-width: 220px;
+}}
 
-        .summary-card strong {{
-            display: block;
-            font-size: 28px;
-            margin-top: 5px;
-        }}
+label {{
+    font-weight: bold;
+    margin-bottom: 5px;
+}}
 
-        .closures {{
-            display: grid;
-            gap: 15px;
-            padding-bottom: 30px;
-        }}
+select {{
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 14px;
+    background: white;
+}}
 
-        .closure {{
-            background: white;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 2px 6px rgba(0,0,0,.08);
-        }}
+.summary {{
+    display: grid;
+    grid-template-columns:
+        repeat(auto-fit, minmax(180px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}}
 
-        .closure-header {{
-            display: flex;
-            justify-content: space-between;
-            gap: 15px;
-            align-items: center;
-        }}
+.summary-card {{
+    background: white;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.08);
+}}
 
-        .closure-header h3 {{
-            margin: 0;
-        }}
+.summary-card strong {{
+    display: block;
+    font-size: 28px;
+    margin-top: 5px;
+}}
 
-        .status {{
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: bold;
-            text-transform: uppercase;
-        }}
+.closures {{
+    display: grid;
+    gap: 15px;
+    padding-bottom: 30px;
+}}
 
-        .status-active {{
-            background: #ffdede;
-            color: #a00000;
-        }}
+.closure {{
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.08);
+}}
 
-        .status-planned {{
-            background: #fff1c7;
-            color: #795900;
-        }}
+.closure-header {{
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+    align-items: center;
+}}
 
-        .status-suspended {{
-            background: #e5e5e5;
-            color: #555;
-        }}
+.closure-header h3 {{
+    margin: 0 0 5px;
+    font-size: 20px;
+}}
 
-        .details {{
-            display: grid;
-            grid-template-columns:
-                repeat(auto-fit, minmax(180px, 1fr));
-            gap: 10px;
-            margin-top: 15px;
-        }}
+.route-label {{
+    color: #666;
+    font-size: 14px;
+    text-transform: capitalize;
+}}
 
-        .detail {{
-            background: #f7f8fa;
-            padding: 10px;
-            border-radius: 5px;
-        }}
+.status {{
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: bold;
+    text-transform: uppercase;
+}}
 
-        .detail strong {{
-            display: block;
-            margin-bottom: 3px;
-        }}
+.status-active {{
+    background: #ffdede;
+    color: #a00000;
+}}
 
-        .empty {{
-            background: white;
-            padding: 30px;
-            text-align: center;
-            border-radius: 8px;
-        }}
+.status-planned {{
+    background: #fff1c7;
+    color: #795900;
+}}
 
-        @media (max-width: 600px) {{
-            .container {{
-                padding: 0 10px;
-            }}
+.status-suspended {{
+    background: #e5e5e5;
+    color: #555;
+}}
 
-            .closure-header {{
-                flex-direction: column;
-                align-items: flex-start;
-            }}
-        }}
-    </style>
+.details {{
+    display: grid;
+    grid-template-columns:
+        repeat(auto-fit, minmax(180px, 1fr));
+    gap: 10px;
+    margin-top: 15px;
+}}
+
+.detail {{
+    background: #f7f8fa;
+    padding: 10px;
+    border-radius: 5px;
+}}
+
+.detail strong {{
+    display: block;
+    margin-bottom: 3px;
+}}
+
+.empty {{
+    background: white;
+    padding: 30px;
+    text-align: center;
+    border-radius: 8px;
+}}
+
+.route-description {{
+    margin-top: 8px;
+    color: #666;
+    font-size: 14px;
+}}
+
+@media (max-width: 600px) {{
+
+    .container {{
+        padding: 0 10px;
+    }}
+
+    .closure-header {{
+        flex-direction: column;
+        align-items: flex-start;
+    }}
+
+}}
+
+</style>
+
 </head>
 
 <body>
 
 <header>
-    <div class="container">
-        <h1>National Highways Road Data</h1>
-        <p>Live and planned road closure information</p>
-        <div class="updated">
-            Last updated: {escape(updated)}
-        </div>
-    </div>
+
+<div class="container">
+
+<h1>National Highways Road Data</h1>
+
+<p>
+Omega &amp; Axis route monitoring
+</p>
+
+<div class="updated">
+Last updated: {escape(str(updated))}
+</div>
+
+</div>
+
 </header>
+
 
 <main class="container">
 
+
 <section class="filters">
 
-    <h2>Filter closures</h2>
+<h2>Route filters</h2>
 
-    <div class="filter-row">
+<div class="filter-row">
 
-        <div class="filter-group">
-            <label for="road">Road</label>
+<div class="filter-group">
 
-            <select id="road">
-                <option value="">All roads</option>
-                {road_options}
-            </select>
-        </div>
+<label for="route">
+Route
+</label>
 
-        <div class="filter-group">
-            <label for="direction">Direction</label>
+<select id="route">
 
-            <select id="direction">
-                <option value="">All directions</option>
-                {direction_options}
-            </select>
-        </div>
+<option value="">
+Select route
+</option>
 
-        <div class="filter-group">
-            <label for="status">Status</label>
+{route_options}
 
-            <select id="status">
-                <option value="">All statuses</option>
-                {status_options}
-            </select>
-        </div>
+</select>
 
-    </div>
+</div>
+
+
+<div class="filter-group">
+
+<label for="direction">
+Direction
+</label>
+
+<select id="direction">
+
+<option value="">
+Select direction
+</option>
+
+{direction_options}
+
+</select>
+
+</div>
+
+</div>
+
+
+<div id="route-description"
+     class="route-description">
+
+Select a route and direction to view road closures.
+
+</div>
 
 </section>
+
 
 <section class="summary">
 
-    <div class="summary-card">
-        Total closures
-        <strong id="total-count">
-            {len(closures)}
-        </strong>
-    </div>
+<div class="summary-card">
 
-    <div class="summary-card">
-        Active
-        <strong id="active-count">0</strong>
-    </div>
+Total closures
 
-    <div class="summary-card">
-        Planned
-        <strong id="planned-count">0</strong>
-    </div>
+<strong id="total-count">
+0
+</strong>
+
+</div>
+
+
+<div class="summary-card">
+
+Active
+
+<strong id="active-count">
+0
+</strong>
+
+</div>
+
+
+<div class="summary-card">
+
+Planned
+
+<strong id="planned-count">
+0
+</strong>
+
+</div>
 
 </section>
 
-<section class="closures" id="closures">
 
-    {"".join(closure_cards)}
+<section id="closures"
+         class="closures">
+
+{''.join(closure_cards)}
 
 </section>
+
+
+<div id="empty"
+     class="empty"
+     style="display:none;">
+
+No closures found for the selected route and direction.
+
+</div>
+
 
 </main>
 
+
 <script>
-    const roadFilter = document.getElementById("road");
-    const directionFilter =
-        document.getElementById("direction");
-    const statusFilter =
-        document.getElementById("status");
 
-    const cards =
-        Array.from(document.querySelectorAll(".closure"));
+const ROUTES = {route_config_js};
 
-    function updateFilters() {{
 
-        const road = roadFilter.value.toUpperCase();
-        const direction =
-            directionFilter.value.toLowerCase();
-        const status =
-            statusFilter.value.toLowerCase();
+const routeSelect =
+    document.getElementById("route");
 
-        let visible = 0;
-        let active = 0;
-        let planned = 0;
+const directionSelect =
+    document.getElementById("direction");
 
-        cards.forEach(card => {{
+const routeDescription =
+    document.getElementById("route-description");
 
-            const cardRoad =
-                card.dataset.road.toUpperCase();
+const closureContainer =
+    document.getElementById("closures");
 
-            const cardDirection =
-                card.dataset.direction.toLowerCase();
+const emptyMessage =
+    document.getElementById("empty");
 
-            const cardStatus =
-                card.dataset.status.toLowerCase();
+const totalCount =
+    document.getElementById("total-count");
 
-            const matchesRoad =
-                !road || cardRoad === road;
+const activeCount =
+    document.getElementById("active-count");
 
-            const matchesDirection =
-                !direction ||
-                cardDirection === direction;
+const plannedCount =
+    document.getElementById("planned-count");
 
-            const matchesStatus =
-                !status ||
-                cardStatus === status;
 
-            const matches =
-                matchesRoad &&
-                matchesDirection &&
-                matchesStatus;
+const cards =
+    Array.from(
+        document.querySelectorAll(".closure")
+    );
 
-            card.style.display =
-                matches ? "" : "none";
 
-            if (matches) {{
-                visible++;
+function updatePage() {{
 
-                if (cardStatus === "active") {{
-                    active++;
-                }}
+    const route =
+        routeSelect.value;
 
-                if (cardStatus === "planned") {{
-                    planned++;
-                }}
-            }}
-        }});
+    const direction =
+        directionSelect.value;
 
-        document.getElementById("total-count")
-            .textContent = visible;
 
-        document.getElementById("active-count")
-            .textContent = active;
+    if (route) {{
 
-        document.getElementById("planned-count")
-            .textContent = planned;
+        const roads =
+            ROUTES[route];
+
+        routeDescription.textContent =
+            route +
+            " route: " +
+            roads.join(" → ") +
+            (direction
+                ? " • " + direction
+                : "");
+
+    }} else {{
+
+        routeDescription.textContent =
+            "Select a route and direction to view road closures.";
+
     }}
 
-    roadFilter.addEventListener("change", updateFilters);
-    directionFilter.addEventListener(
-        "change",
-        updateFilters
-    );
-    statusFilter.addEventListener("change", updateFilters);
 
-    updateFilters();
+    let visibleCards = [];
+
+
+    cards.forEach(card => {{
+
+        const road =
+            card.dataset.road;
+
+        const cardDirection =
+            card.dataset.direction.toLowerCase();
+
+        const cardRoutes =
+            card.dataset.routes
+                .split(",")
+                .filter(Boolean);
+
+
+        let routeMatch = true;
+        let directionMatch = true;
+
+
+        if (route) {{
+
+            routeMatch =
+                cardRoutes.includes(route) &&
+                ROUTES[route].includes(road);
+
+        }}
+
+
+        if (direction) {{
+
+            directionMatch =
+                cardDirection === direction;
+
+        }}
+
+
+        const visible =
+            routeMatch &&
+            directionMatch;
+
+
+        card.style.display =
+            visible ? "" : "none";
+
+
+        if (visible) {{
+            visibleCards.push(card);
+        }}
+
+    }});
+
+
+    /*
+     * Sort visible closures according to the
+     * configured route order.
+     */
+    if (route) {{
+
+        const roadOrder =
+            ROUTES[route];
+
+        visibleCards.sort(
+            (a, b) => {{
+
+                const roadA =
+                    a.dataset.road;
+
+                const roadB =
+                    b.dataset.road;
+
+                const indexA =
+                    roadOrder.indexOf(roadA);
+
+                const indexB =
+                    roadOrder.indexOf(roadB);
+
+                return indexA - indexB;
+
+            }}
+        );
+
+
+        visibleCards.forEach(card => {{
+            closureContainer.appendChild(card);
+        }});
+
+    }}
+
+
+    /*
+     * Update summary counters.
+     */
+    let active = 0;
+    let planned = 0;
+
+
+    visibleCards.forEach(card => {{
+
+        const status =
+            card.dataset.status
+                .toLowerCase();
+
+        if (status === "active") {{
+            active++;
+        }}
+
+        if (status === "planned") {{
+            planned++;
+        }}
+
+    }});
+
+
+    totalCount.textContent =
+        visibleCards.length;
+
+    activeCount.textContent =
+        active;
+
+    plannedCount.textContent =
+        planned;
+
+
+    emptyMessage.style.display =
+        visibleCards.length === 0
+            ? "block"
+            : "none";
+
+}}
+
+
+routeSelect.addEventListener(
+    "change",
+    updatePage
+);
+
+directionSelect.addEventListener(
+    "change",
+    updatePage
+);
+
+
+/*
+ * Start with no closures displayed until
+ * the user chooses a route and direction.
+ */
+updatePage();
+
 </script>
 
+
 </body>
+
 </html>
 """
 
     OUTPUT_DIR.mkdir(exist_ok=True)
 
-    with OUTPUT_FILE.open("w", encoding="utf-8") as file:
+    with OUTPUT_FILE.open(
+        "w",
+        encoding="utf-8"
+    ) as file:
         file.write(html)
 
-    print(f"Generated {OUTPUT_FILE}")
-    print(f"Closures: {len(closures)}")
+    print(
+        f"Generated {OUTPUT_FILE}"
+    )
+
+    print(
+        f"Closures: {len(closures)}"
+    )
 
 
 if __name__ == "__main__":
