@@ -446,3 +446,42 @@ for situation in get_situations(
         )
 
 return closures
+
+def filter_closures(
+    closures: list[dict[str, Any]],
+    road: str | None = None,
+    direction: str | None = None,
+    status: str | None = None,
+) -> list[dict[str, Any]]:
+    """Filter processed closure records."""
+
+    filtered = closures
+
+    if road:
+        road = road.strip().upper()
+
+        filtered = [
+            closure
+            for closure in filtered
+            if (closure.get("road") or "").upper() == road
+        ]
+
+    if direction:
+        direction = direction.strip().lower()
+
+        filtered = [
+            closure
+            for closure in filtered
+            if (closure.get("direction") or "").lower() == direction
+        ]
+
+    if status:
+        status = status.strip().lower()
+
+        filtered = [
+            closure
+            for closure in filtered
+            if (closure.get("status") or "").lower() == status
+        ]
+
+    return filtered
