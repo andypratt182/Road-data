@@ -11,15 +11,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run single-request date filter diagnostic
+      - name: Run controlled single-request date filter diagnostic
         env:
           NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
         run: |
           python - <<'PY'
           import json
           import os
-          import re
-          from datetime import datetime, timedelta, timezone
+          from datetime import datetime, timezone
 
           import requests
 
@@ -31,28 +30,16 @@ jobs:
 
           API_KEY = os.environ["NATIONAL_HIGHWAYS_API_KEY"]
 
-          # --------------------------------------------------
-          # ONE REQUEST ONLY
-          # --------------------------------------------------
+          # ==================================================
+          # CONTROLLED TEST WINDOW
+          #
+          # EXACTLY ONE REQUEST
+          # NO RETRIES
+          # NO SPLITTING
+          # ==================================================
 
-          start = datetime.now(
-              timezone.utc
-          ).replace(
-              microsecond=0,
-              tzinfo=None,
-          )
-
-          end = start + timedelta(
-              hours=6
-          )
-
-          start_string = start.strftime(
-              "%Y-%m-%dT%H:%M:%S"
-          )
-
-          end_string = end.strftime(
-              "%Y-%m-%dT%H:%M:%S"
-          )
+          start_string = "2026-08-11T00:00:00"
+          end_string = "2026-08-18T23:59:59"
 
           params = {
               "closureType": "planned",
@@ -66,9 +53,19 @@ jobs:
               "X-Data-Format": "DATEXII",
           }
 
+          requested_start = datetime.fromisoformat(
+              start_string
+          ).replace(tzinfo=timezone.utc)
+
+          requested_end = datetime.fromisoformat(
+              end_string
+          ).replace(tzinfo=timezone.utc)
+
           print("=" * 70)
           print("NATIONAL HIGHWAYS DATE FILTER DIAGNOSTIC")
           print("=" * 70)
+          print()
+          print("CONTROLLED POPULATED-PERIOD TEST")
           print()
           print("THIS TEST MAKES EXACTLY ONE API REQUEST.")
           print("NO RETRIES.")
@@ -85,6 +82,10 @@ jobs:
           print("Requesting API...")
           print()
 
+          # ==================================================
+          # EXACTLY ONE HTTP REQUEST
+          # ==================================================
+
           response = requests.get(
               API_URL,
               params=params,
@@ -98,9 +99,9 @@ jobs:
           print(response.url)
           print()
 
-          # --------------------------------------------------
+          # ==================================================
           # RATE LIMIT
-          # --------------------------------------------------
+          # ==================================================
 
           if response.status_code == 429:
 
@@ -124,9 +125,9 @@ jobs:
 
               raise SystemExit(1)
 
-          # --------------------------------------------------
+          # ==================================================
           # OTHER HTTP ERRORS
-          # --------------------------------------------------
+          # ==================================================
 
           if response.status_code != 200:
 
@@ -137,30 +138,30 @@ jobs:
 
               raise SystemExit(1)
 
-          # --------------------------------------------------
+          # ==================================================
           # PARSE RESPONSE
-          # --------------------------------------------------
+          # ==================================================
 
           try:
               payload = response.json()
+
           except Exception as exc:
 
-              print(
-                  "Unable to decode JSON response:"
-              )
+              print("Unable to decode JSON response:")
               print(exc)
               print()
               print(response.text[:5000])
 
               raise SystemExit(1)
 
-          # --------------------------------------------------
+          # ==================================================
           # FIND RECORD LIST
-          # --------------------------------------------------
+          # ==================================================
 
           records = []
 
           if isinstance(payload, list):
+
               records = payload
 
           elif isinstance(payload, dict):
@@ -176,6 +177,7 @@ jobs:
                   value = payload.get(key)
 
                   if isinstance(value, list):
+
                       records = value
                       break
 
@@ -183,14 +185,12 @@ jobs:
           print("RESPONSE")
           print("=" * 70)
           print()
-          print(
-              f"Records returned: {len(records)}"
-          )
+          print(f"Records returned: {len(records)}")
           print()
 
-          # --------------------------------------------------
+          # ==================================================
           # DATETIME PARSING
-          # --------------------------------------------------
+          # ==================================================
 
           def parse_datetime(value):
 
@@ -198,46 +198,42 @@ jobs:
                   return None
 
               if isinstance(value, datetime):
-                  return value
+                  dt = value
 
-              text = str(value).strip()
+              else:
 
-              # Normalise Z.
-              if text.endswith("Z"):
-                  text = (
-                      text[:-1]
-                      + "+00:00"
-                  )
+                  text = str(value).strip()
 
-              try:
-                  dt = datetime.fromisoformat(
-                      text
-                  )
-              except ValueError:
-                  return None
+                  if not text:
+                      return None
+
+                  # Normalise UTC Z suffix.
+                  if text.endswith("Z"):
+                      text = text[:-1] + "+00:00"
+
+                  try:
+                      dt = datetime.fromisoformat(text)
+
+                  except ValueError:
+                      return None
 
               if dt.tzinfo is None:
+
                   dt = dt.replace(
                       tzinfo=timezone.utc
                   )
+
               else:
+
                   dt = dt.astimezone(
                       timezone.utc
                   )
 
               return dt
 
-          requested_start = start.replace(
-              tzinfo=timezone.utc
-          )
-
-          requested_end = end.replace(
-              tzinfo=timezone.utc
-          )
-
-          # --------------------------------------------------
-          # EXTRACT FIELD
-          # --------------------------------------------------
+          # ==================================================
+          # FIELD EXTRACTION
+          # ==================================================
 
           def get_field(record, *names):
 
@@ -251,6 +247,7 @@ jobs:
 
               return None
 
+
           def extract_start(record):
 
               return get_field(
@@ -261,6 +258,7 @@ jobs:
                   "startDate",
                   "from",
               )
+
 
           def extract_end(record):
 
@@ -273,33 +271,59 @@ jobs:
                   "to",
               )
 
-          # --------------------------------------------------
+
+          def extract_road(record):
+
+              return get_field(
+                  record,
+                  "road",
+                  "roadName",
+                  "roadNumber",
+              )
+
+
+          def extract_direction(record):
+
+              return get_field(
+                  record,
+                  "direction",
+                  "directionDescription",
+              )
+
+
+          def extract_description(record):
+
+              return get_field(
+                  record,
+                  "description",
+                  "comment",
+                  "remarks",
+              )
+
+          # ==================================================
           # TIMESTAMP ANALYSIS
-          # --------------------------------------------------
+          # ==================================================
 
           start_values = []
           end_values = []
 
-          inside_start = 0
-          outside_start = 0
-
-          inside_end = 0
-          outside_end = 0
-
+          starts_before = 0
+          starts_inside = 0
+          starts_after = 0
           unknown_start = 0
+
+          ends_before = 0
+          ends_inside = 0
+          ends_after = 0
           unknown_end = 0
 
-          outside_records = []
+          before_start_records = []
+          after_start_records = []
 
           for record in records:
 
-              raw_start = extract_start(
-                  record
-              )
-
-              raw_end = extract_end(
-                  record
-              )
+              raw_start = extract_start(record)
+              raw_end = extract_end(record)
 
               parsed_start = parse_datetime(
                   raw_start
@@ -309,35 +333,59 @@ jobs:
                   raw_end
               )
 
+              # ----------------------------------------------
+              # START
+              # ----------------------------------------------
+
               if parsed_start:
 
                   start_values.append(
                       parsed_start
                   )
 
-                  if (
-                      requested_start
-                      <= parsed_start
-                      <= requested_end
-                  ):
-                      inside_start += 1
-                  else:
-                      outside_start += 1
+                  if parsed_start < requested_start:
+
+                      starts_before += 1
 
                       if len(
-                          outside_records
+                          before_start_records
                       ) < 10:
 
-                          outside_records.append(
+                          before_start_records.append(
                               (
                                   record,
-                                  "start",
                                   raw_start,
+                                  raw_end,
+                              )
+                          )
+
+                  elif parsed_start <= requested_end:
+
+                      starts_inside += 1
+
+                  else:
+
+                      starts_after += 1
+
+                      if len(
+                          after_start_records
+                      ) < 10:
+
+                          after_start_records.append(
+                              (
+                                  record,
+                                  raw_start,
+                                  raw_end,
                               )
                           )
 
               else:
+
                   unknown_start += 1
+
+              # ----------------------------------------------
+              # END
+              # ----------------------------------------------
 
               if parsed_end:
 
@@ -345,25 +393,27 @@ jobs:
                       parsed_end
                   )
 
-                  if (
-                      requested_start
-                      <= parsed_end
-                      <= requested_end
-                  ):
-                      inside_end += 1
+                  if parsed_end < requested_start:
+
+                      ends_before += 1
+
+                  elif parsed_end <= requested_end:
+
+                      ends_inside += 1
+
                   else:
-                      outside_end += 1
+
+                      ends_after += 1
 
               else:
+
                   unknown_end += 1
 
-          # --------------------------------------------------
-          # RANGE ANALYSIS
-          # --------------------------------------------------
+          # ==================================================
+          # START TIMESTAMP ANALYSIS
+          # ==================================================
 
-          print(
-              "START TIMESTAMP ANALYSIS"
-          )
+          print("START TIMESTAMP ANALYSIS")
           print("-" * 70)
 
           if start_values:
@@ -376,18 +426,14 @@ jobs:
                   start_values
               )
 
-              print(
-                  "Earliest closure start:"
-              )
+              print("Earliest closure start:")
               print(
                   earliest_start.isoformat()
               )
 
               print()
 
-              print(
-                  "Latest closure start:"
-              )
+              print("Latest closure start:")
               print(
                   latest_start.isoformat()
               )
@@ -402,18 +448,26 @@ jobs:
           print()
 
           print(
-              "Records starting INSIDE "
+              "Records starting BEFORE "
               "requested window:"
           )
-          print(inside_start)
+          print(starts_before)
 
           print()
 
           print(
-              "Records starting OUTSIDE "
+              "Records starting INSIDE "
               "requested window:"
           )
-          print(outside_start)
+          print(starts_inside)
+
+          print()
+
+          print(
+              "Records starting AFTER "
+              "requested window:"
+          )
+          print(starts_after)
 
           print()
 
@@ -422,11 +476,12 @@ jobs:
           )
           print(unknown_start)
 
-          print()
+          # ==================================================
+          # END TIMESTAMP ANALYSIS
+          # ==================================================
 
-          print(
-              "END TIMESTAMP ANALYSIS"
-          )
+          print()
+          print("END TIMESTAMP ANALYSIS")
           print("-" * 70)
 
           if end_values:
@@ -439,18 +494,14 @@ jobs:
                   end_values
               )
 
-              print(
-                  "Earliest closure end:"
-              )
+              print("Earliest closure end:")
               print(
                   earliest_end.isoformat()
               )
 
               print()
 
-              print(
-                  "Latest closure end:"
-              )
+              print("Latest closure end:")
               print(
                   latest_end.isoformat()
               )
@@ -465,18 +516,26 @@ jobs:
           print()
 
           print(
-              "Records ending INSIDE "
+              "Records ending BEFORE "
               "requested window:"
           )
-          print(inside_end)
+          print(ends_before)
 
           print()
 
           print(
-              "Records ending OUTSIDE "
+              "Records ending INSIDE "
               "requested window:"
           )
-          print(outside_end)
+          print(ends_inside)
+
+          print()
+
+          print(
+              "Records ending AFTER "
+              "requested window:"
+          )
+          print(ends_after)
 
           print()
 
@@ -485,118 +544,177 @@ jobs:
           )
           print(unknown_end)
 
-          # --------------------------------------------------
+          # ==================================================
           # ROAD ANALYSIS
-          # --------------------------------------------------
+          # ==================================================
 
           roads = {}
 
           for record in records:
 
-              road = get_field(
-                  record,
-                  "road",
-                  "roadName",
-                  "roadNumber",
+              road = extract_road(
+                  record
               )
 
               if road:
-                  roads[str(road)] = (
+
+                  road_name = str(
+                      road
+                  )
+
+                  roads[road_name] = (
                       roads.get(
-                          str(road),
+                          road_name,
                           0,
                       )
                       + 1
                   )
 
           print()
-          print(
-              "ROADS REPRESENTED"
-          )
+          print("ROADS REPRESENTED")
           print("-" * 70)
 
-          for road, count in sorted(
-              roads.items(),
-              key=lambda item: (
-                  -item[1],
-                  item[0],
-              ),
-          ):
+          if not roads:
 
               print(
-                  f"{road}: {count}"
+                  "No road fields were identified."
               )
 
-          # --------------------------------------------------
-          # SAMPLE OUTSIDE RECORDS
-          # --------------------------------------------------
+          else:
+
+              for road, count in sorted(
+                  roads.items(),
+                  key=lambda item: (
+                      -item[1],
+                      item[0],
+                  ),
+              ):
+
+                  print(
+                      f"{road}: {count}"
+                  )
+
+          # ==================================================
+          # SAMPLE RECORDS STARTING BEFORE WINDOW
+          # ==================================================
 
           print()
           print(
-              "SAMPLE RECORDS OUTSIDE "
-              "REQUESTED START WINDOW"
+              "SAMPLE RECORDS STARTING "
+              "BEFORE REQUESTED WINDOW"
           )
           print("-" * 70)
 
-          if not outside_records:
+          if not before_start_records:
 
               print(
-                  "No outside-window records "
-                  "were found."
+                  "No records starting before "
+                  "the requested window were returned."
               )
 
           else:
 
               for number, (
                   record,
-                  field,
-                  raw_value,
+                  raw_start,
+                  raw_end,
               ) in enumerate(
-                  outside_records,
+                  before_start_records,
                   start=1,
               ):
-
-                  road = get_field(
-                      record,
-                      "road",
-                      "roadName",
-                      "roadNumber",
-                  )
-
-                  direction = get_field(
-                      record,
-                      "direction",
-                      "directionDescription",
-                  )
-
-                  description = get_field(
-                      record,
-                      "description",
-                      "comment",
-                      "remarks",
-                  )
 
                   print()
                   print(
                       f"Record {number}"
                   )
+
                   print(
-                      f"Road: {road}"
-                  )
-                  print(
-                      f"Direction: {direction}"
-                  )
-                  print(
-                      f"Start: {raw_value}"
-                  )
-                  print(
-                      f"Description: "
-                      f"{description}"
+                      f"Road: "
+                      f"{extract_road(record)}"
                   )
 
-          # --------------------------------------------------
-          # CONCLUSION
-          # --------------------------------------------------
+                  print(
+                      f"Direction: "
+                      f"{extract_direction(record)}"
+                  )
+
+                  print(
+                      f"Start: "
+                      f"{raw_start}"
+                  )
+
+                  print(
+                      f"End: "
+                      f"{raw_end}"
+                  )
+
+                  print(
+                      f"Description: "
+                      f"{extract_description(record)}"
+                  )
+
+          # ==================================================
+          # SAMPLE RECORDS STARTING AFTER WINDOW
+          # ==================================================
+
+          print()
+          print(
+              "SAMPLE RECORDS STARTING "
+              "AFTER REQUESTED WINDOW"
+          )
+          print("-" * 70)
+
+          if not after_start_records:
+
+              print(
+                  "No records starting after "
+                  "the requested window were returned."
+              )
+
+          else:
+
+              for number, (
+                  record,
+                  raw_start,
+                  raw_end,
+              ) in enumerate(
+                  after_start_records,
+                  start=1,
+              ):
+
+                  print()
+                  print(
+                      f"Record {number}"
+                  )
+
+                  print(
+                      f"Road: "
+                      f"{extract_road(record)}"
+                  )
+
+                  print(
+                      f"Direction: "
+                      f"{extract_direction(record)}"
+                  )
+
+                  print(
+                      f"Start: "
+                      f"{raw_start}"
+                  )
+
+                  print(
+                      f"End: "
+                      f"{raw_end}"
+                  )
+
+                  print(
+                      f"Description: "
+                      f"{extract_description(record)}"
+                  )
+
+          # ==================================================
+          # CONTROLLED TEST CONCLUSION
+          # ==================================================
 
           print()
           print("=" * 70)
@@ -605,84 +723,153 @@ jobs:
           print()
 
           total_with_start = (
-              inside_start
-              + outside_start
+              starts_before
+              + starts_inside
+              + starts_after
           )
 
-          if total_with_start == 0:
+          if len(records) == 0:
 
               print(
-                  "Unable to determine whether "
-                  "startDateTime is filtering."
+                  "RESULT: INCONCLUSIVE"
+              )
+              print()
+              print(
+                  "The API returned zero records."
+              )
+              print(
+                  "There are no closure timestamps "
+                  "available to compare with the "
+                  "requested window."
+              )
+              print()
+              print(
+                  "The behaviour of startDateTime "
+                  "cannot be determined from this request."
+              )
+
+          elif total_with_start == 0:
+
+              print(
+                  "RESULT: INCONCLUSIVE"
+              )
+              print()
+              print(
+                  "Records were returned, but none "
+                  "contained a usable start timestamp."
               )
 
           else:
 
-              outside_percentage = (
-                  outside_start
-                  / total_with_start
-                  * 100
-              )
-
-              inside_percentage = (
-                  inside_start
-                  / total_with_start
-                  * 100
-              )
-
               print(
-                  f"{inside_start} records "
-                  f"({inside_percentage:.1f}%) "
-                  "start inside the requested "
-                  "6-hour window."
-              )
-
-              print(
-                  f"{outside_start} records "
-                  f"({outside_percentage:.1f}%) "
-                  "start outside the requested "
-                  "6-hour window."
+                  f"Records with usable start timestamps: "
+                  f"{total_with_start}"
               )
 
               print()
 
-              if outside_start == 0:
+              print(
+                  f"Starting before window: "
+                  f"{starts_before}"
+              )
+
+              print(
+                  f"Starting inside window: "
+                  f"{starts_inside}"
+              )
+
+              print(
+                  f"Starting after window: "
+                  f"{starts_after}"
+              )
+
+              print()
+
+              # ----------------------------------------------
+              # PRIMARY TEST
+              # ----------------------------------------------
+
+              if starts_before > 0:
 
                   print(
-                      "RESULT: STRONG EVIDENCE "
-                      "that startDateTime is "
-                      "filtering the returned records."
+                      "RESULT: STARTDATETIME IS NOT "
+                      "A STRICT LOWER-BOUND FILTER."
                   )
 
-              elif inside_start > 0:
+                  print()
 
                   print(
-                      "RESULT: startDateTime "
-                      "appears to have some "
-                      "filtering effect, but "
-                      "records outside the requested "
-                      "window are also being returned."
+                      "The API returned one or more "
+                      "records whose actual closure "
+                      "start time is BEFORE the supplied "
+                      "startDateTime."
+                  )
+
+                  print()
+
+                  print(
+                      "This means the production importer "
+                      "must not assume that every returned "
+                      "record starts inside the requested "
+                      "window."
+                  )
+
+              elif starts_after > 0:
+
+                  print(
+                      "RESULT: PARTIAL/UNCERTAIN FILTERING."
+                  )
+
+                  print()
+
+                  print(
+                      "No records started before the "
+                      "requested window, but records "
+                      "starting after the requested end "
+                      "were returned."
+                  )
+
+                  print()
+
+                  print(
+                      "This indicates that the API response "
+                      "cannot simply be assumed to contain "
+                      "only records whose start time falls "
+                      "inside the requested window."
                   )
 
               else:
 
                   print(
-                      "RESULT: NO returned records "
-                      "start inside the requested "
-                      "window. This suggests that "
-                      "startDateTime may not be "
-                      "filtering as expected."
+                      "RESULT: STRONG EVIDENCE OF "
+                      "STARTDATETIME FILTERING."
                   )
 
+                  print()
+
+                  print(
+                      "Every returned record with a usable "
+                      "start timestamp begins inside the "
+                      "requested window."
+                  )
+
+          # ==================================================
+          # FINAL SAFETY STATEMENT
+          # ==================================================
+
           print()
-          print(
-              "TEST COMPLETE."
-          )
+          print("=" * 70)
+          print("TEST COMPLETE")
+          print("=" * 70)
+          print()
           print(
               "Exactly one API request was made."
           )
           print(
               "No retries were performed."
+          )
+          print(
+              "No request splitting was performed."
           )
           print(
               "Production workflow was not modified."
