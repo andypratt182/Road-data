@@ -35,4 +35,24 @@ jobs:
         env:
           NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
         run: |
-          python -c "from app import app; print('Flask application imported successfully')"
+          python -c "from app import app; print('Flask application imported successfully')
+          
+      - name: Test Flask homepage
+        env:
+          NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
+        run: |
+          python - <<'PY'
+          from app import app
+
+          client = app.test_client()
+
+          response = client.get("/")
+
+          print("HTTP status:", response.status_code)
+
+          if response.status_code != 200:
+              print(response.data.decode("utf-8", errors="replace"))
+              raise SystemExit(1)
+
+          print("Flask homepage loaded successfully")
+          PY
