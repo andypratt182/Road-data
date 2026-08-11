@@ -19,192 +19,151 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then
-            pip install -r requirements.txt
-          fi
+          pip install requests
 
       - name: Run parser comparison test
         env:
           NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
         run: |
           python - <<'PY'
-          import inspect
+          import os
           import sys
+          import requests
           import data_processor
 
           print("=" * 80)
-          print("PARSER TEST - COMPACT OUTPUT")
+          print("PARSER COMPARISON TEST")
           print("=" * 80)
 
-          print("data_processor.py imported successfully.")
-
           # ------------------------------------------------------------
-          # Inspect the actual functions currently present.
-          # ------------------------------------------------------------
-
-          functions = [
-              name for name, obj in vars(data_processor).items()
-              if inspect.isfunction(obj)
-          ]
-
-          print("Available functions:")
-          for name in sorted(functions):
-              print(f"  {name}")
-
-          # ------------------------------------------------------------
-          # Find the parser's existing processing function.
-          # We deliberately do NOT modify the production importer.
+          # Controlled Test 5 API request
+          #
+          # IMPORTANT:
+          # closureType is deliberately NOT supplied.
           # ------------------------------------------------------------
 
-          parser = None
+          API_URL = "https://api.data.nationalhighways.co.uk/roads/v2.0/closures"
 
-          for name in (
-              "process_data",
-              "process_payload",
-              "process_records",
-              "parse_d2_payload",
-          ):
-              candidate = getattr(data_processor, name, None)
-              if callable(candidate):
-                  parser = candidate
-                  print(f"Parser function selected: {name}()")
-                  break
+          START = "2026-08-11T00:00:00"
+          END = "2026-08-18T23:59:59"
 
-          if parser is None:
-              print("ERROR: No suitable parser function found.")
+          API_KEY = os.environ.get("NATIONAL_HIGHWAYS_API_KEY")
+
+          if not API_KEY:
+              print("ERROR: NATIONAL_HIGHWAYS_API_KEY is not available.")
               sys.exit(1)
 
+          params = {
+              "startDateTime": START,
+              "endDateTime": END,
+          }
+
+          print(f"Start: {START}")
+          print(f"End:   {END}")
+          print("closureType: NOT supplied")
+          print("Pagination: NOT followed")
+          print()
+
           # ------------------------------------------------------------
-          # Determine the function signature.
+          # Make exactly one raw API request.
           # ------------------------------------------------------------
 
           try:
-              signature = inspect.signature(parser)
-              print(f"Parser signature: {signature}")
+              response = requests.get(
+                  API_URL,
+                  params=params,
+                  headers={
+                      "Ocp-Apim-Subscription-Key": API_KEY,
+                      "Accept": "application/json",
+                  },
+                  timeout=60,
+              )
           except Exception as exc:
-              print(f"Could not inspect parser signature: {exc}")
+              print(f"ERROR: API request failed: {exc}")
+              sys.exit(1)
 
-          # ------------------------------------------------------------
-          # Locate the existing API/data-loading function if present.
-          # This is deliberately based on the current data_processor.py.
-          # ------------------------------------------------------------
+          print(f"HTTP status: {response.status_code}")
 
-          loader_names = (
-              "fetch_data",
-              "load_data",
-              "get_data",
-              "download_data",
-              "fetch_api_data",
-              "get_api_data",
-              "fetch_national_highways_data",
-              "get_national_highways_data",
-          )
-
-          loader = None
-
-          for name in loader_names:
-              candidate = getattr(data_processor, name, None)
-              if callable(candidate):
-                  loader = candidate
-                  print(f"API/data loader found: {name}()")
-                  break
-
-          if loader is None:
-              print("ERROR: No known API/data-loading function found.")
-              print("The parser test cannot safely invent an API call.")
+          if response.status_code != 200:
+              print()
+              print("ERROR: API request did not return HTTP 200.")
+              print(response.text[:2000])
               sys.exit(1)
 
           # ------------------------------------------------------------
-          # Call the existing loader.
+          # Decode the raw D2 payload.
           # ------------------------------------------------------------
 
-          print()
-          print("Calling existing API/data loader...")
-          print()
-
           try:
-              raw_data = loader()
-          except TypeError:
-              # Some implementations require the API key explicitly.
-              try:
-                  raw_data = loader(
-                      api_key=__import__("os").environ[
-                          "NATIONAL_HIGHWAYS_API_KEY"
-                      ]
-                  )
-              except Exception as exc:
-                  print(f"ERROR: API/data loader failed: {exc}")
-                  sys.exit(1)
+              payload = response.json()
           except Exception as exc:
-              print(f"ERROR: API/data loader failed: {exc}")
+              print(f"ERROR: Could not decode JSON: {exc}")
               sys.exit(1)
 
-          print("API/data loader completed successfully.")
-          print(f"Raw return type: {type(raw_data).__name__}")
+          print("Raw JSON decoded successfully.")
+          print(f"Raw payload type: {type(payload).__name__}")
+
+          if not isinstance(payload, dict):
+              print("ERROR: Expected D2 payload to be a dictionary.")
+              sys.exit(1)
 
           # ------------------------------------------------------------
-          # Run the existing parser.
+          # Inspect the raw record count without dumping the payload.
           # ------------------------------------------------------------
-
-          print()
-          print("Running parser...")
-          print()
 
           try:
-              result = parser(raw_data)
-          except TypeError:
-              # Some parser functions may expect the extracted records
-              # rather than the complete payload.
-              extract = getattr(data_processor, "extract_raw_records", None)
+              raw_records = data_processor.extract_raw_records(payload)
+          except Exception as exc:
+              print(f"ERROR: extract_raw_records() failed: {exc}")
+              sys.exit(1)
 
-              if not callable(extract):
-                  raise
+          print(f"Raw records identified: {len(raw_records)}")
 
-              print("Parser rejected complete payload.")
-              print("Trying parser with extract_raw_records() output...")
+          if not raw_records:
+              print("ERROR: No raw records were found.")
+              sys.exit(1)
 
-              records = extract(raw_data)
-              result = parser(records)
+          # ------------------------------------------------------------
+          # Run the ACTUAL production parser.
+          #
+          # This is the important part:
+          #
+          # process_data(payload)
+          #
+          # No API-loading function is required because the API request
+          # is performed here and the raw D2 payload is passed directly
+          # to the production parser.
+          # ------------------------------------------------------------
 
+          print()
+          print("Calling data_processor.process_data(payload)...")
+
+          try:
+              parsed_records = data_processor.process_data(payload)
           except Exception as exc:
               print()
-              print("ERROR: PARSER CRASHED")
+              print("=" * 80)
+              print("PARSER CRASHED")
+              print("=" * 80)
               print(f"{type(exc).__name__}: {exc}")
               raise
 
-          # ------------------------------------------------------------
-          # Normalise the parser return into a list where possible.
-          # ------------------------------------------------------------
-
-          if result is None:
+          if parsed_records is None:
               parsed_records = []
-          elif isinstance(result, list):
-              parsed_records = result
-          elif isinstance(result, tuple):
-              parsed_records = list(result)
-          elif isinstance(result, dict):
-              # Common possibilities:
-              # {"records": [...]}
-              # {"data": [...]}
-              # {"results": [...]}
-              parsed_records = None
 
-              for key in ("records", "data", "results", "fixtures"):
-                  value = result.get(key)
-                  if isinstance(value, list):
-                      parsed_records = value
-                      break
+          if not isinstance(parsed_records, list):
+              print(
+                  "ERROR: process_data() returned "
+                  f"{type(parsed_records).__name__}, expected list."
+              )
+              sys.exit(1)
 
-              if parsed_records is None:
-                  parsed_records = [result]
-          else:
-              parsed_records = [result]
-
-          print(f"Parser return type: {type(result).__name__}")
-          print(f"Parsed records: {len(parsed_records)}")
+          print(
+              f"Parser returned {len(parsed_records)} parsed records."
+          )
 
           # ------------------------------------------------------------
-          # Compact record inspection.
+          # Compact parsed-record output.
           # ------------------------------------------------------------
 
           print()
@@ -212,8 +171,12 @@ jobs:
           print("COMPACT PARSED RECORDS")
           print("=" * 80)
 
-          if not parsed_records:
-              print("WARNING: Parser returned zero records.")
+          def first(record, *names):
+              for name in names:
+                  value = record.get(name)
+                  if value not in (None, ""):
+                      return value
+              return ""
 
           expected_fields = [
               "id",
@@ -232,51 +195,53 @@ jobs:
               "location_description",
           ]
 
-          field_counts = {field: 0 for field in expected_fields}
+          field_counts = {
+              field: 0
+              for field in expected_fields
+          }
 
           for index, record in enumerate(parsed_records, start=1):
 
               if not isinstance(record, dict):
                   print(
                       f"RECORD {index}: "
-                      f"type={type(record).__name__}"
+                      f"INVALID TYPE {type(record).__name__}"
                   )
                   continue
 
-              def first_value(*names):
-                  for name in names:
-                      value = record.get(name)
-                      if value not in (None, ""):
-                          return value
-                  return ""
-
-              record_id = first_value(
+              record_id = first(
+                  record,
                   "id",
                   "record_id",
                   "idG",
               )
 
-              road = first_value(
+              road = first(
+                  record,
                   "road",
                   "road_name",
                   "roadName",
               )
 
-              direction = first_value(
+              direction = first(
+                  record,
                   "direction",
               )
 
-              start = first_value(
+              start = first(
+                  record,
                   "start",
                   "start_datetime",
               )
 
-              end = first_value(
+              end = first(
+                  record,
                   "end",
                   "end_datetime",
               )
 
-              comment = first_value(
+              comment = first(
+                  record,
                   "comment",
                   "location_description",
                   "location",
@@ -305,12 +270,11 @@ jobs:
           print("MISSING-FIELD REPORT")
           print("=" * 80)
 
-          total_records = len(parsed_records)
+          if parsed_records:
 
-          if total_records:
               for field in expected_fields:
                   present = field_counts[field]
-                  missing = total_records - present
+                  missing = len(parsed_records) - present
 
                   if missing:
                       print(
@@ -318,51 +282,53 @@ jobs:
                           f"present={present}, "
                           f"missing={missing}"
                       )
+
           else:
-              print("No parsed records available for field analysis.")
+              print("No parsed records available.")
 
           # ------------------------------------------------------------
-          # Useful combined checks.
+          # Combined semantic checks.
           # ------------------------------------------------------------
 
-          valid_id = sum(
-              bool(
+          valid_id = 0
+          valid_road = 0
+          valid_direction = 0
+          valid_start_end = 0
+
+          for record in parsed_records:
+
+              if not isinstance(record, dict):
+                  continue
+
+              if (
                   record.get("id")
                   or record.get("record_id")
                   or record.get("idG")
-              )
-              for record in parsed_records
-              if isinstance(record, dict)
-          )
+              ):
+                  valid_id += 1
 
-          valid_road = sum(
-              bool(
+              if (
                   record.get("road")
                   or record.get("road_name")
                   or record.get("roadName")
-              )
-              for record in parsed_records
-              if isinstance(record, dict)
-          )
+              ):
+                  valid_road += 1
 
-          valid_start_end = sum(
-              bool(
+              if record.get("direction"):
+                  valid_direction += 1
+
+              has_start = bool(
                   record.get("start")
                   or record.get("start_datetime")
               )
-              and bool(
+
+              has_end = bool(
                   record.get("end")
                   or record.get("end_datetime")
               )
-              for record in parsed_records
-              if isinstance(record, dict)
-          )
 
-          valid_direction = sum(
-              bool(record.get("direction"))
-              for record in parsed_records
-              if isinstance(record, dict)
-          )
+              if has_start and has_end:
+                  valid_start_end += 1
 
           # ------------------------------------------------------------
           # Final totals.
@@ -373,32 +339,43 @@ jobs:
           print("FINAL TOTALS")
           print("=" * 80)
 
-          print(f"Parsed records: {total_records}")
-          print(f"Records with ID: {valid_id}")
-          print(f"Records with road: {valid_road}")
-          print(f"Records with direction: {valid_direction}")
+          print(f"Raw API records:              {len(raw_records)}")
+          print(f"Parsed records:               {len(parsed_records)}")
+          print(f"Records with ID:              {valid_id}")
+          print(f"Records with road:            {valid_road}")
+          print(f"Records with direction:       {valid_direction}")
           print(f"Records with valid start/end: {valid_start_end}")
 
           print()
           print("=" * 80)
-          print("PARSER TEST COMPLETE")
+          print("TEST CONDITIONS")
           print("=" * 80)
 
-          print("Production importer was not modified.")
-          print("Database was not modified.")
-          print("This workflow produced diagnostic output only.")
-
-          # ------------------------------------------------------------
-          # Only fail because the parser produced no records if the
-          # API returned data. This keeps the test useful without
-          # imposing assumptions about every individual field.
-          # ------------------------------------------------------------
-
-          if raw_data and not parsed_records:
-              print()
-              print("ERROR: API returned data but parser returned zero records.")
-              sys.exit(1)
+          print("Successful API request: YES")
+          print("closureType supplied: NO")
+          print("Pagination followed: NO")
+          print("Production importer modified: NO")
+          print("Database modified: NO")
 
           print()
+          print("=" * 80)
+          print("PARSER COMPARISON COMPLETE")
+          print("=" * 80)
+
+          # ------------------------------------------------------------
+          # Failure condition.
+          #
+          # The parser must not silently return zero records when the
+          # API supplied records.
+          # ------------------------------------------------------------
+
+          if len(raw_records) > 0 and len(parsed_records) == 0:
+              print()
+              print(
+                  "ERROR: API returned records but "
+                  "process_data() returned zero parsed records."
+              )
+              sys.exit(1)
+
           print("TEST PASSED")
           PY
