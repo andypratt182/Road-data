@@ -26,26 +26,17 @@ jobs:
           NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
         run: |
           python - <<'PY'
-          import json
           import os
           import time
-          from pprint import pprint
-
           import requests
 
-
-          API_URL = (
-              "https://api.data.nationalhighways.co.uk"
-              "/roads/v2.0/closures"
-          )
-
+          API_URL = "https://api.data.nationalhighways.co.uk/roads/v2.0/closures"
           API_KEY = os.environ["NATIONAL_HIGHWAYS_API_KEY"]
 
           START = "2026-08-11T00:00:00"
           END = "2026-08-18T23:59:59"
 
           MAX_REQUESTS = 5
-
 
           headers = {
               "Ocp-Apim-Subscription-Key": API_KEY,
@@ -58,51 +49,26 @@ jobs:
               "endDateTime": END,
           }
 
-
           print("=" * 80)
           print("NATIONAL HIGHWAYS TEST 5")
-          print("RAW D2PAYLOAD INSPECTION")
+          print("COMPACT RAW RECORD SUMMARY")
           print("=" * 80)
-          print()
-          print("Purpose:")
-          print(
-              "Inspect the actual raw D2Payload structure returned by "
-              "the National Highways closures endpoint."
-          )
-          print()
           print("closureType: NOT supplied")
           print("Pagination: NOT followed")
           print("Request splitting: NOT used")
-          print("Production importer: NOT used")
-          print("Database: NOT modified")
-          print()
           print(f"Start: {START}")
           print(f"End:   {END}")
           print()
 
+          # ------------------------------------------------------------
+          # API REQUEST WITH EXISTING RATE-LIMIT HANDLING
+          # ------------------------------------------------------------
 
-          for request_number in range(
-              1,
-              MAX_REQUESTS + 1,
-          ):
+          payload = None
 
-              print("=" * 80)
-              print(
-                  f"REQUEST ATTEMPT {request_number}/{MAX_REQUESTS}"
-              )
-              print("=" * 80)
-              print()
+          for attempt in range(1, MAX_REQUESTS + 1):
 
-              print("URL:")
-              print(API_URL)
-              print()
-
-              print("Parameters:")
-              pprint(params)
-              print()
-
-              print("Sending request...")
-              print()
+              print(f"REQUEST ATTEMPT {attempt}/{MAX_REQUESTS}")
 
               response = requests.get(
                   API_URL,
@@ -111,587 +77,638 @@ jobs:
                   timeout=60,
               )
 
-              print(
-                  "HTTP STATUS:",
-                  response.status_code,
-              )
-              print()
-
-              # --------------------------------------------------------
-              # Rate limiting
-              # --------------------------------------------------------
+              print(f"HTTP STATUS: {response.status_code}")
 
               if response.status_code == 429:
 
-                  retry_after = response.headers.get(
-                      "Retry-After"
-                  )
-
-                  print("=" * 80)
-                  print("HTTP 429 RATE LIMIT")
-                  print("=" * 80)
-                  print()
-
-                  print(
-                      "Retry-After:",
-                      retry_after or "NOT SUPPLIED",
-                  )
-                  print()
+                  retry_after = response.headers.get("Retry-After")
 
                   if not retry_after:
                       raise RuntimeError(
-                          "HTTP 429 received without "
-                          "Retry-After header."
+                          "HTTP 429 received without Retry-After header."
+                      )
+
+                  if attempt >= MAX_REQUESTS:
+                      raise RuntimeError(
+                          "Maximum Test 5 request attempts reached after HTTP 429."
                       )
 
                   try:
-                      wait_seconds = int(
-                          retry_after
-                      )
+                      wait_seconds = int(retry_after)
                   except ValueError:
-                      raise RuntimeError(
-                          "Invalid Retry-After value: "
-                          f"{retry_after}"
-                      )
+                      wait_seconds = 5
 
-                  if request_number >= MAX_REQUESTS:
-                      raise RuntimeError(
-                          "Maximum Test 5 request attempts reached "
-                          "after receiving HTTP 429."
-                      )
-
+                  print(f"Retry-After: {wait_seconds}")
                   print(
                       f"Waiting {wait_seconds} seconds "
                       "before retrying the same request..."
                   )
-                  print()
 
-                  time.sleep(
-                      max(
-                          0,
-                          wait_seconds,
-                      )
-                  )
-
+                  time.sleep(max(0, wait_seconds))
                   continue
-
-
-              # --------------------------------------------------------
-              # All non-200 responses fail immediately.
-              # --------------------------------------------------------
 
               if response.status_code != 200:
 
-                  print("=" * 80)
-                  print("API REQUEST FAILED")
-                  print("=" * 80)
-                  print()
-
-                  print("Response headers:")
-                  pprint(
-                      dict(
-                          response.headers
-                      )
-                  )
-                  print()
-
-                  print("Response body:")
-                  print(
-                      response.text[:10000]
-                  )
-                  print()
+                  print("API RESPONSE:")
+                  print(response.text[:10000])
 
                   raise RuntimeError(
-                      "National Highways API returned "
-                      f"HTTP {response.status_code}"
+                      f"National Highways API returned HTTP "
+                      f"{response.status_code}"
                   )
 
-
-              # --------------------------------------------------------
-              # Successful response
-              # --------------------------------------------------------
-
-              print("=" * 80)
-              print("SUCCESSFUL API RESPONSE")
-              print("=" * 80)
-              print()
-
-              print("Response headers:")
-              pprint(
-                  dict(
-                      response.headers
-                  )
-              )
-              print()
-
-              try:
-                  payload = response.json()
-              except Exception as exc:
-                  print(
-                      "Raw response body:"
-                  )
-                  print(
-                      response.text[:10000]
-                  )
-                  print()
-
-                  raise RuntimeError(
-                      "Response was not valid JSON."
-                  ) from exc
-
+              payload = response.json()
               break
 
-          else:
+          if payload is None:
               raise RuntimeError(
-                  "Test 5 exhausted all request attempts."
+                  "Test 5 exhausted all request attempts without a successful response."
               )
 
-
-          # ============================================================
-          # TOP LEVEL
-          # ============================================================
-
-          print("=" * 80)
-          print("RAW RESPONSE STRUCTURE")
-          print("=" * 80)
+          print()
+          print("SUCCESSFUL API REQUEST RECEIVED")
           print()
 
-          print("Top-level Python type:")
-          print(
-              type(payload).__name__
-          )
-          print()
+          # ------------------------------------------------------------
+          # D2 PAYLOAD
+          # ------------------------------------------------------------
 
-          if not isinstance(
-              payload,
-              dict,
-          ):
-              print("Raw payload:")
-              print(
-                  json.dumps(
-                      payload,
-                      indent=2,
-                      ensure_ascii=False,
-                  )
-              )
+          d2payload = payload.get("D2Payload")
 
-              raise RuntimeError(
-                  "Top-level JSON object was not a dictionary."
-              )
-
-          print("Top-level keys:")
-          pprint(
-              list(
-                  payload.keys()
-              )
-          )
-          print()
-
-
-          # ============================================================
-          # D2Payload
-          # ============================================================
-
-          print("=" * 80)
-          print("D2Payload")
-          print("=" * 80)
-          print()
-
-          d2payload = payload.get(
-              "D2Payload"
-          )
-
-          print("D2Payload type:")
-          print(
-              type(d2payload).__name__
-          )
-          print()
-
-          if not isinstance(
-              d2payload,
-              dict,
-          ):
-
-              print("D2Payload:")
-              print(
-                  json.dumps(
-                      d2payload,
-                      indent=2,
-                      ensure_ascii=False,
-                  )
-              )
-
+          if not isinstance(d2payload, dict):
               raise RuntimeError(
                   "D2Payload was not a dictionary."
               )
 
-          print("D2Payload keys:")
-          pprint(
-              list(
-                  d2payload.keys()
-              )
-          )
-          print()
+          situations = d2payload.get("situation", [])
 
-
-          # ============================================================
-          # SITUATIONS
-          # ============================================================
-
-          situations = d2payload.get(
-              "situation",
-              []
-          )
-
-          print("=" * 80)
-          print("D2Payload.situation[]")
-          print("=" * 80)
-          print()
-
-          print("Type:")
-          print(
-              type(situations).__name__
-          )
-
-          print("Count:")
-          print(
-              len(situations)
-          )
-          print()
-
-          if not isinstance(
-              situations,
-              list,
-          ):
+          if not isinstance(situations, list):
               raise RuntimeError(
                   "D2Payload.situation was not a list."
               )
 
+          # ------------------------------------------------------------
+          # HELPERS
+          # ------------------------------------------------------------
 
-          # ============================================================
-          # RAW RECORD INSPECTION
-          # ============================================================
+          def unwrap_record(record):
 
-          MAX_SITUATIONS = 5
-          MAX_RECORDS_PER_SITUATION = 5
+              if not isinstance(record, dict):
+                  return {}
 
-          total_records_seen = 0
+              return record.get(
+                  "sitRoadOrCarriagewayOrLaneManagement",
+                  record,
+              )
 
+
+          def first_location(record):
+
+              location_reference = record.get(
+                  "locationReference",
+                  {},
+              ) or {}
+
+              group = location_reference.get(
+                  "locLocationGroupByList",
+                  {},
+              ) or {}
+
+              locations = group.get(
+                  "locationContainedInGroup",
+                  [],
+              )
+
+              if not isinstance(locations, list):
+                  return {}
+
+              if not locations:
+                  return {}
+
+              if not isinstance(locations[0], dict):
+                  return {}
+
+              return locations[0]
+
+
+          def extract_summary(
+              record,
+              situation_index,
+              record_index,
+              total_number,
+          ):
+
+              r = unwrap_record(record)
+
+              # --------------------------------------------------------
+              # BASIC RECORD DATA
+              # --------------------------------------------------------
+
+              validity = r.get(
+                  "validity",
+                  {},
+              ) or {}
+
+              validity_time = validity.get(
+                  "validityTimeSpecification",
+                  {},
+              ) or {}
+
+              management_type = r.get(
+                  "roadOrCarriagewayOrLaneManagementType",
+                  {},
+              ) or {}
+
+              source = r.get(
+                  "source",
+                  {},
+              ) or {}
+
+              cause = r.get(
+                  "cause",
+                  {},
+              ) or {}
+
+              detailed_cause = cause.get(
+                  "detailedCauseType",
+                  {},
+              ) or {}
+
+              # --------------------------------------------------------
+              # COMMENT
+              # --------------------------------------------------------
+
+              comments = r.get(
+                  "generalPublicComment",
+                  [],
+              ) or []
+
+              comment = ""
+
+              if comments:
+                  if isinstance(comments[0], dict):
+                      comment = comments[0].get(
+                          "comment",
+                          "",
+                      )
+
+              # --------------------------------------------------------
+              # LOCATION
+              # --------------------------------------------------------
+
+              location = first_location(r)
+
+              linear_location = location.get(
+                  "locLinearLocation",
+                  {},
+              ) or {}
+
+              supplementary = linear_location.get(
+                  "supplementaryPositionalDescription",
+                  {},
+              ) or {}
+
+              location_description = supplementary.get(
+                  "locationDescription",
+                  "",
+              )
+
+              # --------------------------------------------------------
+              # CARRIAGEWAY
+              # --------------------------------------------------------
+
+              carriageways = supplementary.get(
+                  "carriageway",
+                  [],
+              ) or []
+
+              carriageway_value = ""
+              carriageway_extended = ""
+              lanes_restricted = ""
+              lanes_operational = ""
+
+              if carriageways:
+
+                  if isinstance(carriageways[0], dict):
+
+                      carriageway = carriageways[0].get(
+                          "carriageway",
+                          {},
+                      ) or {}
+
+                      carriageway_value = carriageway.get(
+                          "value",
+                          "",
+                      )
+
+                      carriageway_extended = carriageway.get(
+                          "extendedValueG",
+                          "",
+                      )
+
+                      carriageway_extension = (
+                          carriageways[0].get(
+                              "carriagewayExtensionG",
+                              {},
+                          )
+                          or {}
+                      )
+
+                      impact = (
+                          carriageway_extension.get(
+                              "impactOnCarriageway",
+                              {},
+                          )
+                          or {}
+                      )
+
+                      lanes_restricted = impact.get(
+                          "numberOfLanesRestricted",
+                          "",
+                      )
+
+                      lanes_operational = impact.get(
+                          "numberOfOperationalLanes",
+                          "",
+                      )
+
+              # --------------------------------------------------------
+              # ROAD / DIRECTION / LINEAR ELEMENT
+              # --------------------------------------------------------
+
+              single_road_location = location.get(
+                  "locSingleRoadLinearLocation",
+                  {},
+              ) or {}
+
+              linear_sections = single_road_location.get(
+                  "linearWithinLinearElement",
+                  [],
+              ) or []
+
+              road_name = ""
+              direction = ""
+              direction_relative = ""
+              linear_element_type = ""
+              from_distance = ""
+              to_distance = ""
+
+              if linear_sections:
+
+                  if isinstance(linear_sections[0], dict):
+
+                      section = linear_sections[0]
+
+                      direction = section.get(
+                          "directionOnLinearSection",
+                          "",
+                      )
+
+                      direction_relative = section.get(
+                          "directionRelativeOnLinearSection",
+                          "",
+                      )
+
+                      linear_element = section.get(
+                          "linearElement",
+                          {},
+                      ) or {}
+
+                      road_code = linear_element.get(
+                          "locLinearElementByCode",
+                          {},
+                      ) or {}
+
+                      road_name = road_code.get(
+                          "roadName",
+                          "",
+                      )
+
+                      extension = road_code.get(
+                          "linearElementByCodeExtensionG",
+                          {},
+                      ) or {}
+
+                      linear_element_type = extension.get(
+                          "linearElementType",
+                          "",
+                      )
+
+                      from_point = section.get(
+                          "fromPoint",
+                          {},
+                      ) or {}
+
+                      from_distance_data = from_point.get(
+                          "locDistanceFromLinearElementStart",
+                          {},
+                      ) or {}
+
+                      from_distance = from_distance_data.get(
+                          "distanceAlong",
+                          "",
+                      )
+
+                      to_point = section.get(
+                          "toPoint",
+                          {},
+                      ) or {}
+
+                      to_distance_data = to_point.get(
+                          "locDistanceFromLinearElementStart",
+                          {},
+                      ) or {}
+
+                      to_distance = to_distance_data.get(
+                          "distanceAlong",
+                          "",
+                      )
+
+              # --------------------------------------------------------
+              # RECORD EXTENSIONS
+              # --------------------------------------------------------
+
+              record_extension = r.get(
+                  "roadOrCarriagewayOrLaneManagementExtensionG",
+                  {},
+              ) or {}
+
+              return {
+                  "situation": situation_index,
+                  "record": record_index,
+                  "totalRecord": total_number,
+
+                  "idG": r.get(
+                      "idG",
+                      "",
+                  ),
+
+                  "versionG": r.get(
+                      "versionG",
+                      "",
+                  ),
+
+                  "managementType": management_type.get(
+                      "value",
+                      "",
+                  ),
+
+                  "validityStatus": validity.get(
+                      "validityStatus",
+                      "",
+                  ),
+
+                  "start": validity_time.get(
+                      "overallStartTime",
+                      "",
+                  ),
+
+                  "end": validity_time.get(
+                      "overallEndTime",
+                      "",
+                  ),
+
+                  "probability": r.get(
+                      "probabilityOfOccurrence",
+                      "",
+                  ),
+
+                  "compliance": r.get(
+                      "complianceOption",
+                      "",
+                  ),
+
+                  "source": source.get(
+                      "sourceIdentification",
+                      "",
+                  ),
+
+                  "causeType": cause.get(
+                      "causeType",
+                      "",
+                  ),
+
+                  "detailedCause": detailed_cause,
+
+                  "comment": comment,
+
+                  "roadName": road_name,
+
+                  "direction": direction,
+
+                  "directionRelative": direction_relative,
+
+                  "linearElementType": linear_element_type,
+
+                  "fromDistance": from_distance,
+
+                  "toDistance": to_distance,
+
+                  "locationDescription": location_description,
+
+                  "carriageway": carriageway_value,
+
+                  "carriagewayExtended": carriageway_extended,
+
+                  "lanesRestricted": lanes_restricted,
+
+                  "lanesOperational": lanes_operational,
+
+                  "widthRestriction": record_extension.get(
+                      "hasWidthRestrictionFlag",
+                      "",
+                  ),
+
+                  "heightRestriction": record_extension.get(
+                      "hasHeightRestrictionFlag",
+                      "",
+                  ),
+
+                  "weightRestriction": record_extension.get(
+                      "hasWeightRestrictionFlag",
+                      "",
+                  ),
+
+                  "contraFlow": record_extension.get(
+                      "hasContraFlow",
+                      "",
+                  ),
+              }
+
+          # ------------------------------------------------------------
+          # COLLECT RECORDS
+          # ------------------------------------------------------------
+
+          summaries = []
+
+          total = 0
 
           for situation_index, situation in enumerate(
-              situations[
-                  :MAX_SITUATIONS
-              ],
+              situations,
               start=1,
           ):
 
-              print("=" * 80)
-              print(
-                  f"SITUATION {situation_index}"
-              )
-              print("=" * 80)
-              print()
-
-              if not isinstance(
-                  situation,
-                  dict,
-              ):
-
-                  print(
-                      "Unexpected situation type:"
-                  )
-                  print(
-                      type(situation).__name__
-                  )
-                  print()
-
-                  pprint(
-                      situation
-                  )
-
+              if not isinstance(situation, dict):
                   continue
-
-
-              print("Situation keys:")
-              pprint(
-                  list(
-                      situation.keys()
-                  )
-              )
-              print()
-
 
               records = situation.get(
                   "situationRecord",
-                  []
+                  [],
               )
 
-              print(
-                  "situationRecord type:"
-              )
-              print(
-                  type(records).__name__
-              )
-
-              print(
-                  "situationRecord count:"
-              )
-              print(
-                  len(records)
-              )
-              print()
-
-
-              if not isinstance(
-                  records,
-                  list,
-              ):
+              if not isinstance(records, list):
                   continue
 
-
               for record_index, record in enumerate(
-                  records[
-                      :MAX_RECORDS_PER_SITUATION
-                  ],
+                  records,
                   start=1,
               ):
 
-                  total_records_seen += 1
+                  total += 1
 
-                  print("-" * 80)
-                  print(
-                      f"SITUATION {situation_index} "
-                      f"/ RECORD {record_index}"
-                  )
-                  print("-" * 80)
-                  print()
-
-
-                  if not isinstance(
-                      record,
-                      dict,
-                  ):
-
-                      print(
-                          "Unexpected record type:"
-                      )
-                      print(
-                          type(record).__name__
-                      )
-                      print()
-
-                      pprint(
-                          record
-                      )
-
-                      continue
-
-
-                  # ----------------------------------------------------
-                  # Complete raw record
-                  # ----------------------------------------------------
-
-                  print("FULL RAW RECORD:")
-                  print()
-
-                  print(
-                      json.dumps(
+                  summaries.append(
+                      extract_summary(
                           record,
-                          indent=2,
-                          ensure_ascii=False,
+                          situation_index,
+                          record_index,
+                          total,
                       )
                   )
-                  print()
 
+          # ------------------------------------------------------------
+          # COMPACT OUTPUT
+          # ------------------------------------------------------------
 
-                  # ----------------------------------------------------
-                  # Record keys
-                  # ----------------------------------------------------
+          print()
+          print("=" * 80)
+          print("COMPACT RECORD SUMMARIES")
+          print("=" * 80)
 
-                  print("RECORD KEYS:")
-                  pprint(
-                      list(
-                          record.keys()
-                      )
-                  )
-                  print()
+          for summary in summaries:
 
+              print()
+              print(
+                  f"RECORD {summary['totalRecord']}"
+              )
 
-                  # ----------------------------------------------------
-                  # Important top-level fields
-                  # ----------------------------------------------------
+              print("-" * 80)
 
-                  print(
-                      "IMPORTANT TOP-LEVEL FIELDS:"
-                  )
-                  print()
+              print(
+                  f"idG: {summary['idG']}"
+              )
 
-                  for field in (
-                      "idG",
-                      "situationRecordType",
-                      "recordVersion",
-                      "recordVersionTime",
-                      "situationRecordCreationTime",
-                      "situationRecordObservationTime",
-                      "situationRecordStatus",
-                      "overallSeverity",
-                      "probabilityOfOccurrence",
-                  ):
+              print(
+                  f"versionG: {summary['versionG']}"
+              )
 
-                      if field in record:
+              print(
+                  f"managementType: {summary['managementType']}"
+              )
 
-                          print(
-                              f"{field}:"
-                          )
+              print(
+                  f"validityStatus: {summary['validityStatus']}"
+              )
 
-                          print(
-                              json.dumps(
-                                  record[field],
-                                  indent=2,
-                                  ensure_ascii=False,
-                              )
-                          )
+              print(
+                  f"start: {summary['start']}"
+              )
 
-                          print()
+              print(
+                  f"end: {summary['end']}"
+              )
 
+              print(
+                  f"probability: {summary['probability']}"
+              )
 
-                  # ----------------------------------------------------
-                  # Validity
-                  # ----------------------------------------------------
+              print(
+                  f"compliance: {summary['compliance']}"
+              )
 
-                  validity = record.get(
-                      "validity"
-                  )
+              print(
+                  f"source: {summary['source']}"
+              )
 
-                  if validity is None:
+              print(
+                  f"causeType: {summary['causeType']}"
+              )
 
-                      management = record.get(
-                          "sitRoadOrCarriagewayOrLaneManagement",
-                          {}
-                      )
+              print(
+                  f"detailedCause: {summary['detailedCause']}"
+              )
 
-                      if isinstance(
-                          management,
-                          dict,
-                      ):
+              print(
+                  f"comment: {summary['comment']}"
+              )
 
-                          validity = management.get(
-                              "validity"
-                          )
+              print(
+                  f"roadName: {summary['roadName']}"
+              )
 
+              print(
+                  f"direction: {summary['direction']}"
+              )
 
-                  print("=" * 80)
-                  print("VALIDITY")
-                  print("=" * 80)
-                  print()
+              print(
+                  f"directionRelative: {summary['directionRelative']}"
+              )
 
-                  print(
-                      json.dumps(
-                          validity,
-                          indent=2,
-                          ensure_ascii=False,
-                      )
-                  )
-                  print()
+              print(
+                  f"linearElementType: {summary['linearElementType']}"
+              )
 
+              print(
+                  f"fromDistance: {summary['fromDistance']}"
+              )
 
-                  if isinstance(
-                      validity,
-                      dict,
-                  ):
+              print(
+                  f"toDistance: {summary['toDistance']}"
+              )
 
-                      print(
-                          "validityTimeSpecification:"
-                      )
+              print(
+                  f"locationDescription: {summary['locationDescription']}"
+              )
 
-                      print(
-                          json.dumps(
-                              validity.get(
-                                  "validityTimeSpecification"
-                              ),
-                              indent=2,
-                              ensure_ascii=False,
-                          )
-                      )
+              print(
+                  f"carriageway: {summary['carriageway']}"
+              )
 
-                      print()
+              print(
+                  f"carriagewayExtended: {summary['carriagewayExtended']}"
+              )
 
+              print(
+                  f"lanesRestricted: {summary['lanesRestricted']}"
+              )
 
-                  # ----------------------------------------------------
-                  # Location reference
-                  # ----------------------------------------------------
+              print(
+                  f"lanesOperational: {summary['lanesOperational']}"
+              )
 
-                  location_reference = record.get(
-                      "locationReference"
-                  )
+              print(
+                  f"widthRestriction: {summary['widthRestriction']}"
+              )
 
-                  if location_reference is None:
+              print(
+                  f"heightRestriction: {summary['heightRestriction']}"
+              )
 
-                      management = record.get(
-                          "sitRoadOrCarriagewayOrLaneManagement",
-                          {}
-                      )
+              print(
+                  f"weightRestriction: {summary['weightRestriction']}"
+              )
 
-                      if isinstance(
-                          management,
-                          dict,
-                      ):
+              print(
+                  f"contraFlow: {summary['contraFlow']}"
+              )
 
-                          location_reference = (
-                              management.get(
-                                  "locationReference"
-                              )
-                          )
+          # ------------------------------------------------------------
+          # SUMMARY
+          # ------------------------------------------------------------
 
-
-                  print("=" * 80)
-                  print("LOCATION REFERENCE")
-                  print("=" * 80)
-                  print()
-
-                  print(
-                      json.dumps(
-                          location_reference,
-                          indent=2,
-                          ensure_ascii=False,
-                      )
-                  )
-                  print()
-
-
-                  # ----------------------------------------------------
-                  # Road management
-                  # ----------------------------------------------------
-
-                  management = record.get(
-                      "sitRoadOrCarriagewayOrLaneManagement"
-                  )
-
-                  print("=" * 80)
-                  print(
-                      "ROAD / CARRIAGEWAY MANAGEMENT"
-                  )
-                  print("=" * 80)
-                  print()
-
-                  print(
-                      json.dumps(
-                          management,
-                          indent=2,
-                          ensure_ascii=False,
-                      )
-                  )
-                  print()
-
-
-          # ============================================================
-          # FINAL SUMMARY
-          # ============================================================
-
+          print()
           print("=" * 80)
           print("TEST 5 SUMMARY")
           print("=" * 80)
-          print()
 
           print(
               "Successful API request: YES"
@@ -706,25 +723,23 @@ jobs:
           )
 
           print(
-              "Records inspected in detail:",
-              total_records_seen,
-          )
-
-          print()
-
-          print(
-              "The GitHub Actions log is the "
-              "authoritative Test 5 output."
-          )
-
-          print()
-
-          print(
-              "No production importer was modified."
+              "Request splitting: NO"
           )
 
           print(
-              "No database was modified."
+              f"Records inspected: {total}"
+          )
+
+          print(
+              "Output mode: COMPACT RECORD SUMMARY"
+          )
+
+          print(
+              "Production importer was not modified."
+          )
+
+          print(
+              "Database was not modified."
           )
 
           print("=" * 80)
