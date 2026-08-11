@@ -1,24 +1,23 @@
-name: Test API Rate Limit
+name: Test API Window Overlap
 
 on:
   workflow_dispatch:
 
 jobs:
-  test-api-rate-limit:
+  test-api-window:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run controlled rate-limit diagnostic
+      - name: Run Test 9 overlap diagnostic
         env:
           NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
         run: |
           python - <<'PY'
           import json
           import os
-          import time
           from datetime import datetime, timezone
 
           import requests
@@ -32,15 +31,27 @@ jobs:
           API_KEY = os.environ["NATIONAL_HIGHWAYS_API_KEY"]
 
           # --------------------------------------------------
-          # CONTROLLED TEST WINDOW
+          # TEST WINDOW
           # --------------------------------------------------
 
-          start_string = "2026-08-11T00:00:00"
-          end_string = "2026-08-18T23:59:59"
+          START_STRING = "2026-08-11T00:00:00"
+          END_STRING = "2026-08-18T23:59:59"
+
+          REQUESTED_START = datetime.fromisoformat(
+              START_STRING
+          ).replace(
+              tzinfo=timezone.utc
+          )
+
+          REQUESTED_END = datetime.fromisoformat(
+              END_STRING
+          ).replace(
+              tzinfo=timezone.utc
+          )
 
           params = {
-              "startDateTime": start_string,
-              "endDateTime": end_string,
+              "startDateTime": START_STRING,
+              "endDateTime": END_STRING,
           }
 
           headers = {
@@ -50,224 +61,472 @@ jobs:
           }
 
           # --------------------------------------------------
-          # TEST SETTINGS
+          # TARGET ROADS
           # --------------------------------------------------
 
-          REQUEST_LIMIT = 6
+          TARGET_ROADS = {
+              "M6",
+              "M57",
+              "M58",
+              "M62",
+          }
 
-          # Deliberately do NOT follow x-next.
-          #
-          # Each request is made against the SAME initial
-          # endpoint so that this test measures request
-          # throttling rather than pagination behaviour.
-          #
-          # No retry is ever attempted.
-          #
-          # A small delay is used between requests so that
-          # we can observe whether the API exposes useful
-          # rate-limit information without deliberately
-          # hammering the service.
-          DELAY_BETWEEN_REQUESTS = 5
+          # --------------------------------------------------
+          # HELPERS
+          # --------------------------------------------------
+
+          def parse_datetime(value):
+
+              if not value:
+                  return None
+
+              text = str(value).strip()
+
+              if text.endswith("Z"):
+                  text = (
+                      text[:-1]
+                      + "+00:00"
+                  )
+
+              try:
+
+                  dt = datetime.fromisoformat(
+                      text
+                  )
+
+              except ValueError:
+
+                  return None
+
+              if dt.tzinfo is None:
+
+                  dt = dt.replace(
+                      tzinfo=timezone.utc
+                  )
+
+              else:
+
+                  dt = dt.astimezone(
+                      timezone.utc
+                  )
+
+              return dt
+
+
+          def road_names_from_record(record):
+
+              roads = set()
+
+              def walk(value):
+
+                  if isinstance(value, dict):
+
+                      # Direct roadName fields.
+                      road_name = value.get(
+                          "roadName"
+                      )
+
+                      if road_name:
+
+                          roads.add(
+                              str(road_name).strip()
+                          )
+
+                      for child in value.values():
+
+                          walk(child)
+
+                  elif isinstance(value, list):
+
+                      for child in value:
+
+                          walk(child)
+
+              walk(record)
+
+              return roads
+
+
+          def get_comment(record):
+
+              comments = []
+
+              def walk(value):
+
+                  if isinstance(value, dict):
+
+                      comment = value.get(
+                          "comment"
+                      )
+
+                      if comment:
+
+                          comments.append(
+                              str(comment)
+                          )
+
+                      for child in value.values():
+
+                          walk(child)
+
+                  elif isinstance(value, list):
+
+                      for child in value:
+
+                          walk(child)
+
+              walk(record)
+
+              if comments:
+
+                  return " | ".join(
+                      comments[:3]
+                  )
+
+              return ""
+
+
+          def get_validity(record):
+
+              """
+              Locate:
+
+              validity
+                validityTimeSpecification
+                  overallStartTime
+                  overallEndTime
+              """
+
+              matches = []
+
+              def walk(value):
+
+                  if isinstance(value, dict):
+
+                      validity = value.get(
+                          "validity"
+                      )
+
+                      if isinstance(
+                          validity,
+                          dict,
+                      ):
+
+                          specification = (
+                              validity.get(
+                                  "validityTimeSpecification"
+                              )
+                          )
+
+                          if isinstance(
+                              specification,
+                              dict,
+                          ):
+
+                              start = (
+                                  specification.get(
+                                      "overallStartTime"
+                                  )
+                              )
+
+                              end = (
+                                  specification.get(
+                                      "overallEndTime"
+                                  )
+                              )
+
+                              if start or end:
+
+                                  matches.append(
+                                      (
+                                          start,
+                                          end,
+                                      )
+                                  )
+
+                      for child in value.values():
+
+                          walk(child)
+
+                  elif isinstance(value, list):
+
+                      for child in value:
+
+                          walk(child)
+
+              walk(record)
+
+              if matches:
+
+                  return matches[0]
+
+              return None, None
+
+
+          def record_id(record):
+
+              """
+              Locate common National Highways/DATEX
+              situation record identifiers.
+              """
+
+              candidates = (
+                  "idG",
+                  "id",
+                  "situationRecordId",
+              )
+
+              found = []
+
+              def walk(value):
+
+                  if isinstance(value, dict):
+
+                      for key in candidates:
+
+                          if key in value:
+
+                              found.append(
+                                  str(
+                                      value[key]
+                                  )
+                              )
+
+                      for child in value.values():
+
+                          walk(child)
+
+                  elif isinstance(value, list):
+
+                      for child in value:
+
+                          walk(child)
+
+              walk(record)
+
+              if found:
+
+                  return found[0]
+
+              return None
+
+
+          def overlap_type(
+              closure_start,
+              closure_end,
+          ):
+
+              if (
+                  closure_start is None
+                  or closure_end is None
+              ):
+
+                  return "UNKNOWN"
+
+              # Completely before requested window.
+              if closure_end < REQUESTED_START:
+
+                  return "BEFORE"
+
+              # Completely after requested window.
+              if closure_start > REQUESTED_END:
+
+                  return "AFTER"
+
+              # Starts before/equal and ends after/equal.
+              if (
+                  closure_start <= REQUESTED_START
+                  and closure_end >= REQUESTED_END
+              ):
+
+                  return "CONTAINS_REQUESTED_WINDOW"
+
+              # Starts before requested window and
+              # ends inside it.
+              if (
+                  closure_start < REQUESTED_START
+                  and closure_end >= REQUESTED_START
+                  and closure_end <= REQUESTED_END
+              ):
+
+                  return "OVERLAPS_START"
+
+              # Starts inside requested window and
+              # ends after it.
+              if (
+                  closure_start >= REQUESTED_START
+                  and closure_start <= REQUESTED_END
+                  and closure_end > REQUESTED_END
+              ):
+
+                  return "OVERLAPS_END"
+
+              # Both start and end are inside.
+              if (
+                  REQUESTED_START
+                  <= closure_start
+                  <= REQUESTED_END
+                  and
+                  REQUESTED_START
+                  <= closure_end
+                  <= REQUESTED_END
+              ):
+
+                  return "FULLY_INSIDE"
+
+              return "OVERLAPS"
+
+
+          # ==================================================
+          # HEADER
+          # ==================================================
 
           print("=" * 70)
-          print("NATIONAL HIGHWAYS TEST 8")
-          print("CONTROLLED RATE-LIMIT DIAGNOSTIC")
+          print("TEST 9")
+          print("NATIONAL HIGHWAYS DATE WINDOW OVERLAP DIAGNOSTIC")
           print("=" * 70)
           print()
-          print("PURPOSE:")
+
           print(
-              "Determine how the National Highways API exposes "
-              "rate-limit behaviour."
+              "PURPOSE:"
           )
-          print()
-          print("IMPORTANT:")
-          print("closureType is NOT supplied.")
-          print("x-next will NOT be followed.")
-          print("pageCursor will NOT be supplied.")
-          print("No request will be retried.")
-          print()
+
           print(
-              f"Maximum requests: {REQUEST_LIMIT}"
+              "Determine how startDateTime/endDateTime "
+              "relate to the actual closure validity period."
           )
-          print(
-              f"Delay between requests: "
-              f"{DELAY_BETWEEN_REQUESTS} seconds"
-          )
+
           print()
-          print("REQUEST WINDOW")
+
+          print(
+              "THIS TEST MAKES EXACTLY ONE API REQUEST."
+          )
+
+          print(
+              "NO RETRIES."
+          )
+
+          print(
+              "NO REQUEST SPLITTING."
+          )
+
+          print(
+              "NO PAGINATION."
+          )
+
+          print(
+              "x-next WILL NOT be followed."
+          )
+
+          print()
+
+          print(
+              "closureType is NOT supplied."
+          )
+
+          print()
+
+          print(
+              "REQUEST WINDOW"
+          )
+
           print("-" * 70)
+
           print(
-              f"Start: {start_string}"
+              f"Start: {START_STRING}"
           )
+
           print(
-              f"End:   {end_string}"
+              f"End:   {END_STRING}"
           )
+
           print()
+
           print(
               "Parameters:"
           )
+
           print(
               json.dumps(
                   params,
                   indent=2,
               )
           )
+
           print()
 
-          # --------------------------------------------------
-          # SESSION
-          # --------------------------------------------------
+          print(
+              "Requesting API..."
+          )
 
-          session = requests.Session()
+          print()
 
-          results = []
+          # ==================================================
+          # EXACTLY ONE REQUEST
+          # ==================================================
 
-          # --------------------------------------------------
-          # HELPER
-          # --------------------------------------------------
+          try:
 
-          def utc_now():
-
-              return datetime.now(
-                  timezone.utc
-              ).isoformat()
-
-          # --------------------------------------------------
-          # REQUEST LOOP
-          # --------------------------------------------------
-
-          for request_number in range(
-              1,
-              REQUEST_LIMIT + 1,
-          ):
-
-              print("=" * 70)
-              print(
-                  f"REQUEST {request_number}"
+              response = requests.get(
+                  API_URL,
+                  params=params,
+                  headers=headers,
+                  timeout=60,
               )
-              print("=" * 70)
-              print()
+
+          except Exception as exc:
 
               print(
-                  "Request URL:"
+                  "REQUEST FAILED"
               )
 
               print(
-                  API_URL
-              )
-
-              print()
-
-              request_started = time.monotonic()
-
-              request_time = utc_now()
-
-              try:
-
-                  response = session.get(
-                      API_URL,
-                      params=params,
-                      headers=headers,
-                      timeout=60,
-                  )
-
-              except Exception as exc:
-
-                  elapsed = (
-                      time.monotonic()
-                      - request_started
-                  )
-
-                  print(
-                      "REQUEST EXCEPTION"
-                  )
-
-                  print(
-                      str(exc)
-                  )
-
-                  print(
-                      f"Elapsed: "
-                      f"{elapsed:.3f} seconds"
-                  )
-
-                  print()
-
-                  print(
-                      "NO RETRY WILL BE PERFORMED."
-                  )
-
-                  raise SystemExit(1)
-
-              elapsed = (
-                  time.monotonic()
-                  - request_started
-              )
-
-              # --------------------------------------------------
-              # HEADERS
-              # --------------------------------------------------
-
-              retry_after = response.headers.get(
-                  "Retry-After"
-              )
-
-              x_next = response.headers.get(
-                  "x-next"
-              )
-
-              content_type = response.headers.get(
-                  "Content-Type"
-              )
-
-              # Collect every header whose name may
-              # contain useful rate-limit information.
-
-              rate_headers = {}
-
-              for key, value in response.headers.items():
-
-                  lower_key = key.lower()
-
-                  if (
-                      "rate" in lower_key
-                      or "limit" in lower_key
-                      or "remaining" in lower_key
-                      or "retry" in lower_key
-                      or "quota" in lower_key
-                      or "reset" in lower_key
-                  ):
-
-                      rate_headers[key] = value
-
-              print(
-                  f"Timestamp: "
-                  f"{request_time}"
-              )
-
-              print(
-                  f"HTTP status: "
-                  f"{response.status_code}"
-              )
-
-              print(
-                  f"Elapsed: "
-                  f"{elapsed:.3f} seconds"
-              )
-
-              print(
-                  f"Response characters: "
-                  f"{len(response.text)}"
+                  str(exc)
               )
 
               print()
 
               print(
-                  "Content-Type:"
+                  "NO RETRY WILL BE PERFORMED."
               )
 
+              raise SystemExit(1)
+
+          # ==================================================
+          # RESPONSE
+          # ==================================================
+
+          print(
+              f"HTTP status: "
+              f"{response.status_code}"
+          )
+
+          print()
+
+          print(
+              "Final URL:"
+          )
+
+          print(
+              response.url
+          )
+
+          print()
+
+          print(
+              "Response characters:"
+          )
+
+          print(
+              len(response.text)
+          )
+
+          print()
+
+          if response.status_code == 429:
+
               print(
-                  content_type or "not supplied"
+                  "RATE LIMIT RECEIVED."
               )
 
               print()
@@ -277,426 +536,728 @@ jobs:
               )
 
               print(
-                  retry_after or "not supplied"
+                  response.headers.get(
+                      "Retry-After",
+                      "not supplied",
+                  )
               )
 
               print()
 
               print(
-                  "x-next:"
+                  "NO RETRY WILL BE PERFORMED."
               )
 
-              if x_next:
+              raise SystemExit(1)
 
-                  print(
-                      x_next
-                  )
+          if response.status_code != 200:
 
-              else:
-
-                  print(
-                      "NOT PRESENT"
-                  )
+              print(
+                  "REQUEST FAILED."
+              )
 
               print()
 
               print(
-                  "RATE-LIMIT RELATED HEADERS"
-              )
-              print("-" * 70)
-
-              if rate_headers:
-
-                  for key, value in sorted(
-                      rate_headers.items()
-                  ):
-
-                      print(
-                          f"{key}: {value}"
-                      )
-
-              else:
-
-                  print(
-                      "No rate-limit-specific "
-                      "headers identified."
-                  )
-
-              print()
-
-              # --------------------------------------------------
-              # SAVE RESULT
-              # --------------------------------------------------
-
-              results.append(
-                  {
-                      "request": request_number,
-                      "timestamp": request_time,
-                      "status": response.status_code,
-                      "elapsed_seconds": round(
-                          elapsed,
-                          3,
-                      ),
-                      "response_characters": len(
-                          response.text
-                      ),
-                      "retry_after": retry_after,
-                      "x_next": bool(
-                          x_next
-                      ),
-                      "rate_headers": rate_headers,
-                  }
+                  response.text[:5000]
               )
 
-              # --------------------------------------------------
-              # RATE LIMIT
-              # --------------------------------------------------
-
-              if response.status_code == 429:
-
-                  print("=" * 70)
-                  print("RATE LIMIT DETECTED")
-                  print("=" * 70)
-                  print()
-
-                  print(
-                      "The API returned HTTP 429."
-                  )
-
-                  print()
-
-                  print(
-                      "Retry-After:"
-                  )
-
-                  print(
-                      retry_after or "not supplied"
-                  )
-
-                  print()
-
-                  print(
-                      "The request will NOT be retried."
-                  )
-
-                  print(
-                      "The diagnostic will stop immediately."
-                  )
-
-                  break
-
-              # --------------------------------------------------
-              # OTHER HTTP ERROR
-              # --------------------------------------------------
-
-              if response.status_code != 200:
-
-                  print("=" * 70)
-                  print("HTTP ERROR")
-                  print("=" * 70)
-                  print()
-
-                  print(
-                      response.text[:5000]
-                  )
-
-                  print()
-
-                  print(
-                      "NO RETRY WILL BE PERFORMED."
-                  )
-
-                  break
-
-              # --------------------------------------------------
-              # OPTIONAL RESPONSE VALIDATION
-              # --------------------------------------------------
-
-              try:
-
-                  payload = response.json()
-
-                  d2payload = (
-                      payload.get(
-                          "D2Payload"
-                      )
-                      if isinstance(
-                          payload,
-                          dict,
-                      )
-                      else None
-                  )
-
-                  if isinstance(
-                      d2payload,
-                      dict,
-                  ):
-
-                      situations = (
-                          d2payload.get(
-                              "situation",
-                              [],
-                          )
-                      )
-
-                      if isinstance(
-                          situations,
-                          list,
-                      ):
-
-                          record_count = 0
-
-                          for situation in situations:
-
-                              if not isinstance(
-                                  situation,
-                                  dict,
-                              ):
-                                  continue
-
-                              records = (
-                                  situation.get(
-                                      "situationRecord",
-                                      [],
-                                  )
-                              )
-
-                              if isinstance(
-                                  records,
-                                  list,
-                              ):
-
-                                  record_count += len(
-                                      records
-                                  )
-
-                          print(
-                              f"Situation records: "
-                              f"{record_count}"
-                          )
-
-                          print()
-
-              except Exception:
-
-                  print(
-                      "Response JSON could not "
-                      "be structurally inspected."
-                  )
-
-                  print()
-
-              # --------------------------------------------------
-              # DELAY
-              # --------------------------------------------------
-
-              if request_number < REQUEST_LIMIT:
-
-                  print(
-                      f"Waiting "
-                      f"{DELAY_BETWEEN_REQUESTS} "
-                      "seconds before next request..."
-                  )
-
-                  print()
-
-                  time.sleep(
-                      DELAY_BETWEEN_REQUESTS
-                  )
+              raise SystemExit(1)
 
           # ==================================================
-          # FINAL SUMMARY
+          # x-next
           # ==================================================
 
-          print("=" * 70)
-          print("TEST 8 RESULT")
-          print("=" * 70)
-          print()
-
-          print(
-              f"Requests attempted: "
-              f"{len(results)}"
+          x_next = response.headers.get(
+              "x-next"
           )
 
-          print()
-
           print(
-              "REQUEST SUMMARY"
+              "x-next:"
           )
-          print("-" * 70)
 
-          for result in results:
+          if x_next:
 
               print(
-                  f"Request {result['request']}: "
-                  f"HTTP {result['status']}, "
-                  f"{result['elapsed_seconds']:.3f}s, "
-                  f"{result['response_characters']} chars, "
-                  f"Retry-After="
-                  f"{result['retry_after'] or 'none'}, "
-                  f"x-next="
-                  f"{'YES' if result['x_next'] else 'NO'}"
+                  x_next
               )
 
-          print()
+              print()
 
-          # --------------------------------------------------
-          # RETRY-AFTER SUMMARY
-          # --------------------------------------------------
-
-          retry_values = [
-              result["retry_after"]
-              for result in results
-              if result["retry_after"]
-          ]
-
-          print(
-              "RETRY-AFTER VALUES OBSERVED"
-          )
-          print("-" * 70)
-
-          if retry_values:
-
-              for value in retry_values:
-
-                  print(
-                      value
-                  )
+              print(
+                  "x-next was NOT followed."
+              )
 
           else:
 
               print(
-                  "None observed."
+                  "NOT PRESENT"
               )
 
           print()
 
-          # --------------------------------------------------
-          # RATE HEADER SUMMARY
-          # --------------------------------------------------
+          # ==================================================
+          # JSON
+          # ==================================================
+
+          try:
+
+              payload = response.json()
+
+          except Exception as exc:
+
+              print(
+                  "Unable to decode JSON."
+              )
+
+              print(
+                  str(exc)
+              )
+
+              print()
+
+              print(
+                  response.text[:5000]
+              )
+
+              raise SystemExit(1)
+
+          # ==================================================
+          # EXTRACT D2PAYLOAD
+          # ==================================================
+
+          if not isinstance(
+              payload,
+              dict,
+          ):
+
+              print(
+                  "Unexpected top-level JSON type."
+              )
+
+              raise SystemExit(1)
+
+          d2payload = payload.get(
+              "D2Payload"
+          )
+
+          if not isinstance(
+              d2payload,
+              dict,
+          ):
+
+              print(
+                  "D2Payload was not found."
+              )
+
+              raise SystemExit(1)
+
+          situations = d2payload.get(
+              "situation",
+              [],
+          )
+
+          if not isinstance(
+              situations,
+              list,
+          ):
+
+              print(
+                  "D2Payload.situation is not a list."
+              )
+
+              raise SystemExit(1)
+
+          # ==================================================
+          # EXTRACT RECORDS
+          # ==================================================
+
+          records = []
+
+          for situation in situations:
+
+              if not isinstance(
+                  situation,
+                  dict,
+              ):
+                  continue
+
+              situation_records = situation.get(
+                  "situationRecord",
+                  [],
+              )
+
+              if not isinstance(
+                  situation_records,
+                  list,
+              ):
+                  continue
+
+              records.extend(
+                  situation_records
+              )
 
           print(
-              "RATE-LIMIT HEADERS OBSERVED"
+              "=" * 70
           )
-          print("-" * 70)
 
-          combined_headers = {}
+          print(
+              "PAYLOAD"
+          )
 
-          for result in results:
+          print(
+              "=" * 70
+          )
 
-              for key, value in result[
-                  "rate_headers"
-              ].items():
+          print()
 
-                  combined_headers.setdefault(
-                      key,
-                      set(),
-                  ).add(
-                      value
+          print(
+              f"Situation groups: "
+              f"{len(situations)}"
+          )
+
+          print(
+              f"Situation records: "
+              f"{len(records)}"
+          )
+
+          print()
+
+          # ==================================================
+          # OVERLAP COUNTERS
+          # ==================================================
+
+          counts = {
+              "BEFORE": 0,
+              "AFTER": 0,
+              "FULLY_INSIDE": 0,
+              "OVERLAPS_START": 0,
+              "OVERLAPS_END": 0,
+              "CONTAINS_REQUESTED_WINDOW": 0,
+              "OVERLAPS": 0,
+              "UNKNOWN": 0,
+          }
+
+          target_counts = {
+              road: {
+                  key: 0
+                  for key in counts
+              }
+              for road in sorted(
+                  TARGET_ROADS
+              )
+          }
+
+          target_total = {
+              road: 0
+              for road in sorted(
+                  TARGET_ROADS
+              )
+          }
+
+          sample_before = []
+          sample_after = []
+          sample_unknown = []
+
+          # ==================================================
+          # RECORD ANALYSIS
+          # ==================================================
+
+          for record in records:
+
+              if not isinstance(
+                  record,
+                  dict,
+              ):
+                  continue
+
+              raw_start, raw_end = (
+                  get_validity(
+                      record
                   )
+              )
 
-          if combined_headers:
+              closure_start = parse_datetime(
+                  raw_start
+              )
 
-              for key in sorted(
-                  combined_headers
+              closure_end = parse_datetime(
+                  raw_end
+              )
+
+              classification = overlap_type(
+                  closure_start,
+                  closure_end,
+              )
+
+              counts[
+                  classification
+              ] += 1
+
+              roads = road_names_from_record(
+                  record
+              )
+
+              target_matches = (
+                  TARGET_ROADS
+                  & roads
+              )
+
+              for road in target_matches:
+
+                  target_total[
+                      road
+                  ] += 1
+
+                  target_counts[
+                      road
+                  ][
+                      classification
+                  ] += 1
+
+              sample_data = {
+                  "id": record_id(
+                      record
+                  ),
+                  "roads": sorted(
+                      roads
+                  ),
+                  "start": raw_start,
+                  "end": raw_end,
+                  "classification": classification,
+                  "comment": get_comment(
+                      record
+                  ),
+              }
+
+              if (
+                  classification == "BEFORE"
+                  and len(sample_before) < 5
               ):
 
-                  values = sorted(
-                      combined_headers[key]
+                  sample_before.append(
+                      sample_data
                   )
 
-                  print(
-                      f"{key}:"
+              if (
+                  classification == "AFTER"
+                  and len(sample_after) < 5
+              ):
+
+                  sample_after.append(
+                      sample_data
                   )
 
-                  for value in values:
+              if (
+                  classification == "UNKNOWN"
+                  and len(sample_unknown) < 5
+              ):
 
-                      print(
-                          f"  {value}"
-                      )
+                  sample_unknown.append(
+                      sample_data
+                  )
 
-          else:
+          # ==================================================
+          # OVERALL RESULTS
+          # ==================================================
 
-              print(
-                  "No dedicated rate-limit "
-                  "headers observed."
-              )
-
-          print()
-
-          # --------------------------------------------------
-          # CONCLUSION
-          # --------------------------------------------------
-
-          print("=" * 70)
-          print("TEST 8 CONCLUSION")
-          print("=" * 70)
-          print()
-
-          rate_limited = any(
-              result["status"] == 429
-              for result in results
+          print(
+              "OVERLAP ANALYSIS"
           )
 
-          if rate_limited:
+          print("-" * 70)
+
+          for classification, count in counts.items():
 
               print(
-                  "RESULT: RATE LIMIT CONFIRMED."
+                  f"{classification}: "
+                  f"{count}"
               )
+
+          print()
+
+          overlapping = (
+              len(records)
+              - counts["BEFORE"]
+              - counts["AFTER"]
+              - counts["UNKNOWN"]
+          )
+
+          comparable = (
+              len(records)
+              - counts["UNKNOWN"]
+          )
+
+          print(
+              f"Records with usable validity: "
+              f"{comparable}"
+          )
+
+          print(
+              f"Records overlapping requested "
+              f"window: {overlapping}"
+          )
+
+          print()
+
+          # ==================================================
+          # TARGET ROADS
+          # ==================================================
+
+          print(
+              "=" * 70
+          )
+
+          print(
+              "TARGET ROAD ANALYSIS"
+          )
+
+          print(
+              "=" * 70
+          )
+
+          print()
+
+          for road in sorted(
+              TARGET_ROADS
+          ):
+
+              print(
+                  f"{road}: "
+                  f"{target_total[road]} records"
+              )
+
+              for classification, count in (
+                  target_counts[
+                      road
+                  ].items()
+              ):
+
+                  print(
+                      f"  {classification}: "
+                      f"{count}"
+                  )
 
               print()
 
+          # ==================================================
+          # SAMPLE BEFORE
+          # ==================================================
+
+          print(
+              "=" * 70
+          )
+
+          print(
+              "SAMPLE RECORDS STARTING/ENDING BEFORE WINDOW"
+          )
+
+          print(
+              "=" * 70
+          )
+
+          if not sample_before:
+
               print(
-                  "The API returned HTTP 429 "
-                  "during the controlled request sequence."
+                  "No records classified BEFORE."
               )
 
-              print()
+          else:
 
-              if retry_values:
+              for number, item in enumerate(
+                  sample_before,
+                  start=1,
+              ):
+
+                  print()
 
                   print(
-                      "The API supplied Retry-After "
-                      "information."
+                      f"Record {number}"
                   )
 
                   print(
-                      "Production pagination should "
-                      "honour that value rather than "
-                      "using an arbitrary retry delay."
+                      f"ID: {item['id']}"
                   )
-
-              else:
 
                   print(
-                      "No Retry-After value was "
-                      "observed in this sequence."
+                      f"Roads: "
+                      f"{', '.join(item['roads'])}"
                   )
+
+                  print(
+                      f"Start: "
+                      f"{item['start']}"
+                  )
+
+                  print(
+                      f"End: "
+                      f"{item['end']}"
+                  )
+
+                  print(
+                      f"Classification: "
+                      f"{item['classification']}"
+                  )
+
+                  print(
+                      f"Comment: "
+                      f"{item['comment']}"
+                  )
+
+          # ==================================================
+          # SAMPLE AFTER
+          # ==================================================
+
+          print()
+
+          print(
+              "=" * 70
+          )
+
+          print(
+              "SAMPLE RECORDS STARTING AFTER WINDOW"
+          )
+
+          print(
+              "=" * 70
+          )
+
+          if not sample_after:
+
+              print(
+                  "No records classified AFTER."
+              )
+
+          else:
+
+              for number, item in enumerate(
+                  sample_after,
+                  start=1,
+              ):
+
+                  print()
+
+                  print(
+                      f"Record {number}"
+                  )
+
+                  print(
+                      f"ID: {item['id']}"
+                  )
+
+                  print(
+                      f"Roads: "
+                      f"{', '.join(item['roads'])}"
+                  )
+
+                  print(
+                      f"Start: "
+                      f"{item['start']}"
+                  )
+
+                  print(
+                      f"End: "
+                      f"{item['end']}"
+                  )
+
+                  print(
+                      f"Classification: "
+                      f"{item['classification']}"
+                  )
+
+                  print(
+                      f"Comment: "
+                      f"{item['comment']}"
+                  )
+
+          # ==================================================
+          # SAMPLE UNKNOWN
+          # ==================================================
+
+          print()
+
+          print(
+              "=" * 70
+          )
+
+          print(
+              "SAMPLE RECORDS WITH UNKNOWN VALIDITY"
+          )
+
+          print(
+              "=" * 70
+          )
+
+          if not sample_unknown:
+
+              print(
+                  "No unknown validity records."
+              )
+
+          else:
+
+              for number, item in enumerate(
+                  sample_unknown,
+                  start=1,
+              ):
+
+                  print()
+
+                  print(
+                      f"Record {number}"
+                  )
+
+                  print(
+                      f"ID: {item['id']}"
+                  )
+
+                  print(
+                      f"Roads: "
+                      f"{', '.join(item['roads'])}"
+                  )
+
+                  print(
+                      f"Start: "
+                      f"{item['start']}"
+                  )
+
+                  print(
+                      f"End: "
+                      f"{item['end']}"
+                  )
+
+                  print(
+                      f"Classification: "
+                      f"{item['classification']}"
+                  )
+
+                  print(
+                      f"Comment: "
+                      f"{item['comment']}"
+                  )
+
+          # ==================================================
+          # FINAL INTERPRETATION
+          # ==================================================
+
+          print()
+
+          print(
+              "=" * 70
+          )
+
+          print(
+              "TEST 9 RESULT"
+          )
+
+          print(
+              "=" * 70
+          )
+
+          print()
+
+          if len(records) == 0:
+
+              print(
+                  "RESULT: INCONCLUSIVE."
+              )
+
+              print(
+                  "The API returned zero "
+                  "situation records."
+              )
+
+          elif comparable == 0:
+
+              print(
+                  "RESULT: INCONCLUSIVE."
+              )
+
+              print(
+                  "Records were returned but "
+                  "no usable overallStartTime/"
+                  "overallEndTime values were found."
+              )
 
           else:
 
               print(
-                  "RESULT: RATE LIMIT NOT REACHED "
-                  "WITHIN THIS CONTROLLED TEST."
+                  f"Returned records: "
+                  f"{len(records)}"
+              )
+
+              print(
+                  f"Records overlapping requested "
+                  f"window: {overlapping}"
+              )
+
+              print(
+                  f"Records entirely before window: "
+                  f"{counts['BEFORE']}"
+              )
+
+              print(
+                  f"Records entirely after window: "
+                  f"{counts['AFTER']}"
+              )
+
+              print(
+                  f"Records with unknown validity: "
+                  f"{counts['UNKNOWN']}"
               )
 
               print()
 
-              print(
-                  f"{len(results)} requests completed "
-                  "without HTTP 429."
-              )
+              if counts["BEFORE"] > 0:
 
-              print(
-                  "This does NOT prove that pagination "
-                  "has no rate limit."
-              )
+                  print(
+                      "IMPORTANT: records ending "
+                      "before the requested window "
+                      "were returned."
+                  )
 
-              print(
-                  "It only establishes that the "
-                  "controlled request pattern did not "
-                  "trigger one."
-              )
+              if counts["AFTER"] > 0:
+
+                  print(
+                      "IMPORTANT: records starting "
+                      "after the requested window "
+                      "were returned."
+                  )
+
+              print()
+
+              if (
+                  counts["BEFORE"] == 0
+                  and counts["AFTER"] == 0
+              ):
+
+                  print(
+                      "RESULT: ALL RECORDS WITH "
+                      "USABLE VALIDITY OVERLAP "
+                      "THE REQUESTED WINDOW."
+                  )
+
+                  print(
+                      "This is consistent with "
+                      "overlap-based filtering."
+                  )
+
+              elif (
+                  counts["BEFORE"] > 0
+                  or counts["AFTER"] > 0
+              ):
+
+                  print(
+                      "RESULT: API RETURNED RECORDS "
+                      "OUTSIDE THE REQUESTED "
+                      "VALIDITY WINDOW."
+                  )
+
+                  print(
+                      "startDateTime/endDateTime "
+                      "therefore do not appear to "
+                      "be a strict overlap filter."
+                  )
 
           print()
 
@@ -705,11 +1266,7 @@ jobs:
           )
 
           print(
-              "x-next was deliberately NOT followed."
-          )
-
-          print(
-              "pageCursor was NOT supplied."
+              "Exactly one API request was made."
           )
 
           print(
@@ -721,12 +1278,24 @@ jobs:
           )
 
           print(
+              "x-next was NOT followed."
+          )
+
+          print(
+              "No PageCursor was supplied."
+          )
+
+          print(
+              "closureType was NOT supplied."
+          )
+
+          print(
               "Production workflow was not modified."
           )
 
           print()
 
           print(
-              "TEST 8 COMPLETE."
+              "TEST 9 COMPLETE."
           )
           PY
