@@ -1,4 +1,5 @@
-name: Diagnose National Highways API Date Filters
+```yaml
+name: Test National Highways API Date Window
 
 on:
   workflow_dispatch:
@@ -7,7 +8,7 @@ permissions:
   contents: read
 
 jobs:
-  diagnose-api:
+  test-date-window:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,7 +25,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Test API date parameters
+      - name: Test 7-day planned closure window
         env:
           NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
         run: |
@@ -35,12 +36,34 @@ jobs:
 
           import requests
 
-          API_BASE_URL = (
+          API_URL = (
               "https://api.data.nationalhighways.co.uk"
-              "/roads/v2.0"
+              "/roads/v2.0/closures"
           )
 
           API_KEY = os.environ["NATIONAL_HIGHWAYS_API_KEY"]
+
+          now = datetime.now(
+              timezone.utc
+          ).replace(microsecond=0)
+
+          end = now + timedelta(days=7)
+
+          start_string = (
+              now.isoformat()
+              .replace("+00:00", "Z")
+          )
+
+          end_string = (
+              end.isoformat()
+              .replace("+00:00", "Z")
+          )
+
+          params = {
+              "closureType": "planned",
+              "startDateTime": start_string,
+              "endDateTime": end_string,
+          }
 
           headers = {
               "Ocp-Apim-Subscription-Key": API_KEY,
@@ -48,284 +71,226 @@ jobs:
               "X-Data-Format": "DATEXII",
           }
 
-          now = datetime.now(
-              timezone.utc
-          ).replace(microsecond=0)
+          print("=" * 70)
+          print("NATIONAL HIGHWAYS API DATE WINDOW TEST")
+          print("=" * 70)
 
-          seven_days = now + timedelta(days=7)
+          print()
+          print("This workflow makes ONE API request only.")
+          print()
 
-          def iso(dt):
-              return dt.isoformat().replace(
-                  "+00:00",
-                  "Z",
+          print("Start:")
+          print(start_string)
+
+          print()
+          print("End:")
+          print(end_string)
+
+          print()
+          print("Parameters:")
+          print(
+              json.dumps(
+                  params,
+                  indent=2,
               )
-
-          start = iso(now)
-          end = iso(seven_days)
-
-          tests = [
-              (
-                  "1 - Planned only",
-                  {
-                      "closureType": "planned",
-                  },
-              ),
-              (
-                  "2 - Unplanned only",
-                  {
-                      "closureType": "unplanned",
-                  },
-              ),
-              (
-                  "3 - Planned + startDateTime",
-                  {
-                      "closureType": "planned",
-                      "startDateTime": start,
-                  },
-              ),
-              (
-                  "4 - Planned + endDateTime",
-                  {
-                      "closureType": "planned",
-                      "endDateTime": end,
-                  },
-              ),
-              (
-                  "5 - Planned + start + end",
-                  {
-                      "closureType": "planned",
-                      "startDateTime": start,
-                      "endDateTime": end,
-                  },
-              ),
-              (
-                  "6 - Unplanned + start + end",
-                  {
-                      "closureType": "unplanned",
-                      "startDateTime": start,
-                      "endDateTime": end,
-                  },
-              ),
-          ]
-
-          print("=" * 80)
-          print("NATIONAL HIGHWAYS API DATE FILTER DIAGNOSTIC")
-          print("=" * 80)
+          )
 
           print()
-          print(f"Test start: {start}")
-          print(f"Seven days: {end}")
+          print("Requesting API...")
           print()
 
-          results = []
+          response = requests.get(
+              API_URL,
+              params=params,
+              headers=headers,
+              timeout=60,
+          )
 
-          for name, params in tests:
+          print("=" * 70)
+          print("RESULT")
+          print("=" * 70)
 
-              print("=" * 80)
-              print(name)
-              print("=" * 80)
+          print()
+          print(
+              f"HTTP status: "
+              f"{response.status_code}"
+          )
 
-              print()
-              print("Parameters:")
-              print(
-                  json.dumps(
-                      params,
-                      indent=2,
+          print()
+          print("Final URL:")
+          print(response.url)
+
+          print()
+          print("Relevant response headers:")
+
+          for key, value in response.headers.items():
+
+              if key.lower() in {
+                  "content-type",
+                  "retry-after",
+                  "x-ratelimit-limit",
+                  "x-ratelimit-remaining",
+                  "x-ratelimit-reset",
+              }:
+
+                  print(
+                      f"  {key}: {value}"
                   )
+
+          print()
+          print("Response body:")
+
+          body = response.text
+
+          if len(body) > 10000:
+              body = (
+                  body[:10000]
+                  + "\n...[truncated]"
               )
+
+          print(body)
+
+          if response.status_code == 200:
 
               try:
 
-                  response = requests.get(
-                      f"{API_BASE_URL}/closures",
-                      params=params,
-                      headers=headers,
-                      timeout=60,
-                  )
-
-                  print()
-                  print(
-                      f"HTTP status: "
-                      f"{response.status_code}"
-                  )
-
-                  print()
-                  print(
-                      f"Final URL:"
-                  )
-
-                  print(
-                      response.url
-                  )
-
-                  print()
-                  print(
-                      "Response headers:"
-                  )
-
-                  for key, value in response.headers.items():
-
-                      if key.lower() in {
-                          "content-type",
-                          "retry-after",
-                          "x-ratelimit-limit",
-                          "x-ratelimit-remaining",
-                          "x-ratelimit-reset",
-                      }:
-
-                          print(
-                              f"  {key}: {value}"
-                          )
-
-                  print()
-                  print(
-                      "Response body:"
-                  )
-
-                  body = response.text
-
-                  if len(body) > 5000:
-                      body = (
-                          body[:5000]
-                          + "\n...[truncated]"
-                      )
-
-                  print(body)
+                  payload = response.json()
 
                   record_count = None
 
-                  if response.ok:
+                  if isinstance(
+                      payload,
+                      list,
+                  ):
 
-                      try:
+                      record_count = len(payload)
 
-                          payload = (
-                              response.json()
-                          )
+                  elif isinstance(
+                      payload,
+                      dict,
+                  ):
+
+                      for key in (
+                          "closures",
+                          "results",
+                          "items",
+                          "value",
+                          "data",
+                      ):
+
+                          value = payload.get(key)
 
                           if isinstance(
-                              payload,
+                              value,
                               list,
                           ):
-                              record_count = (
-                                  len(payload)
-                              )
 
-                          elif isinstance(
-                              payload,
-                              dict,
-                          ):
+                              record_count = len(value)
+                              break
 
-                              for key in (
-                                  "closures",
-                                  "results",
-                                  "items",
-                                  "value",
-                                  "data",
-                              ):
+                  print()
+                  print("=" * 70)
+                  print("DATE FILTER TEST: SUCCESS")
+                  print("=" * 70)
 
-                                  value = (
-                                      payload.get(
-                                          key
-                                      )
-                                  )
+                  if record_count is not None:
 
-                                  if isinstance(
-                                      value,
-                                      list,
-                                  ):
+                      print()
+                      print(
+                          f"Records returned: "
+                          f"{record_count}"
+                      )
 
-                                      record_count = (
-                                          len(value)
-                                      )
+                  print()
+                  print(
+                      "The API accepted both "
+                      "startDateTime and "
+                      "endDateTime."
+                  )
 
-                                      break
-
-                          if record_count is not None:
-
-                              print()
-                              print(
-                                  "Records returned: "
-                                  f"{record_count}"
-                              )
-
-                      except Exception as exc:
-
-                          print()
-                          print(
-                              "Could not determine "
-                              "record count:"
-                          )
-
-                          print(exc)
-
-                  results.append(
-                      {
-                          "name": name,
-                          "status": response.status_code,
-                          "url": response.url,
-                          "record_count": record_count,
-                      }
+                  print(
+                      "We can now proceed to test "
+                      "the 500-record behaviour."
                   )
 
               except Exception as exc:
 
                   print()
                   print(
-                      "REQUEST ERROR:"
+                      "HTTP 200 received, but the "
+                      "response could not be analysed."
                   )
 
                   print(
-                      repr(exc)
+                      f"Analysis error: {exc}"
                   )
 
-                  results.append(
-                      {
-                          "name": name,
-                          "status": "request-error",
-                          "error": repr(exc),
-                      }
-                  )
-
-          print()
-          print()
-          print("=" * 80)
-          print("SUMMARY")
-          print("=" * 80)
-
-          for result in results:
+          elif response.status_code == 422:
 
               print()
+              print("=" * 70)
+              print("DATE FILTER TEST: 422")
+              print("=" * 70)
 
+              print()
               print(
-                  f"{result['name']}"
+                  "The API rejected the date-window "
+                  "request."
               )
 
               print(
-                  f"  HTTP status: "
-                  f"{result['status']}"
+                  "The response above should explain "
+                  "which parameter or format is invalid."
               )
 
-              if result.get(
-                  "record_count"
-              ) is not None:
+          elif response.status_code == 429:
 
-                  print(
-                      f"  Records: "
-                      f"{result['record_count']}"
-                  )
+              print()
+              print("=" * 70)
+              print("DATE FILTER TEST: RATE LIMITED")
+              print("=" * 70)
+
+              retry_after = response.headers.get(
+                  "Retry-After",
+                  "unknown",
+              )
+
+              print()
+              print(
+                  f"Retry-After: {retry_after}"
+              )
+
+              print()
+              print(
+                  "No retry was attempted."
+              )
+
+              print(
+                  "Run this workflow again after "
+                  "the indicated period."
+              )
+
+          else:
+
+              print()
+              print("=" * 70)
+              print("DATE FILTER TEST: UNEXPECTED STATUS")
+              print("=" * 70)
+
+              print()
+              print(
+                  "The API returned an unexpected "
+                  "HTTP status."
+              )
 
           print()
-          print("=" * 80)
-          print("DIAGNOSTIC COMPLETE")
-          print("=" * 80)
+          print("=" * 70)
+          print("TEST COMPLETE")
+          print("=" * 70)
 
           print()
           print(
-              "This workflow is diagnostic only."
-          )
-
-          print(
-              "The production road-data workflow "
-              "has not been modified."
+              "Production workflows were not modified."
           )
           PY
+```
