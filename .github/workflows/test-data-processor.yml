@@ -1,4 +1,4 @@
-name: Test Parser Against Live API
+name: Test Data Processor Compact
 
 on:
   workflow_dispatch:
