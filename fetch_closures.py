@@ -1,10 +1,13 @@
 from typing import Any
-import time
 
 import requests
 
 from config import API_BASE_URL, API_KEY
 from data_processor import process_payload
+
+
+class NationalHighwaysRateLimitError(Exception):
+    """Raised when the National Highways API rate limit is reached."""
 
 
 def fetch_closures(
@@ -16,8 +19,8 @@ def fetch_closures(
     """
     Fetch road closure data from the National Highways API.
 
-    Automatically retries when the API returns HTTP 429
-    (Too Many Requests).
+    A HTTP 429 response is reported cleanly so the caller can decide
+    whether to retain previously downloaded data.
     """
 
     url = f"{API_BASE_URL}/closures"
@@ -41,44 +44,24 @@ def fetch_closures(
         "X-Data-Format": "DATEXII",
     }
 
-    max_attempts = 5
+    response = requests.get(
+        url,
+        params=params,
+        headers=headers,
+        timeout=30,
+    )
 
-    for attempt in range(1, max_attempts + 1):
+    if response.status_code == 429:
+        retry_after = response.headers.get("Retry-After")
 
-        response = requests.get(
-            url,
-            params=params,
-            headers=headers,
-            timeout=30,
+        raise NationalHighwaysRateLimitError(
+            f"National Highways API rate limit reached "
+            f"for {closure_type} closures. "
+            f"Retry-After: {retry_after or 'not specified'}"
         )
 
-        if response.status_code == 429:
+    response.raise_for_status()
 
-            retry_after = response.headers.get("Retry-After")
+    payload = response.json()
 
-            try:
-                wait_seconds = int(retry_after)
-            except (TypeError, ValueError):
-                wait_seconds = 30 * attempt
-
-            if attempt == max_attempts:
-                response.raise_for_status()
-
-            print(
-                f"National Highways API rate limit reached. "
-                f"Retrying in {wait_seconds} seconds "
-                f"(attempt {attempt}/{max_attempts})..."
-            )
-
-            time.sleep(wait_seconds)
-            continue
-
-        response.raise_for_status()
-
-        payload = response.json()
-
-        return process_payload(payload)
-
-    raise RuntimeError(
-        "Unable to fetch National Highways road closure data."
-    )
+    return process_payload(payload)
