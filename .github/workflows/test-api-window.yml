@@ -11,7 +11,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run Test 3 - single request with raw response inspection
+      - name: Run Test 4 - DATEX II overlap analysis
         env:
           NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
         run: |
@@ -31,11 +31,12 @@ jobs:
           API_KEY = os.environ["NATIONAL_HIGHWAYS_API_KEY"]
 
           # ==================================================
-          # TEST 3
+          # TEST 4
           #
           # PURPOSE:
-          # Determine whether closureType=planned was
-          # responsible for the previous zero-record result.
+          # Parse the actual National Highways DATEX II
+          # response structure and determine how closure
+          # validity periods overlap the requested window.
           #
           # EXACTLY ONE REQUEST
           # NO RETRIES
@@ -68,23 +69,15 @@ jobs:
           ).replace(tzinfo=timezone.utc)
 
           print("=" * 70)
-          print("NATIONAL HIGHWAYS API TEST 3")
+          print("NATIONAL HIGHWAYS API TEST 4")
           print("=" * 70)
           print()
-          print("CONTROLLED SINGLE-REQUEST TEST")
-          print()
-          print("PURPOSE:")
-          print(
-              "Determine whether closureType=planned "
-              "was responsible for the previous "
-              "zero-record result."
-          )
+          print("DATEX II CLOSURE OVERLAP ANALYSIS")
           print()
           print("THIS TEST MAKES EXACTLY ONE API REQUEST.")
           print("NO RETRIES.")
           print("NO SPLITTING.")
           print()
-          print("IMPORTANT:")
           print("closureType is intentionally NOT supplied.")
           print()
           print("REQUEST WINDOW")
@@ -99,7 +92,7 @@ jobs:
           print()
 
           # ==================================================
-          # EXACTLY ONE HTTP REQUEST
+          # EXACTLY ONE API REQUEST
           # ==================================================
 
           response = requests.get(
@@ -113,31 +106,6 @@ jobs:
           print()
           print("Final URL:")
           print(response.url)
-          print()
-
-          # ==================================================
-          # RESPONSE HEADERS
-          # ==================================================
-
-          print("RESPONSE HEADERS")
-          print("-" * 70)
-
-          interesting_headers = (
-              "content-type",
-              "content-length",
-              "x-request-id",
-              "request-id",
-              "retry-after",
-          )
-
-          for key, value in response.headers.items():
-
-              if key.lower() in interesting_headers:
-
-                  print(
-                      f"{key}: {value}"
-                  )
-
           print()
 
           # ==================================================
@@ -169,7 +137,7 @@ jobs:
               raise SystemExit(1)
 
           # ==================================================
-          # HTTP ERROR
+          # OTHER HTTP ERRORS
           # ==================================================
 
           if response.status_code != 200:
@@ -184,18 +152,11 @@ jobs:
               raise SystemExit(1)
 
           # ==================================================
-          # RAW RESPONSE INSPECTION
-          #
-          # This happens locally after the ONE request.
-          # It does NOT make another API request.
+          # RESPONSE SIZE
           # ==================================================
 
           raw_text = response.text
 
-          print("=" * 70)
-          print("RAW RESPONSE INSPECTION")
-          print("=" * 70)
-          print()
           print(
               f"Response character count: "
               f"{len(raw_text)}"
@@ -205,30 +166,14 @@ jobs:
           if not raw_text.strip():
 
               print(
-                  "Response body is completely empty."
+                  "HTTP 200 was returned but "
+                  "the response body is empty."
               )
 
-              print()
-              print(
-                  "This is important: HTTP 200 was "
-                  "returned, but the response body "
-                  "contains no data."
-              )
-
-              raise SystemExit(0)
-
-          print(
-              "First 5000 characters of response:"
-          )
-          print("-" * 70)
-          print(
-              raw_text[:5000]
-          )
-          print("-" * 70)
-          print()
+              raise SystemExit(1)
 
           # ==================================================
-          # JSON PARSING
+          # PARSE JSON
           # ==================================================
 
           try:
@@ -238,39 +183,59 @@ jobs:
           except Exception as exc:
 
               print(
-                  "Response is NOT valid JSON."
+                  "Unable to decode JSON response."
+              )
+              print(
+                  f"Error: {exc}"
               )
               print()
               print(
-                  f"JSON parsing error: {exc}"
+                  "First 5000 characters:"
               )
-              print()
               print(
-                  "The raw response above is the "
-                  "authoritative diagnostic output."
+                  raw_text[:5000]
               )
 
-              raise SystemExit(0)
+              raise SystemExit(1)
 
-          print(
-              "Response IS valid JSON."
-          )
+          # ==================================================
+          # VERIFY DATEX II STRUCTURE
+          # ==================================================
+
+          print("=" * 70)
+          print("DATEX II STRUCTURE")
+          print("=" * 70)
           print()
 
-          # ==================================================
-          # JSON STRUCTURE INSPECTION
-          # ==================================================
+          if not isinstance(
+              payload,
+              dict,
+          ):
 
-          print("JSON STRUCTURE")
-          print("-" * 70)
+              print(
+                  "Unexpected top-level JSON type:"
+              )
+              print(
+                  type(payload).__name__
+              )
 
-          print(
-              f"Top-level Python type: "
-              f"{type(payload).__name__}"
+              raise SystemExit(1)
+
+          d2payload = payload.get(
+              "D2Payload"
           )
 
-          if isinstance(payload, dict):
+          if not isinstance(
+              d2payload,
+              dict,
+          ):
 
+              print(
+                  "D2Payload was not found "
+                  "as an object."
+              )
+
+              print()
               print(
                   "Top-level keys:"
               )
@@ -281,429 +246,1036 @@ jobs:
                       f"  - {key}"
                   )
 
-          elif isinstance(payload, list):
+              raise SystemExit(1)
+
+          situations = d2payload.get(
+              "situation",
+              [],
+          )
+
+          if not isinstance(
+              situations,
+              list,
+          ):
 
               print(
-                  f"Top-level list length: "
-                  f"{len(payload)}"
+                  "D2Payload.situation is not "
+                  "a list."
+              )
+
+              raise SystemExit(1)
+
+          print(
+              f"Situations returned: "
+              f"{len(situations)}"
+          )
+
+          print()
+
+          # ==================================================
+          # EXTRACT SITUATION RECORDS
+          # ==================================================
+
+          records = []
+
+          for situation_index, situation in enumerate(
+              situations
+          ):
+
+              if not isinstance(
+                  situation,
+                  dict,
+              ):
+                  continue
+
+              situation_records = situation.get(
+                  "situationRecord",
+                  [],
+              )
+
+              if not isinstance(
+                  situation_records,
+                  list,
+              ):
+                  continue
+
+              for record_index, record in enumerate(
+                  situation_records
+              ):
+
+                  if not isinstance(
+                      record,
+                      dict,
+                  ):
+                      continue
+
+                  records.append(
+                      {
+                          "situation_index": situation_index,
+                          "record_index": record_index,
+                          "situation": situation,
+                          "record": record,
+                      }
+                  )
+
+          print(
+              f"Situation records found: "
+              f"{len(records)}"
+          )
+
+          # ==================================================
+          # DATETIME PARSER
+          # ==================================================
+
+          def parse_datetime(value):
+
+              if not value:
+                  return None
+
+              text = str(value).strip()
+
+              if not text:
+                  return None
+
+              if text.endswith("Z"):
+
+                  text = (
+                      text[:-1]
+                      + "+00:00"
+                  )
+
+              try:
+
+                  dt = datetime.fromisoformat(
+                      text
+                  )
+
+              except ValueError:
+
+                  return None
+
+              if dt.tzinfo is None:
+
+                  dt = dt.replace(
+                      tzinfo=timezone.utc
+                  )
+
+              else:
+
+                  dt = dt.astimezone(
+                      timezone.utc
+                  )
+
+              return dt
+
+          # ==================================================
+          # RECORD FIELD EXTRACTION
+          # ==================================================
+
+          def get_validity(record):
+
+              management = record.get(
+                  "sitRoadOrCarriagewayOrLaneManagement"
+              )
+
+              if not isinstance(
+                  management,
+                  dict,
+              ):
+                  return None
+
+              validity = management.get(
+                  "validity"
+              )
+
+              if not isinstance(
+                  validity,
+                  dict,
+              ):
+                  return None
+
+              specification = validity.get(
+                  "validityTimeSpecification"
+              )
+
+              if not isinstance(
+                  specification,
+                  dict,
+              ):
+                  return None
+
+              return specification
+
+
+          def get_start(record):
+
+              validity = get_validity(
+                  record
+              )
+
+              if not validity:
+                  return None
+
+              return parse_datetime(
+                  validity.get(
+                      "overallStartTime"
+                  )
+              )
+
+
+          def get_end(record):
+
+              validity = get_validity(
+                  record
+              )
+
+              if not validity:
+                  return None
+
+              return parse_datetime(
+                  validity.get(
+                      "overallEndTime"
+                  )
+              )
+
+
+          def get_validity_status(record):
+
+              management = record.get(
+                  "sitRoadOrCarriagewayOrLaneManagement"
+              )
+
+              if not isinstance(
+                  management,
+                  dict,
+              ):
+                  return None
+
+              validity = management.get(
+                  "validity"
+              )
+
+              if not isinstance(
+                  validity,
+                  dict,
+              ):
+                  return None
+
+              return validity.get(
+                  "validityStatus"
+              )
+
+
+          def get_management_type(record):
+
+              management = record.get(
+                  "sitRoadOrCarriagewayOrLaneManagement"
+              )
+
+              if not isinstance(
+                  management,
+                  dict,
+              ):
+                  return None
+
+              management_type = management.get(
+                  "roadOrCarriagewayOrLaneManagementType"
+              )
+
+              if not isinstance(
+                  management_type,
+                  dict,
+              ):
+                  return None
+
+              return (
+                  management_type.get(
+                      "value"
+                  )
+              )
+
+
+          def get_comment(record):
+
+              management = record.get(
+                  "sitRoadOrCarriagewayOrLaneManagement"
+              )
+
+              if not isinstance(
+                  management,
+                  dict,
+              ):
+                  return None
+
+              comments = management.get(
+                  "generalPublicComment",
+                  [],
+              )
+
+              if not isinstance(
+                  comments,
+                  list,
+              ):
+                  return None
+
+              values = []
+
+              for comment in comments:
+
+                  if not isinstance(
+                      comment,
+                      dict,
+                  ):
+                      continue
+
+                  text = comment.get(
+                      "comment"
+                  )
+
+                  if text:
+                      values.append(
+                          str(text)
+                      )
+
+              if values:
+                  return " | ".join(
+                      values
+                  )
+
+              return None
+
+
+          def collect_roads(value):
+
+              roads = []
+
+              if isinstance(
+                  value,
+                  dict,
+              ):
+
+                  linear_code = value.get(
+                      "locLinearElementByCode"
+                  )
+
+                  if isinstance(
+                      linear_code,
+                      dict,
+                  ):
+
+                      road_name = linear_code.get(
+                          "roadName"
+                      )
+
+                      if road_name:
+                          roads.append(
+                              str(road_name)
+                          )
+
+                  for child in value.values():
+
+                      roads.extend(
+                          collect_roads(
+                              child
+                          )
+                      )
+
+              elif isinstance(
+                  value,
+                  list,
+              ):
+
+                  for child in value:
+
+                      roads.extend(
+                          collect_roads(
+                              child
+                          )
+                      )
+
+              return roads
+
+
+          def get_roads(record):
+
+              management = record.get(
+                  "sitRoadOrCarriagewayOrLaneManagement"
+              )
+
+              if not isinstance(
+                  management,
+                  dict,
+              ):
+                  return []
+
+              location_reference = management.get(
+                  "locationReference"
+              )
+
+              if not location_reference:
+                  return []
+
+              roads = collect_roads(
+                  location_reference
+              )
+
+              # Preserve order while removing duplicates.
+              return list(
+                  dict.fromkeys(
+                      roads
+                  )
+              )
+
+
+          def get_direction(record):
+
+              management = record.get(
+                  "sitRoadOrCarriagewayOrLaneManagement"
+              )
+
+              if not isinstance(
+                  management,
+                  dict,
+              ):
+                  return []
+
+              location_reference = management.get(
+                  "locationReference"
+              )
+
+              if not isinstance(
+                  location_reference,
+                  dict,
+              ):
+                  return []
+
+              directions = []
+
+              def walk(value):
+
+                  if isinstance(
+                      value,
+                      dict,
+                  ):
+
+                      for key, child in value.items():
+
+                          if key == "directionOnLinearSection":
+
+                              if child:
+                                  directions.append(
+                                      str(child)
+                                  )
+
+                          walk(child)
+
+                  elif isinstance(
+                      value,
+                      list,
+                  ):
+
+                      for child in value:
+                          walk(child)
+
+              walk(
+                  location_reference
+              )
+
+              return list(
+                  dict.fromkeys(
+                      directions
+                  )
+              )
+
+          # ==================================================
+          # OVERLAP TEST
+          #
+          # A closure overlaps the requested period when:
+          #
+          # closure_start <= requested_end
+          # AND
+          # closure_end >= requested_start
+          #
+          # This captures closures which started before the
+          # requested window but remain active during it.
+          # ==================================================
+
+          overlap_records = []
+
+          before_window_records = []
+          inside_window_records = []
+          after_window_records = []
+
+          unknown_time_records = []
+
+          start_values = []
+          end_values = []
+
+          road_counts = {}
+
+          overlap_by_road = {}
+
+          for item in records:
+
+              record = item["record"]
+
+              record_start = get_start(
+                  record
+              )
+
+              record_end = get_end(
+                  record
+              )
+
+              roads = get_roads(
+                  record
+              )
+
+              if record_start:
+
+                  start_values.append(
+                      record_start
+                  )
+
+              if record_end:
+
+                  end_values.append(
+                      record_end
+                  )
+
+              # ----------------------------------------------
+              # CLASSIFY RECORD
+              # ----------------------------------------------
+
+              if (
+                  record_start
+                  and record_end
+              ):
+
+                  if (
+                      record_end
+                      < requested_start
+                  ):
+
+                      before_window_records.append(
+                          item
+                      )
+
+                  elif (
+                      record_start
+                      > requested_end
+                  ):
+
+                      after_window_records.append(
+                          item
+                      )
+
+                  else:
+
+                      inside_window_records.append(
+                          item
+                      )
+
+                      overlap_records.append(
+                          item
+                      )
+
+                      for road in roads:
+
+                          overlap_by_road[
+                              road
+                          ] = (
+                              overlap_by_road.get(
+                                  road,
+                                  0,
+                              )
+                              + 1
+                          )
+
+              else:
+
+                  unknown_time_records.append(
+                      item
+                  )
+
+              # ----------------------------------------------
+              # ROAD TOTALS
+              # ----------------------------------------------
+
+              for road in roads:
+
+                  road_counts[
+                      road
+                  ] = (
+                      road_counts.get(
+                          road,
+                          0,
+                      )
+                      + 1
+                  )
+
+          # ==================================================
+          # OVERALL TIMESTAMP RANGE
+          # ==================================================
+
+          print()
+          print("=" * 70)
+          print("TIMESTAMP ANALYSIS")
+          print("=" * 70)
+          print()
+
+          if start_values:
+
+              print(
+                  "Earliest closure start:"
+              )
+              print(
+                  min(
+                      start_values
+                  ).isoformat()
+              )
+
+              print()
+
+              print(
+                  "Latest closure start:"
+              )
+              print(
+                  max(
+                      start_values
+                  ).isoformat()
               )
 
           else:
 
               print(
-                  "Top-level JSON value:"
-              )
-
-              print(
-                  repr(payload)
+                  "No usable closure start "
+                  "timestamps found."
               )
 
           print()
 
-          # ==================================================
-          # SAFE RECORD DISCOVERY
-          # ==================================================
-
-          records = []
-
-          if isinstance(payload, list):
-
-              records = payload
+          if end_values:
 
               print(
-                  "Records interpreted from "
-                  "top-level JSON list."
+                  "Earliest closure end:"
+              )
+              print(
+                  min(
+                      end_values
+                  ).isoformat()
               )
 
-          elif isinstance(payload, dict):
-
-              candidate_keys = (
-                  "closures",
-                  "data",
-                  "results",
-                  "items",
-                  "features",
-                  "events",
-                  "roadClosures",
-                  "closure",
-              )
+              print()
 
               print(
-                  "Checking common record containers:"
+                  "Latest closure end:"
+              )
+              print(
+                  max(
+                      end_values
+                  ).isoformat()
               )
 
-              for key in candidate_keys:
+          else:
 
-                  if key not in payload:
-                      continue
+              print(
+                  "No usable closure end "
+                  "timestamps found."
+              )
 
-                  value = payload[key]
+          # ==================================================
+          # CLASSIFICATION
+          # ==================================================
 
-                  print(
-                      f"  {key}: "
-                      f"{type(value).__name__}"
-                  )
+          print()
+          print("=" * 70)
+          print("WINDOW CLASSIFICATION")
+          print("=" * 70)
+          print()
 
-                  if isinstance(value, list):
-
-                      print(
-                          f"    list length: "
-                          f"{len(value)}"
-                      )
-
-                      if not records:
-
-                          records = value
+          print(
+              "Records whose validity ended "
+              "BEFORE requested window:"
+          )
+          print(
+              len(
+                  before_window_records
+              )
+          )
 
           print()
 
           print(
-              f"Records identified: "
-              f"{len(records)}"
+              "Records OVERLAPPING requested window:"
+          )
+          print(
+              len(
+                  overlap_records
+              )
+          )
+
+          print()
+
+          print(
+              "Records starting AFTER "
+              "requested window:"
+          )
+          print(
+              len(
+                  after_window_records
+              )
+          )
+
+          print()
+
+          print(
+              "Records with missing/invalid "
+              "start or end:"
+          )
+          print(
+              len(
+                  unknown_time_records
+              )
           )
 
           # ==================================================
-          # SAMPLE RECORD STRUCTURE
+          # REQUIRED ROADS
           # ==================================================
 
-          if records:
+          target_roads = (
+              "M6",
+              "M57",
+              "M58",
+              "M62",
+          )
+
+          print()
+          print("=" * 70)
+          print("TARGET ROAD ANALYSIS")
+          print("=" * 70)
+          print()
+
+          for target_road in target_roads:
+
+              total = road_counts.get(
+                  target_road,
+                  0,
+              )
+
+              overlap = overlap_by_road.get(
+                  target_road,
+                  0,
+              )
+
+              print(
+                  f"{target_road}: "
+                  f"{total} total records, "
+                  f"{overlap} overlapping requested window"
+              )
+
+          # ==================================================
+          # ALL ROADS
+          # ==================================================
+
+          print()
+          print("=" * 70)
+          print("ALL ROADS REPRESENTED")
+          print("=" * 70)
+          print()
+
+          if not road_counts:
+
+              print(
+                  "No road names were extracted."
+              )
+
+          else:
+
+              for road, count in sorted(
+                  road_counts.items(),
+                  key=lambda item: (
+                      -item[1],
+                      item[0],
+                  ),
+              ):
+
+                  print(
+                      f"{road}: "
+                      f"{count} total, "
+                      f"{overlap_by_road.get(road, 0)} overlapping"
+                  )
+
+          # ==================================================
+          # SAMPLE OVERLAPPING RECORDS
+          # ==================================================
+
+          print()
+          print("=" * 70)
+          print(
+              "SAMPLE OVERLAPPING CLOSURES"
+          )
+          print("=" * 70)
+
+          if not overlap_records:
 
               print()
               print(
-                  "FIRST RECORD STRUCTURE"
+                  "No overlapping closures found."
               )
-              print("-" * 70)
 
-              first_record = records[0]
+          else:
+
+              for number, item in enumerate(
+                  overlap_records[:20],
+                  start=1,
+              ):
+
+                  record = item["record"]
+
+                  record_start = get_start(
+                      record
+                  )
+
+                  record_end = get_end(
+                      record
+                  )
+
+                  roads = get_roads(
+                      record
+                  )
+
+                  directions = get_direction(
+                      record
+                  )
+
+                  print()
+                  print(
+                      f"Record {number}"
+                  )
+                  print("-" * 50)
+
+                  print(
+                      f"Situation index: "
+                      f"{item['situation_index']}"
+                  )
+
+                  print(
+                      f"Record index: "
+                      f"{item['record_index']}"
+                  )
+
+                  print(
+                      f"Road(s): "
+                      f"{', '.join(roads) if roads else 'unknown'}"
+                  )
+
+                  print(
+                      f"Direction(s): "
+                      f"{', '.join(directions) if directions else 'unknown'}"
+                  )
+
+                  print(
+                      f"Start: "
+                      f"{record_start.isoformat() if record_start else 'unknown'}"
+                  )
+
+                  print(
+                      f"End: "
+                      f"{record_end.isoformat() if record_end else 'unknown'}"
+                  )
+
+                  print(
+                      f"Validity status: "
+                      f"{get_validity_status(record) or 'unknown'}"
+                  )
+
+                  print(
+                      f"Management type: "
+                      f"{get_management_type(record) or 'unknown'}"
+                  )
+
+                  print(
+                      f"Comment: "
+                      f"{get_comment(record) or 'unknown'}"
+                  )
+
+          # ==================================================
+          # SPECIFIC TARGET ROAD SAMPLES
+          # ==================================================
+
+          print()
+          print("=" * 70)
+          print(
+              "TARGET ROAD OVERLAPPING SAMPLES"
+          )
+          print("=" * 70)
+
+          found_target_sample = False
+
+          for target_road in target_roads:
+
+              matching = []
+
+              for item in overlap_records:
+
+                  roads = get_roads(
+                      item["record"]
+                  )
+
+                  if target_road in roads:
+
+                      matching.append(
+                          item
+                      )
+
+              if not matching:
+                  continue
+
+              found_target_sample = True
+
+              print()
+              print(
+                  f"{target_road}: "
+                  f"{len(matching)} overlapping records"
+              )
+
+              for number, item in enumerate(
+                  matching[:5],
+                  start=1,
+              ):
+
+                  record = item["record"]
+
+                  record_start = get_start(
+                      record
+                  )
+
+                  record_end = get_end(
+                      record
+                  )
+
+                  print()
+                  print(
+                      f"  Sample {number}"
+                  )
+
+                  print(
+                      f"    Start: "
+                      f"{record_start.isoformat() if record_start else 'unknown'}"
+                  )
+
+                  print(
+                      f"    End: "
+                      f"{record_end.isoformat() if record_end else 'unknown'}"
+                  )
+
+                  print(
+                      f"    Direction: "
+                      f"{', '.join(get_direction(record)) or 'unknown'}"
+                  )
+
+                  print(
+                      f"    Comment: "
+                      f"{get_comment(record) or 'unknown'}"
+                  )
+
+          if not found_target_sample:
+
+              print()
+              print(
+                  "No overlapping records were found "
+                  "for M6, M57, M58 or M62."
+              )
+
+          # ==================================================
+          # RAW SAMPLE STRUCTURE
+          # ==================================================
+
+          print()
+          print("=" * 70)
+          print(
+              "RAW FIRST SITUATION RECORD"
+          )
+          print("=" * 70)
+
+          if records:
 
               print(
                   json.dumps(
-                      first_record,
+                      records[0]["record"],
                       indent=2,
                       default=str,
                   )[:15000]
               )
 
-              print()
-
-              if isinstance(
-                  first_record,
-                  dict,
-              ):
-
-                  print(
-                      "First-record keys:"
-                  )
-
-                  for key in first_record.keys():
-
-                      print(
-                          f"  - {key}"
-                      )
-
-          # ==================================================
-          # GENERIC DATETIME DISCOVERY
-          #
-          # Instead of assuming field names, inspect the
-          # actual returned record recursively.
-          # ==================================================
-
-          def find_datetime_values(
-              value,
-              path="root",
-              results=None,
-          ):
-
-              if results is None:
-                  results = []
-
-              if isinstance(value, dict):
-
-                  for key, child in value.items():
-
-                      child_path = (
-                          f"{path}.{key}"
-                      )
-
-                      find_datetime_values(
-                          child,
-                          child_path,
-                          results,
-                      )
-
-              elif isinstance(value, list):
-
-                  for index, child in enumerate(
-                      value
-                  ):
-
-                      child_path = (
-                          f"{path}[{index}]"
-                      )
-
-                      find_datetime_values(
-                          child,
-                          child_path,
-                          results,
-                      )
-
-              elif isinstance(value, str):
-
-                  text = value.strip()
-
-                  if not text:
-                      return results
-
-                  candidate = text
-
-                  if candidate.endswith("Z"):
-
-                      candidate = (
-                          candidate[:-1]
-                          + "+00:00"
-                      )
-
-                  try:
-
-                      dt = datetime.fromisoformat(
-                          candidate
-                      )
-
-                      if dt.tzinfo is None:
-
-                          dt = dt.replace(
-                              tzinfo=timezone.utc
-                          )
-
-                      else:
-
-                          dt = dt.astimezone(
-                              timezone.utc
-                          )
-
-                      results.append(
-                          (
-                              path,
-                              text,
-                              dt,
-                          )
-                      )
-
-                  except ValueError:
-                      pass
-
-              return results
-
-          # ==================================================
-          # DATETIME ANALYSIS
-          # ==================================================
-
-          print()
-          print(
-              "DATETIME FIELD DISCOVERY"
-          )
-          print("-" * 70)
-
-          all_datetime_values = []
-
-          # Limit inspection to first 10 records so that
-          # diagnostic output remains manageable.
-
-          for index, record in enumerate(
-              records[:10]
-          ):
-
-              values = find_datetime_values(
-                  record,
-                  path=f"record[{index}]",
-              )
-
-              all_datetime_values.extend(
-                  values
-              )
-
-          if not all_datetime_values:
-
-              print(
-                  "No ISO-style datetime values "
-                  "were discovered in the first "
-                  "10 records."
-              )
-
-          else:
-
-              for path, raw_value, dt in (
-                  all_datetime_values[:100]
-              ):
-
-                  location = ""
-
-                  if (
-                      dt < requested_start
-                  ):
-
-                      location = (
-                          "BEFORE REQUESTED WINDOW"
-                      )
-
-                  elif (
-                      dt <= requested_end
-                  ):
-
-                      location = (
-                          "INSIDE REQUESTED WINDOW"
-                      )
-
-                  else:
-
-                      location = (
-                          "AFTER REQUESTED WINDOW"
-                      )
-
-                  print(
-                      f"{path}"
-                  )
-
-                  print(
-                      f"  Raw: {raw_value}"
-                  )
-
-                  print(
-                      f"  UTC: {dt.isoformat()}"
-                  )
-
-                  print(
-                      f"  Position: {location}"
-                  )
-
-                  print()
-
-          # ==================================================
-          # RAW PAYLOAD SUMMARY
-          # ==================================================
-
-          print()
-          print(
-              "PAYLOAD SUMMARY"
-          )
-          print("-" * 70)
-
-          if isinstance(payload, dict):
-
-              for key, value in payload.items():
-
-                  if isinstance(value, list):
-
-                      print(
-                          f"{key}: "
-                          f"list[{len(value)}]"
-                      )
-
-                  elif isinstance(value, dict):
-
-                      print(
-                          f"{key}: "
-                          f"object with "
-                          f"{len(value)} keys"
-                      )
-
-                  else:
-
-                      print(
-                          f"{key}: "
-                          f"{type(value).__name__} "
-                          f"= {repr(value)[:200]}"
-                      )
-
-          elif isinstance(payload, list):
-
-              print(
-                  f"Top-level list containing "
-                  f"{len(payload)} items."
-              )
-
           else:
 
               print(
-                  repr(payload)[:1000]
+                  "No situation records available."
               )
 
           # ==================================================
-          # CONCLUSION
+          # FINAL DIAGNOSTIC CONCLUSION
           # ==================================================
 
           print()
           print("=" * 70)
-          print("TEST 3 RESULT")
+          print("TEST 4 RESULT")
           print("=" * 70)
           print()
 
-          if len(raw_text.strip()) == 0:
+          print(
+              f"HTTP 200 records parsed: "
+              f"{len(records)}"
+          )
+
+          print(
+              f"Records overlapping requested window: "
+              f"{len(overlap_records)}"
+          )
+
+          print()
+
+          if not records:
 
               print(
-                  "RESULT: EMPTY HTTP 200 RESPONSE"
+                  "RESULT: NO SITUATION RECORDS "
+                  "COULD BE PARSED."
               )
 
-              print()
-              print(
-                  "The API returned HTTP 200 but "
-                  "no response body."
-              )
-
-          elif not isinstance(
-              payload,
-              (dict, list),
-          ):
+          elif not overlap_records:
 
               print(
-                  "RESULT: UNEXPECTED JSON RESPONSE"
-              )
-
-          elif not records:
-
-              print(
-                  "RESULT: NO RECORDS IDENTIFIED"
-              )
-
-              print()
-              print(
-                  "The request was accepted and "
-                  "returned HTTP 200, but no "
-                  "record collection was identified."
-              )
-
-              print()
-              print(
-                  "This means the next investigation "
-                  "should focus on the API response "
-                  "contract rather than changing "
-                  "the production date filtering."
+                  "RESULT: DATASET CONTAINS "
+                  "SITUATION RECORDS, BUT NONE "
+                  "OVERLAP THE REQUESTED WINDOW."
               )
 
           else:
 
               print(
-                  f"RESULT: {len(records)} "
-                  f"RECORDS IDENTIFIED"
+                  "RESULT: OVERLAPPING CLOSURES "
+                  "WERE FOUND."
               )
 
               print()
+
               print(
-                  "Removing closureType=planned "
-                  "produced data."
+                  "The National Highways response "
+                  "contains closures whose validity "
+                  "period intersects the requested "
+                  "window."
               )
 
               print()
-              print(
-                  "The raw record structure and "
-                  "datetime paths above should now "
-                  "tell us exactly how the API "
-                  "represents closures."
-              )
 
-          # ==================================================
-          # FINAL SAFETY STATEMENT
-          # ==================================================
+              print(
+                  "This supports using validity-period "
+                  "overlap rather than simply requiring "
+                  "overallStartTime to fall inside "
+                  "the requested window."
+              )
 
           print()
           print("=" * 70)
