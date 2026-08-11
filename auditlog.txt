@@ -1,3544 +1,902 @@
-================================================================================
-NATIONAL HIGHWAYS - 'OTHER' CLOSURE AUDIT
-================================================================================
-Total closures: 500
-'other' closures: 293
-================================================================================
-
-================================================================================
-BY ROAD
-================================================================================
-M6: 26
-M1: 23
-M60: 20
-A1: 19
-M62: 19
-M40: 15
-M25: 13
-M4: 10
-A19: 8
-A47: 8
-M11: 6
-A56: 5
-M3: 5
-A11: 5
-M20: 4
-A303: 4
-M53: 4
-A12: 4
-A14: 4
-A38: 4
-M56: 4
-A428: 4
-A45: 4
-M23: 4
-A66: 3
-A590: 3
-A414: 3
-A46: 3
-A3: 3
-M27: 3
-A1033: 2
-A43: 2
-A57: 2
-A184: 2
-M65: 2
-M42: 2
-M48: 2
-M50: 2
-A34: 2
-M66: 2
-A5: 2
-A421: 2
-A30: 2
-M58: 2
-M5: 2
-A31: 1
-A120: 1
-A194: 1
-A35: 1
-A628: 1
-A174: 1
-A308: 1
-A595: 1
-M32: 1
-A627: 1
-A404: 1
-A5036: 1
-A4: 1
-M69: 1
-A55: 1
-A40: 1
-M61: 1
-A453: 1
-M602: 1
-M67: 1
-A23: 1
-A20: 1
-A36: 1
-
-================================================================================
-BY DIRECTION
-================================================================================
-eastbound: 91
-southbound: 79
-northbound: 64
-MISSING: 46
-westbound: 13
-
-================================================================================
-BY CAUSE
-================================================================================
-roadMaintenance: 197
-constructionWork: 84
-authorityOperation: 12
-
-================================================================================
-DESCRIPTION FREQUENCY
-================================================================================
-[6] M60 anti-clockwise between J1 and J27
-[6] M6 southbound between J40 and J39
-[4] roundabout at A56/A680
-[4] M40 southbound between J5 and J4
-[4] A11 northbound between B1135 near Wymondham (north) and A47
-[4] M60 clockwise within J23
-[3] A303 westbound between A350 and B3095
-[3] M53 southbound within J7
-[3] M60 anti-clockwise between J27 and J25
-[3] M62 eastbound between J10 and J11
-[3] A14 eastbound within J33
-[3] M62 eastbound between J37 and J38
-[3] A414 eastbound between the M1 and the A405
-[3] M6 southbound within J32
-[3] M40 southbound between J11 and J10
-[3] M1 southbound between J18 and J17
-[3] A1 southbound between A47 and A605
-[3] A47 eastbound between A11 and A140
-[3] roundabout at A45/M42 J6
-[2] M1 northbound between J28 and J29
-[2] A1033 eastbound between A63 and B1362
-[2] M1 southbound between J35 and J34
-[2] link road from M62 J27 eastbound exit to A650
-[2] M4 J5 eastbound access
-[2] M4 eastbound within J5
-[2] A57 eastbound between B6174 and A6018
-[2] A184 westbound exit for A194(M)
-[2] M60 J1 anti-clockwise access
-[2] M6 southbound within J40
-[2] M62 eastbound within J11
-[2] M25 clockwise between J21A and J22
-[2] A12 southbound between A1124 and A120 near Colchester (west)
-[2] M1 southbound between J15 and J14
-[2] A590 eastbound between A592 and B5277
-[2] M48 eastbound between J2 and J1
-[2] M6 southbound between J5 and J4A
-[2] link road from M6 J4A southbound to M42 J8 southbound
-[2] A1(M) northbound between J43 and J44
-[2] M56 eastbound within J14
-[2] A38 northbound within the A50 junction
-[2] A46 northbound between A606 and A52
-[2] M60 clockwise between J22 and J23
-[2] M66 southbound between A56/A680/A676 and J1
-[2] M6 northbound between J30 and J31
-[2] roundabout at A5/A47 near Hinckley
-[2] M23 northbound between J10A and J10
-[2] M25 anti-clockwise between J30 and J29
-[2] A1(M) southbound between J63 and J62
-[2] A47 eastbound between B1110 and A1074
-[2] A428 eastbound between A1198 and A1303
-[2] M1 southbound between J37 and J36
-[1] M1 northbound between J29a and J30
-[1] A31 eastbound between A348 and A338 near Ringwood (west)
-[1] A43 northbound between A5 and M1
-[1] M6 northbound between J36 and J37
-[1] M25 J28 clockwise exit
-[1] M25 clockwise between J27 and J28
-[1] M25 J28 clockwise access
-[1] M25 clockwise within J28
-[1] M6 northbound between J35 and J36
-[1] A1(M) northbound between J4 and J5
-[1] A56 northbound between A680 and A679
-[1] M62 eastbound between J35 and J36
-[1] M62 eastbound within J36
-[1] M20 eastbound between J9 and J10
-[1] A66 eastbound between A5091 and A592
-[1] A120 eastbound between A133 and B1035
-[1] M3 eastbound between J2 and J1
-[1] M53 southbound between J6 and J7
-[1] M25 anti-clockwise within J9
-[1] roundabout at A194(M) J3/A184
-[1] M60 anti-clockwise between J25 and J24
-[1] M60 anti-clockwise between J2 and J1
-[1] A12 northbound between A133 and A120 near Colchester (east)
-[1] A35 eastbound between A3052 and B3157
-[1] A628 eastbound between A6024 and A616
-[1] M65 eastbound within J2
-[1] A174 eastbound access from A172
-[1] M42 northbound between J3A and J4
-[1] A1 southbound within the A167 near Washington Birtley junction
-[1] A38 eastbound between B3344 near Newton Abbot (north) and A380
-[1] M1 northbound between J22 and J23
-[1] M1 northbound within J10
-[1] Roundabout At A19 / A191
-[1] A19 southbound within the A186/A191 junction
-[1] A19 northbound between A186/A191 and A1056
-[1] A19 southbound exit for A186/A191
-[1] M50 eastbound between J3 and J2
-[1] M4 westbound between J21 and J22
-[1] M4 eastbound between J23 and J22
-[1] M40 J5 southbound exit
-[1] A1 northbound between A696/A167 and A1056
-[1] roundabout at M40 J4/A404
-[1] A12 northbound between A1023 and B1002
-[1] A66 eastbound between M6 and A6
-[1] A14 eastbound between J1 and J2
-[1] M62 westbound between J23 and J22
-[1] M62 eastbound between J22 and J23
-[1] A428 eastbound between A1303 and M11/A14
-[1] A19 northbound between A1231 and A1290
-[1] M1 southbound between J22 and J21A
-[1] A590 westbound between A5092 and A5087/B5281
-[1] A308(M) eastbound between M4/A404(M) and A308
-[1] A595 northbound between A5094 near Whitehaven (north) and B5306
-[1] M1 J40 southbound access
-[1] A34 northbound between A303 and B4640
-[1] A34 southbound between A4185 and M4
-[1] A45 westbound within the A508 near Northampton junction
-[1] M1 J15 northbound exit
-[1] M20 eastbound within J8
-[1] M20 eastbound within J7
-[1] A1 northbound access from the Metro Centre between A184 and A694
-[1] M1 northbound between J47 and J48
-[1] M60 clockwise between J23 and J24
-[1] link road from M6 southbound to M1 J19 southbound
-[1] M6 southbound between J1 and M1/A14
-[1] M40 southbound within J9
-[1] M40 southbound within J5
-[1] M1 southbound within J18
-[1] A3 northbound between M25 and A245
-[1] A3 southbound between A244 and A245
-[1] A303 eastbound between A360 and A345
-[1] A1(M) southbound between J16 and J15
-[1] M42 J9 southbound access
-[1] A66 eastbound between A685 and A67 near Bowes
-[1] M56 eastbound between J4 and J3
-[1] M56 eastbound within J5
-[1] A19 northbound between A61/A168 and A684
-[1] M32 northbound between J2 and J1
-[1] M11 northbound between J8a and J9
-[1] A1 southbound between B1081 near Stamford (south) and A47
-[1] M62 J24 eastbound access
-[1] M62 eastbound within J24
-[1] M1 southbound between J23A and J23
-[1] M1 northbound between J39 and J40
-[1] M23 J10 northbound exit
-[1] M62 eastbound between J20 and J21
-[1] A627(M) southbound between A664 near Royton and A663/A627
-[1] M3 J3 eastbound exit
-[1] M3 J3 westbound exit
-[1] M4 eastbound between J8 and J7
-[1] A404(M) southbound within J9A
-[1] A5036 northbound between A5207 and M57/M58
-[1] A4 eastbound between B4054 and A4162
-[1] M1 northbound between J20 and J21
-[1] M69 northbound between J2 and M1
-[1] A55 eastbound between Welsh border and A483
-[1] M62 eastbound between J34 and J35
-[1] A38 westbound exit for A384
-[1] M40 southbound between J7 and J6
-[1] A46 northbound between A6006 and A606
-[1] M20 J5 eastbound exit to distributor
-[1] M25 J24 clockwise exit
-[1] A43 northbound between A422 near Brackley (south) and A422 near Brackley (east)
-[1] M4 J15 eastbound exit
-[1] A1(M) J4 southbound exit
-[1] A421 northbound within the A603 junction
-[1] M40 southbound between J12 and J11
-[1] M25 clockwise between J5 and J6
-[1] M11 northbound within J11
-[1] M11 southbound within J11
-[1] A40 eastbound between A48 and A417 near Gloucester (west)
-[1] A19 northbound between A67 and A174
-[1] A47 eastbound between A15 near Peterborough (west) and A15 near Peterborough (east)
-[1] M4 eastbound between J15 and J14
-[1] M6 northbound between J41 and J42
-[1] A30 eastbound between A3047 near Camborne (east) and A3047 near Redruth (west)
-[1] A421 northbound between A4280 and A1
-[1] M40 southbound between J14 and J13
-[1] M3 eastbound between J7 and J6
-[1] A47 westbound between A1074 and B1110
-[1] M25 anti-clockwise between J3 and J2
-[1] M61 northbound within J9
-[1] M58 eastbound within J3
-[1] M6 southbound within J12
-[1] M1 northbound between J37 and J38
-[1] A1 northbound between A6001 near Biggleswade (north) and A603
-[1] A47 westbound between B1370 and A143
-[1] M5 northbound within J15
-[1] M27 eastbound between J11 and J12
-[1] A1(M) southbound between J8 and J7
-[1] A1(M) northbound between J6 and J7
-[1] connector on M58 eastbound between M6 J26 slips
-[1] A453 northbound between M1/A50 and A52
-[1] M3 eastbound within J4
-[1] M27 eastbound between J9 and J10
-[1] A1(M) southbound within J45
-[1] M27 eastbound within J3
-[1] roundabout at A428/A1198
-[1] M11 northbound between J5 and J6
-[1] link road from M11 J6 southbound to M25 J27
-[1] link road from M11 J6 northbound to M25 J27
-[1] M5 southbound between J7 and J8
-[1] M602 eastbound between J1 and J2
-[1] M67 eastbound between J1 and J1A
-[1] M62 eastbound between J6 and J7
-[1] A30 eastbound between B378 and A315
-[1] A23 southbound between A273 and A27
-[1] M25 J20 clockwise exit
-[1] M23 northbound between J11 and J10A
-[1] M50 eastbound within J2
-[1] A19 southbound between A181 and A179
-[1] M65 J2 eastbound exit
-[1] A3 southbound between A31 and B3000
-[1] A20 eastbound exit for M25/M20
-[1] A11 northbound between A1304 and A14
-[1] A36 northbound between A360 and A3094
-[1] A1 southbound between A1068 and A697
-[1] M40 northbound between J12 and J13
-[1] M6 southbound between J45 and J44
-[1] M6 southbound between J18 and J17
-[1] M6 northbound between J16 and J17
-[1] M4 eastbound between J5 and J4B
-
-================================================================================
-INDIVIDUAL 'OTHER' RECORDS
-================================================================================
-
---------------------------------------------------------------------------------
-RECORD 1
---------------------------------------------------------------------------------
-Road:        M1
-Direction:   northbound
-Status:      suspended
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M1 northbound between J28 and J29
-
---------------------------------------------------------------------------------
-RECORD 2
---------------------------------------------------------------------------------
-Road:        M1
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M1 northbound between J29a and J30
-
---------------------------------------------------------------------------------
-RECORD 3
---------------------------------------------------------------------------------
-Road:        A1033
-Direction:   eastbound
-Status:      suspended
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A1033 eastbound between A63 and B1362
-
---------------------------------------------------------------------------------
-RECORD 4
---------------------------------------------------------------------------------
-Road:        A1033
-Direction:   eastbound
-Status:      suspended
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A1033 eastbound between A63 and B1362
-
---------------------------------------------------------------------------------
-RECORD 5
---------------------------------------------------------------------------------
-Road:        A31
-Direction:   eastbound
-Status:      suspended
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A31 eastbound between A348 and A338 near Ringwood (west)
-
---------------------------------------------------------------------------------
-RECORD 6
---------------------------------------------------------------------------------
-Road:        A43
-Direction:   northbound
-Status:      suspended
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A43 northbound between A5 and M1
-
---------------------------------------------------------------------------------
-RECORD 7
---------------------------------------------------------------------------------
-Road:        M6
-Direction:   northbound
-Status:      suspended
-Cause:       roadMaintenance
-Start:       2026-08-11T18:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M6 northbound between J36 and J37
-
---------------------------------------------------------------------------------
-RECORD 8
---------------------------------------------------------------------------------
-Road:        M25
-Direction:   MISSING
-Status:      suspended
-Cause:       roadMaintenance
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T04:30:00.00Z
-Description: M25 J28 clockwise exit
-
---------------------------------------------------------------------------------
-RECORD 9
---------------------------------------------------------------------------------
-Road:        M25
-Direction:   MISSING
-Status:      suspended
-Cause:       roadMaintenance
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T04:30:00.00Z
-Description: M25 clockwise between J27 and J28
-
---------------------------------------------------------------------------------
-RECORD 10
---------------------------------------------------------------------------------
-Road:        M25
-Direction:   MISSING
-Status:      suspended
-Cause:       roadMaintenance
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T04:30:00.00Z
-Description: M25 J28 clockwise access
-
---------------------------------------------------------------------------------
-RECORD 11
---------------------------------------------------------------------------------
-Road:        M25
-Direction:   MISSING
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T04:30:00.00Z
-Description: M25 clockwise within J28
-
---------------------------------------------------------------------------------
-RECORD 12
---------------------------------------------------------------------------------
-Road:        M1
-Direction:   southbound
-Status:      suspended
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M1 southbound between J35 and J34
-
---------------------------------------------------------------------------------
-RECORD 13
---------------------------------------------------------------------------------
-Road:        M6
-Direction:   northbound
-Status:      suspended
-Cause:       constructionWork
-Start:       2026-08-11T18:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M6 northbound between J35 and J36
-
---------------------------------------------------------------------------------
-RECORD 14
---------------------------------------------------------------------------------
-Road:        A1
-Direction:   northbound
-Status:      suspended
-Cause:       roadMaintenance
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T04:30:00.00Z
-Description: A1(M) northbound between J4 and J5
-
---------------------------------------------------------------------------------
-RECORD 15
---------------------------------------------------------------------------------
-Road:        M62
-Direction:   eastbound
-Status:      suspended
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: link road from M62 J27 eastbound exit to A650
-
---------------------------------------------------------------------------------
-RECORD 16
---------------------------------------------------------------------------------
-Road:        M62
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: link road from M62 J27 eastbound exit to A650
-
---------------------------------------------------------------------------------
-RECORD 17
---------------------------------------------------------------------------------
-Road:        A56
-Direction:   MISSING
-Status:      suspended
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: roundabout at A56/A680
-
---------------------------------------------------------------------------------
-RECORD 18
---------------------------------------------------------------------------------
-Road:        A56
-Direction:   MISSING
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: roundabout at A56/A680
-
---------------------------------------------------------------------------------
-RECORD 19
---------------------------------------------------------------------------------
-Road:        A56
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: A56 northbound between A680 and A679
-
---------------------------------------------------------------------------------
-RECORD 20
---------------------------------------------------------------------------------
-Road:        A56
-Direction:   MISSING
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: roundabout at A56/A680
-
---------------------------------------------------------------------------------
-RECORD 21
---------------------------------------------------------------------------------
-Road:        A56
-Direction:   MISSING
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: roundabout at A56/A680
-
---------------------------------------------------------------------------------
-RECORD 22
---------------------------------------------------------------------------------
-Road:        M62
-Direction:   eastbound
-Status:      suspended
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M62 eastbound between J35 and J36
-
---------------------------------------------------------------------------------
-RECORD 23
---------------------------------------------------------------------------------
-Road:        M62
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M62 eastbound within J36
-
---------------------------------------------------------------------------------
-RECORD 24
---------------------------------------------------------------------------------
-Road:        M20
-Direction:   eastbound
-Status:      suspended
-Cause:       roadMaintenance
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T03:00:00.00Z
-Description: M20 eastbound between J9 and J10
-
---------------------------------------------------------------------------------
-RECORD 25
---------------------------------------------------------------------------------
-Road:        M4
-Direction:   eastbound
-Status:      suspended
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M4 J5 eastbound access
-
---------------------------------------------------------------------------------
-RECORD 26
---------------------------------------------------------------------------------
-Road:        M4
-Direction:   eastbound
-Status:      suspended
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M4 eastbound within J5
-
---------------------------------------------------------------------------------
-RECORD 27
---------------------------------------------------------------------------------
-Road:        M4
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M4 J5 eastbound access
-
---------------------------------------------------------------------------------
-RECORD 28
---------------------------------------------------------------------------------
-Road:        M4
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M4 eastbound within J5
-
---------------------------------------------------------------------------------
-RECORD 29
---------------------------------------------------------------------------------
-Road:        A66
-Direction:   eastbound
-Status:      suspended
-Cause:       roadMaintenance
-Start:       2026-08-11T18:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: A66 eastbound between A5091 and A592
-
---------------------------------------------------------------------------------
-RECORD 30
---------------------------------------------------------------------------------
-Road:        A120
-Direction:   eastbound
-Status:      suspended
-Cause:       constructionWork
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A120 eastbound between A133 and B1035
-
---------------------------------------------------------------------------------
-RECORD 31
---------------------------------------------------------------------------------
-Road:        A303
-Direction:   westbound
-Status:      suspended
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A303 westbound between A350 and B3095
-
---------------------------------------------------------------------------------
-RECORD 32
---------------------------------------------------------------------------------
-Road:        A303
-Direction:   westbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A303 westbound between A350 and B3095
-
---------------------------------------------------------------------------------
-RECORD 33
---------------------------------------------------------------------------------
-Road:        A303
-Direction:   westbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A303 westbound between A350 and B3095
-
---------------------------------------------------------------------------------
-RECORD 34
---------------------------------------------------------------------------------
-Road:        M3
-Direction:   eastbound
-Status:      suspended
-Cause:       roadMaintenance
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: M3 eastbound between J2 and J1
-
---------------------------------------------------------------------------------
-RECORD 35
---------------------------------------------------------------------------------
-Road:        A57
-Direction:   eastbound
-Status:      active
-Cause:       constructionWork
-Start:       2025-01-19T19:54:00.00Z
-End:         2027-12-31T06:00:00.00Z
-Description: A57 eastbound between B6174 and A6018
-
---------------------------------------------------------------------------------
-RECORD 36
---------------------------------------------------------------------------------
-Road:        A57
-Direction:   eastbound
-Status:      active
-Cause:       constructionWork
-Start:       2025-01-19T19:54:00.00Z
-End:         2027-12-31T06:00:00.00Z
-Description: A57 eastbound between B6174 and A6018
-
---------------------------------------------------------------------------------
-RECORD 37
---------------------------------------------------------------------------------
-Road:        M53
-Direction:   southbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M53 southbound within J7
-
---------------------------------------------------------------------------------
-RECORD 38
---------------------------------------------------------------------------------
-Road:        M53
-Direction:   southbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M53 southbound within J7
-
---------------------------------------------------------------------------------
-RECORD 39
---------------------------------------------------------------------------------
-Road:        M53
-Direction:   southbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M53 southbound between J6 and J7
-
---------------------------------------------------------------------------------
-RECORD 40
---------------------------------------------------------------------------------
-Road:        M53
-Direction:   southbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M53 southbound within J7
-
---------------------------------------------------------------------------------
-RECORD 41
---------------------------------------------------------------------------------
-Road:        M25
-Direction:   MISSING
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T04:30:00.00Z
-Description: M25 anti-clockwise within J9
-
---------------------------------------------------------------------------------
-RECORD 42
---------------------------------------------------------------------------------
-Road:        A194
-Direction:   MISSING
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: roundabout at A194(M) J3/A184
-
---------------------------------------------------------------------------------
-RECORD 43
---------------------------------------------------------------------------------
-Road:        A184
-Direction:   westbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A184 westbound exit for A194(M)
-
---------------------------------------------------------------------------------
-RECORD 44
---------------------------------------------------------------------------------
-Road:        A184
-Direction:   westbound
-Status:      active
-Cause:       constructionWork
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A184 westbound exit for A194(M)
-
---------------------------------------------------------------------------------
-RECORD 45
---------------------------------------------------------------------------------
-Road:        M60
-Direction:   MISSING
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M60 anti-clockwise between J1 and J27
-
---------------------------------------------------------------------------------
-RECORD 46
---------------------------------------------------------------------------------
-Road:        M60
-Direction:   MISSING
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M60 anti-clockwise between J25 and J24
-
---------------------------------------------------------------------------------
-RECORD 47
---------------------------------------------------------------------------------
-Road:        M60
-Direction:   MISSING
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M60 anti-clockwise between J1 and J27
-
---------------------------------------------------------------------------------
-RECORD 48
---------------------------------------------------------------------------------
-Road:        M60
-Direction:   MISSING
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M60 anti-clockwise between J27 and J25
-
---------------------------------------------------------------------------------
-RECORD 49
---------------------------------------------------------------------------------
-Road:        M60
-Direction:   MISSING
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M60 anti-clockwise between J1 and J27
-
---------------------------------------------------------------------------------
-RECORD 50
---------------------------------------------------------------------------------
-Road:        M60
-Direction:   MISSING
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M60 anti-clockwise between J1 and J27
-
---------------------------------------------------------------------------------
-RECORD 51
---------------------------------------------------------------------------------
-Road:        M60
-Direction:   MISSING
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M60 J1 anti-clockwise access
-
---------------------------------------------------------------------------------
-RECORD 52
---------------------------------------------------------------------------------
-Road:        M60
-Direction:   MISSING
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M60 anti-clockwise between J1 and J27
-
---------------------------------------------------------------------------------
-RECORD 53
---------------------------------------------------------------------------------
-Road:        M60
-Direction:   MISSING
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M60 anti-clockwise between J1 and J27
-
---------------------------------------------------------------------------------
-RECORD 54
---------------------------------------------------------------------------------
-Road:        M60
-Direction:   MISSING
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M60 J1 anti-clockwise access
-
---------------------------------------------------------------------------------
-RECORD 55
---------------------------------------------------------------------------------
-Road:        M60
-Direction:   MISSING
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M60 anti-clockwise between J27 and J25
-
---------------------------------------------------------------------------------
-RECORD 56
---------------------------------------------------------------------------------
-Road:        M60
-Direction:   MISSING
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M60 anti-clockwise between J2 and J1
-
---------------------------------------------------------------------------------
-RECORD 57
---------------------------------------------------------------------------------
-Road:        M60
-Direction:   MISSING
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M60 anti-clockwise between J27 and J25
-
---------------------------------------------------------------------------------
-RECORD 58
---------------------------------------------------------------------------------
-Road:        M6
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-06-15T05:00:00.00Z
-End:         2026-11-13T20:00:00.00Z
-Description: M6 southbound within J40
-
---------------------------------------------------------------------------------
-RECORD 59
---------------------------------------------------------------------------------
-Road:        M6
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M6 southbound between J40 and J39
-
---------------------------------------------------------------------------------
-RECORD 60
---------------------------------------------------------------------------------
-Road:        M6
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M6 southbound between J40 and J39
-
---------------------------------------------------------------------------------
-RECORD 61
---------------------------------------------------------------------------------
-Road:        M6
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-06-15T05:00:00.00Z
-End:         2026-11-13T20:00:00.00Z
-Description: M6 southbound between J40 and J39
-
---------------------------------------------------------------------------------
-RECORD 62
---------------------------------------------------------------------------------
-Road:        M6
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-06-28T05:00:00.00Z
-End:         2026-11-13T20:00:00.00Z
-Description: M6 southbound between J40 and J39
-
---------------------------------------------------------------------------------
-RECORD 63
---------------------------------------------------------------------------------
-Road:        M6
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M6 southbound within J40
-
---------------------------------------------------------------------------------
-RECORD 64
---------------------------------------------------------------------------------
-Road:        M6
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M6 southbound between J40 and J39
-
---------------------------------------------------------------------------------
-RECORD 65
---------------------------------------------------------------------------------
-Road:        M6
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-06-02T05:00:00.00Z
-End:         2026-11-13T20:00:00.00Z
-Description: M6 southbound between J40 and J39
-
---------------------------------------------------------------------------------
-RECORD 66
---------------------------------------------------------------------------------
-Road:        A12
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: A12 northbound between A133 and A120 near Colchester (east)
-
---------------------------------------------------------------------------------
-RECORD 67
---------------------------------------------------------------------------------
-Road:        M62
-Direction:   eastbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M62 eastbound within J11
-
---------------------------------------------------------------------------------
-RECORD 68
---------------------------------------------------------------------------------
-Road:        M62
-Direction:   eastbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M62 eastbound between J10 and J11
-
---------------------------------------------------------------------------------
-RECORD 69
---------------------------------------------------------------------------------
-Road:        M62
-Direction:   eastbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M62 eastbound within J11
-
---------------------------------------------------------------------------------
-RECORD 70
---------------------------------------------------------------------------------
-Road:        M62
-Direction:   eastbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M62 eastbound between J10 and J11
-
---------------------------------------------------------------------------------
-RECORD 71
---------------------------------------------------------------------------------
-Road:        M62
-Direction:   eastbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M62 eastbound between J10 and J11
-
---------------------------------------------------------------------------------
-RECORD 72
---------------------------------------------------------------------------------
-Road:        A35
-Direction:   eastbound
-Status:      active
-Cause:       constructionWork
-Start:       2026-06-12T06:00:00.00Z
-End:         2027-01-31T17:00:00.00Z
-Description: A35 eastbound between A3052 and B3157
-
---------------------------------------------------------------------------------
-RECORD 73
---------------------------------------------------------------------------------
-Road:        M25
-Direction:   MISSING
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: M25 clockwise between J21A and J22
-
---------------------------------------------------------------------------------
-RECORD 74
---------------------------------------------------------------------------------
-Road:        M25
-Direction:   MISSING
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: M25 clockwise between J21A and J22
-
---------------------------------------------------------------------------------
-RECORD 75
---------------------------------------------------------------------------------
-Road:        A14
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A14 eastbound within J33
-
---------------------------------------------------------------------------------
-RECORD 76
---------------------------------------------------------------------------------
-Road:        A14
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A14 eastbound within J33
-
---------------------------------------------------------------------------------
-RECORD 77
---------------------------------------------------------------------------------
-Road:        A14
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A14 eastbound within J33
-
---------------------------------------------------------------------------------
-RECORD 78
---------------------------------------------------------------------------------
-Road:        A628
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T16:00:00.00Z
-End:         2026-08-12T06:00:00.00Z
-Description: A628 eastbound between A6024 and A616
-
---------------------------------------------------------------------------------
-RECORD 79
---------------------------------------------------------------------------------
-Road:        A12
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: A12 southbound between A1124 and A120 near Colchester (west)
-
---------------------------------------------------------------------------------
-RECORD 80
---------------------------------------------------------------------------------
-Road:        A12
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: A12 southbound between A1124 and A120 near Colchester (west)
-
---------------------------------------------------------------------------------
-RECORD 81
---------------------------------------------------------------------------------
-Road:        M65
-Direction:   eastbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M65 eastbound within J2
-
---------------------------------------------------------------------------------
-RECORD 82
---------------------------------------------------------------------------------
-Road:        A174
-Direction:   eastbound
-Status:      active
-Cause:       constructionWork
-Start:       2026-03-02T23:59:00.00Z
-End:         2026-09-28T22:59:00.00Z
-Description: A174 eastbound access from A172
-
---------------------------------------------------------------------------------
-RECORD 83
---------------------------------------------------------------------------------
-Road:        M1
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: M1 southbound between J15 and J14
-
---------------------------------------------------------------------------------
-RECORD 84
---------------------------------------------------------------------------------
-Road:        M1
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: M1 southbound between J15 and J14
-
---------------------------------------------------------------------------------
-RECORD 85
---------------------------------------------------------------------------------
-Road:        M42
-Direction:   northbound
-Status:      active
-Cause:       roadMaintenance
-Start:       2026-07-14T01:30:00.00Z
-End:         2026-12-31T06:00:00.00Z
-Description: M42 northbound between J3A and J4
-
---------------------------------------------------------------------------------
-RECORD 86
---------------------------------------------------------------------------------
-Road:        A1
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A1 southbound within the A167 near Washington Birtley junction
-
---------------------------------------------------------------------------------
-RECORD 87
---------------------------------------------------------------------------------
-Road:        A38
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T18:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A38 eastbound between B3344 near Newton Abbot (north) and A380
-
---------------------------------------------------------------------------------
-RECORD 88
---------------------------------------------------------------------------------
-Road:        M1
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M1 northbound between J22 and J23
-
---------------------------------------------------------------------------------
-RECORD 89
---------------------------------------------------------------------------------
-Road:        A590
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-14T19:00:00.00Z
-Description: A590 eastbound between A592 and B5277
-
---------------------------------------------------------------------------------
-RECORD 90
---------------------------------------------------------------------------------
-Road:        A590
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-13T19:00:00.00Z
-Description: A590 eastbound between A592 and B5277
-
---------------------------------------------------------------------------------
-RECORD 91
---------------------------------------------------------------------------------
-Road:        M48
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-08T19:00:00.00Z
-End:         2026-09-18T19:00:00.00Z
-Description: M48 eastbound between J2 and J1
-
---------------------------------------------------------------------------------
-RECORD 92
---------------------------------------------------------------------------------
-Road:        M48
-Direction:   eastbound
-Status:      active
-Cause:       roadMaintenance
-Start:       2026-08-08T19:32:00.00Z
-End:         2026-09-18T19:00:00.00Z
-Description: M48 eastbound between J2 and J1
-
---------------------------------------------------------------------------------
-RECORD 93
---------------------------------------------------------------------------------
-Road:        M1
-Direction:   northbound
-Status:      active
-Cause:       constructionWork
-Start:       2026-07-23T01:35:00.00Z
-End:         2026-10-24T04:00:00.00Z
-Description: M1 northbound within J10
-
---------------------------------------------------------------------------------
-RECORD 94
---------------------------------------------------------------------------------
-Road:        A19
-Direction:   MISSING
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: Roundabout At A19 / A191
-
---------------------------------------------------------------------------------
-RECORD 95
---------------------------------------------------------------------------------
-Road:        A19
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A19 southbound within the A186/A191 junction
-
---------------------------------------------------------------------------------
-RECORD 96
---------------------------------------------------------------------------------
-Road:        A19
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A19 northbound between A186/A191 and A1056
-
---------------------------------------------------------------------------------
-RECORD 97
---------------------------------------------------------------------------------
-Road:        A19
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A19 southbound exit for A186/A191
-
---------------------------------------------------------------------------------
-RECORD 98
---------------------------------------------------------------------------------
-Road:        M6
-Direction:   southbound
-Status:      active
-Cause:       constructionWork
-Start:       2026-08-03T04:00:00.00Z
-End:         2026-09-07T04:00:00.00Z
-Description: M6 southbound between J5 and J4A
-
---------------------------------------------------------------------------------
-RECORD 99
---------------------------------------------------------------------------------
-Road:        M6
-Direction:   southbound
-Status:      active
-Cause:       constructionWork
-Start:       2026-08-03T04:00:00.00Z
-End:         2026-09-07T04:00:00.00Z
-Description: M6 southbound between J5 and J4A
-
---------------------------------------------------------------------------------
-RECORD 100
---------------------------------------------------------------------------------
-Road:        M6
-Direction:   southbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-03T04:00:00.00Z
-End:         2026-09-07T04:00:00.00Z
-Description: link road from M6 J4A southbound to M42 J8 southbound
-
---------------------------------------------------------------------------------
-RECORD 101
---------------------------------------------------------------------------------
-Road:        M6
-Direction:   southbound
-Status:      active
-Cause:       constructionWork
-Start:       2026-08-03T04:00:00.00Z
-End:         2026-09-07T04:00:00.00Z
-Description: link road from M6 J4A southbound to M42 J8 southbound
-
---------------------------------------------------------------------------------
-RECORD 102
---------------------------------------------------------------------------------
-Road:        M62
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M62 eastbound between J37 and J38
-
---------------------------------------------------------------------------------
-RECORD 103
---------------------------------------------------------------------------------
-Road:        M62
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M62 eastbound between J37 and J38
-
---------------------------------------------------------------------------------
-RECORD 104
---------------------------------------------------------------------------------
-Road:        M62
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M62 eastbound between J37 and J38
-
---------------------------------------------------------------------------------
-RECORD 105
---------------------------------------------------------------------------------
-Road:        M50
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M50 eastbound between J3 and J2
-
---------------------------------------------------------------------------------
-RECORD 106
---------------------------------------------------------------------------------
-Road:        A1
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-07-27T09:00:00.00Z
-End:         2026-09-30T05:00:00.00Z
-Description: A1(M) northbound between J43 and J44
-
---------------------------------------------------------------------------------
-RECORD 107
---------------------------------------------------------------------------------
-Road:        A1
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-07-27T09:00:00.00Z
-End:         2026-09-30T05:00:00.00Z
-Description: A1(M) northbound between J43 and J44
-
---------------------------------------------------------------------------------
-RECORD 108
---------------------------------------------------------------------------------
-Road:        M56
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: M56 eastbound within J14
-
---------------------------------------------------------------------------------
-RECORD 109
---------------------------------------------------------------------------------
-Road:        M56
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: M56 eastbound within J14
-
---------------------------------------------------------------------------------
-RECORD 110
---------------------------------------------------------------------------------
-Road:        M4
-Direction:   westbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M4 westbound between J21 and J22
-
---------------------------------------------------------------------------------
-RECORD 111
---------------------------------------------------------------------------------
-Road:        M4
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M4 eastbound between J23 and J22
-
---------------------------------------------------------------------------------
-RECORD 112
---------------------------------------------------------------------------------
-Road:        M40
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M40 southbound between J5 and J4
-
---------------------------------------------------------------------------------
-RECORD 113
---------------------------------------------------------------------------------
-Road:        M40
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M40 southbound between J5 and J4
-
---------------------------------------------------------------------------------
-RECORD 114
---------------------------------------------------------------------------------
-Road:        M40
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M40 J5 southbound exit
-
---------------------------------------------------------------------------------
-RECORD 115
---------------------------------------------------------------------------------
-Road:        A1
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A1 northbound between A696/A167 and A1056
-
---------------------------------------------------------------------------------
-RECORD 116
---------------------------------------------------------------------------------
-Road:        M40
-Direction:   MISSING
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T21:15:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: roundabout at M40 J4/A404
-
---------------------------------------------------------------------------------
-RECORD 117
---------------------------------------------------------------------------------
-Road:        M40
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T21:15:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M40 southbound between J5 and J4
-
---------------------------------------------------------------------------------
-RECORD 118
---------------------------------------------------------------------------------
-Road:        M1
-Direction:   northbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M1 northbound between J28 and J29
-
---------------------------------------------------------------------------------
-RECORD 119
---------------------------------------------------------------------------------
-Road:        M1
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M1 southbound between J35 and J34
-
---------------------------------------------------------------------------------
-RECORD 120
---------------------------------------------------------------------------------
-Road:        A38
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A38 northbound within the A50 junction
-
---------------------------------------------------------------------------------
-RECORD 121
---------------------------------------------------------------------------------
-Road:        A38
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A38 northbound within the A50 junction
-
---------------------------------------------------------------------------------
-RECORD 122
---------------------------------------------------------------------------------
-Road:        A12
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: A12 northbound between A1023 and B1002
-
---------------------------------------------------------------------------------
-RECORD 123
---------------------------------------------------------------------------------
-Road:        A66
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T18:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A66 eastbound between M6 and A6
-
---------------------------------------------------------------------------------
-RECORD 124
---------------------------------------------------------------------------------
-Road:        A14
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A14 eastbound between J1 and J2
-
---------------------------------------------------------------------------------
-RECORD 125
---------------------------------------------------------------------------------
-Road:        M62
-Direction:   westbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M62 westbound between J23 and J22
-
---------------------------------------------------------------------------------
-RECORD 126
---------------------------------------------------------------------------------
-Road:        M62
-Direction:   eastbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M62 eastbound between J22 and J23
-
---------------------------------------------------------------------------------
-RECORD 127
---------------------------------------------------------------------------------
-Road:        A428
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: A428 eastbound between A1303 and M11/A14
-
---------------------------------------------------------------------------------
-RECORD 128
---------------------------------------------------------------------------------
-Road:        A19
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T03:00:00.00Z
-Description: A19 northbound between A1231 and A1290
-
---------------------------------------------------------------------------------
-RECORD 129
---------------------------------------------------------------------------------
-Road:        A11
-Direction:   northbound
-Status:      active
-Cause:       constructionWork
-Start:       2025-10-29T06:00:00.00Z
-End:         2027-04-01T05:00:00.00Z
-Description: A11 northbound between B1135 near Wymondham (north) and A47
-
---------------------------------------------------------------------------------
-RECORD 130
---------------------------------------------------------------------------------
-Road:        A11
-Direction:   northbound
-Status:      active
-Cause:       constructionWork
-Start:       2025-10-29T06:00:00.00Z
-End:         2027-04-01T05:00:00.00Z
-Description: A11 northbound between B1135 near Wymondham (north) and A47
-
---------------------------------------------------------------------------------
-RECORD 131
---------------------------------------------------------------------------------
-Road:        M1
-Direction:   southbound
-Status:      active
-Cause:       roadMaintenance
-Start:       2025-11-30T09:00:00.00Z
-End:         2026-11-30T09:00:00.00Z
-Description: M1 southbound between J22 and J21A
-
---------------------------------------------------------------------------------
-RECORD 132
---------------------------------------------------------------------------------
-Road:        A590
-Direction:   westbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-02-15T20:00:00.00Z
-End:         2027-08-14T04:00:00.00Z
-Description: A590 westbound between A5092 and A5087/B5281
-
---------------------------------------------------------------------------------
-RECORD 133
---------------------------------------------------------------------------------
-Road:        A414
-Direction:   eastbound
-Status:      planned
-Cause:       authorityOperation
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A414 eastbound between the M1 and the A405
-
---------------------------------------------------------------------------------
-RECORD 134
---------------------------------------------------------------------------------
-Road:        A414
-Direction:   eastbound
-Status:      planned
-Cause:       authorityOperation
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A414 eastbound between the M1 and the A405
-
---------------------------------------------------------------------------------
-RECORD 135
---------------------------------------------------------------------------------
-Road:        A414
-Direction:   eastbound
-Status:      planned
-Cause:       authorityOperation
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A414 eastbound between the M1 and the A405
-
---------------------------------------------------------------------------------
-RECORD 136
---------------------------------------------------------------------------------
-Road:        A308
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:30:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A308(M) eastbound between M4/A404(M) and A308
-
---------------------------------------------------------------------------------
-RECORD 137
---------------------------------------------------------------------------------
-Road:        M6
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-07-19T18:00:00.00Z
-End:         2026-08-15T05:00:00.00Z
-Description: M6 southbound within J32
-
---------------------------------------------------------------------------------
-RECORD 138
---------------------------------------------------------------------------------
-Road:        M6
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-07-19T18:00:00.00Z
-End:         2026-08-15T05:00:00.00Z
-Description: M6 southbound within J32
-
---------------------------------------------------------------------------------
-RECORD 139
---------------------------------------------------------------------------------
-Road:        M6
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-07-19T18:00:00.00Z
-End:         2026-08-15T05:00:00.00Z
-Description: M6 southbound within J32
-
---------------------------------------------------------------------------------
-RECORD 140
---------------------------------------------------------------------------------
-Road:        A595
-Direction:   northbound
-Status:      active
-Cause:       roadMaintenance
-Start:       2026-08-09T19:10:00.00Z
-End:         2026-08-12T19:00:00.00Z
-Description: A595 northbound between A5094 near Whitehaven (north) and B5306
-
---------------------------------------------------------------------------------
-RECORD 141
---------------------------------------------------------------------------------
-Road:        M1
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M1 J40 southbound access
-
---------------------------------------------------------------------------------
-RECORD 142
---------------------------------------------------------------------------------
-Road:        A34
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A34 northbound between A303 and B4640
-
---------------------------------------------------------------------------------
-RECORD 143
---------------------------------------------------------------------------------
-Road:        A34
-Direction:   southbound
-Status:      planned
-Cause:       authorityOperation
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A34 southbound between A4185 and M4
-
---------------------------------------------------------------------------------
-RECORD 144
---------------------------------------------------------------------------------
-Road:        A45
-Direction:   westbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A45 westbound within the A508 near Northampton junction
-
---------------------------------------------------------------------------------
-RECORD 145
---------------------------------------------------------------------------------
-Road:        M1
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M1 J15 northbound exit
-
---------------------------------------------------------------------------------
-RECORD 146
---------------------------------------------------------------------------------
-Road:        M20
-Direction:   eastbound
-Status:      active
-Cause:       constructionWork
-Start:       2026-07-14T04:01:00.00Z
-End:         2026-08-25T19:00:00.00Z
-Description: M20 eastbound within J8
-
---------------------------------------------------------------------------------
-RECORD 147
---------------------------------------------------------------------------------
-Road:        M20
-Direction:   eastbound
-Status:      active
-Cause:       constructionWork
-Start:       2026-07-14T04:01:00.00Z
-End:         2026-08-25T19:00:00.00Z
-Description: M20 eastbound within J7
-
---------------------------------------------------------------------------------
-RECORD 148
---------------------------------------------------------------------------------
-Road:        A1
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A1 northbound access from the Metro Centre between A184 and A694
-
---------------------------------------------------------------------------------
-RECORD 149
---------------------------------------------------------------------------------
-Road:        A46
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A46 northbound between A606 and A52
-
---------------------------------------------------------------------------------
-RECORD 150
---------------------------------------------------------------------------------
-Road:        A46
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A46 northbound between A606 and A52
-
---------------------------------------------------------------------------------
-RECORD 151
---------------------------------------------------------------------------------
-Road:        M40
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M40 southbound between J11 and J10
-
---------------------------------------------------------------------------------
-RECORD 152
---------------------------------------------------------------------------------
-Road:        M40
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M40 southbound between J11 and J10
-
---------------------------------------------------------------------------------
-RECORD 153
---------------------------------------------------------------------------------
-Road:        M1
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:30:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M1 northbound between J47 and J48
-
---------------------------------------------------------------------------------
-RECORD 154
---------------------------------------------------------------------------------
-Road:        M60
-Direction:   MISSING
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M60 clockwise between J23 and J24
-
---------------------------------------------------------------------------------
-RECORD 155
---------------------------------------------------------------------------------
-Road:        M60
-Direction:   MISSING
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M60 clockwise between J22 and J23
-
---------------------------------------------------------------------------------
-RECORD 156
---------------------------------------------------------------------------------
-Road:        M60
-Direction:   MISSING
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M60 clockwise within J23
-
---------------------------------------------------------------------------------
-RECORD 157
---------------------------------------------------------------------------------
-Road:        M60
-Direction:   MISSING
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M60 clockwise within J23
-
---------------------------------------------------------------------------------
-RECORD 158
---------------------------------------------------------------------------------
-Road:        M60
-Direction:   MISSING
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M60 clockwise within J23
-
---------------------------------------------------------------------------------
-RECORD 159
---------------------------------------------------------------------------------
-Road:        M60
-Direction:   MISSING
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M60 clockwise between J22 and J23
-
---------------------------------------------------------------------------------
-RECORD 160
---------------------------------------------------------------------------------
-Road:        M60
-Direction:   MISSING
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M60 clockwise within J23
-
---------------------------------------------------------------------------------
-RECORD 161
---------------------------------------------------------------------------------
-Road:        M6
-Direction:   southbound
-Status:      active
-Cause:       constructionWork
-Start:       2026-08-11T05:00:00.00Z
-End:         2026-08-11T19:00:00.00Z
-Description: link road from M6 southbound to M1 J19 southbound
-
---------------------------------------------------------------------------------
-RECORD 162
---------------------------------------------------------------------------------
-Road:        M6
-Direction:   southbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T05:00:00.00Z
-End:         2026-08-11T19:00:00.00Z
-Description: M6 southbound between J1 and M1/A14
-
---------------------------------------------------------------------------------
-RECORD 163
---------------------------------------------------------------------------------
-Road:        M40
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T21:15:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M40 southbound within J9
-
---------------------------------------------------------------------------------
-RECORD 164
---------------------------------------------------------------------------------
-Road:        M40
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M40 southbound between J5 and J4
-
---------------------------------------------------------------------------------
-RECORD 165
---------------------------------------------------------------------------------
-Road:        M40
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M40 southbound within J5
-
---------------------------------------------------------------------------------
-RECORD 166
---------------------------------------------------------------------------------
-Road:        M1
-Direction:   southbound
-Status:      active
-Cause:       constructionWork
-Start:       2026-06-10T05:00:00.00Z
-End:         2026-08-16T05:00:00.00Z
-Description: M1 southbound within J18
-
---------------------------------------------------------------------------------
-RECORD 167
---------------------------------------------------------------------------------
-Road:        M1
-Direction:   southbound
-Status:      active
-Cause:       constructionWork
-Start:       2026-06-10T05:00:00.00Z
-End:         2026-08-16T05:00:00.00Z
-Description: M1 southbound between J18 and J17
-
---------------------------------------------------------------------------------
-RECORD 168
---------------------------------------------------------------------------------
-Road:        M1
-Direction:   southbound
-Status:      active
-Cause:       constructionWork
-Start:       2026-06-10T05:00:00.00Z
-End:         2026-08-14T05:00:00.00Z
-Description: M1 southbound between J18 and J17
-
---------------------------------------------------------------------------------
-RECORD 169
---------------------------------------------------------------------------------
-Road:        M1
-Direction:   southbound
-Status:      active
-Cause:       constructionWork
-Start:       2026-06-10T05:00:00.00Z
-End:         2026-08-14T05:00:00.00Z
-Description: M1 southbound between J18 and J17
-
---------------------------------------------------------------------------------
-RECORD 170
---------------------------------------------------------------------------------
-Road:        A3
-Direction:   northbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T04:30:00.00Z
-Description: A3 northbound between M25 and A245
-
---------------------------------------------------------------------------------
-RECORD 171
---------------------------------------------------------------------------------
-Road:        A3
-Direction:   southbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T04:30:00.00Z
-Description: A3 southbound between A244 and A245
-
---------------------------------------------------------------------------------
-RECORD 172
---------------------------------------------------------------------------------
-Road:        A303
-Direction:   eastbound
-Status:      planned
-Cause:       authorityOperation
-Start:       2026-08-11T18:00:00.00Z
-End:         2026-08-12T06:00:00.00Z
-Description: A303 eastbound between A360 and A345
-
---------------------------------------------------------------------------------
-RECORD 173
---------------------------------------------------------------------------------
-Road:        A1
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: A1(M) southbound between J16 and J15
-
---------------------------------------------------------------------------------
-RECORD 174
---------------------------------------------------------------------------------
-Road:        M42
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M42 J9 southbound access
-
---------------------------------------------------------------------------------
-RECORD 175
---------------------------------------------------------------------------------
-Road:        A66
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A66 eastbound between A685 and A67 near Bowes
-
---------------------------------------------------------------------------------
-RECORD 176
---------------------------------------------------------------------------------
-Road:        M56
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M56 eastbound between J4 and J3
-
---------------------------------------------------------------------------------
-RECORD 177
---------------------------------------------------------------------------------
-Road:        M56
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M56 eastbound within J5
-
---------------------------------------------------------------------------------
-RECORD 178
---------------------------------------------------------------------------------
-Road:        A19
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A19 northbound between A61/A168 and A684
-
---------------------------------------------------------------------------------
-RECORD 179
---------------------------------------------------------------------------------
-Road:        M66
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T22:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M66 southbound between A56/A680/A676 and J1
-
---------------------------------------------------------------------------------
-RECORD 180
---------------------------------------------------------------------------------
-Road:        M66
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M66 southbound between A56/A680/A676 and J1
-
---------------------------------------------------------------------------------
-RECORD 181
---------------------------------------------------------------------------------
-Road:        M6
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M6 northbound between J30 and J31
-
---------------------------------------------------------------------------------
-RECORD 182
---------------------------------------------------------------------------------
-Road:        M6
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:30:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M6 northbound between J30 and J31
-
---------------------------------------------------------------------------------
-RECORD 183
---------------------------------------------------------------------------------
-Road:        M32
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M32 northbound between J2 and J1
-
---------------------------------------------------------------------------------
-RECORD 184
---------------------------------------------------------------------------------
-Road:        A5
-Direction:   MISSING
-Status:      active
-Cause:       roadMaintenance
-Start:       2026-08-06T04:06:00.00Z
-End:         2026-08-31T05:00:00.00Z
-Description: roundabout at A5/A47 near Hinckley
-
---------------------------------------------------------------------------------
-RECORD 185
---------------------------------------------------------------------------------
-Road:        A5
-Direction:   MISSING
-Status:      active
-Cause:       roadMaintenance
-Start:       2026-08-06T04:06:00.00Z
-End:         2026-08-24T05:00:00.00Z
-Description: roundabout at A5/A47 near Hinckley
-
---------------------------------------------------------------------------------
-RECORD 186
---------------------------------------------------------------------------------
-Road:        M11
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: M11 northbound between J8a and J9
-
---------------------------------------------------------------------------------
-RECORD 187
---------------------------------------------------------------------------------
-Road:        A1
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A1 southbound between A47 and A605
-
---------------------------------------------------------------------------------
-RECORD 188
---------------------------------------------------------------------------------
-Road:        A1
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A1 southbound between B1081 near Stamford (south) and A47
-
---------------------------------------------------------------------------------
-RECORD 189
---------------------------------------------------------------------------------
-Road:        M62
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: M62 J24 eastbound access
-
---------------------------------------------------------------------------------
-RECORD 190
---------------------------------------------------------------------------------
-Road:        M62
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: M62 eastbound within J24
-
---------------------------------------------------------------------------------
-RECORD 191
---------------------------------------------------------------------------------
-Road:        M1
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M1 southbound between J23A and J23
-
---------------------------------------------------------------------------------
-RECORD 192
---------------------------------------------------------------------------------
-Road:        M1
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: M1 northbound between J39 and J40
-
---------------------------------------------------------------------------------
-RECORD 193
---------------------------------------------------------------------------------
-Road:        M23
-Direction:   northbound
-Status:      planned
-Cause:       authorityOperation
-Start:       2026-02-27T21:00:00.00Z
-End:         2027-03-01T06:00:00.00Z
-Description: M23 J10 northbound exit
-
---------------------------------------------------------------------------------
-RECORD 194
---------------------------------------------------------------------------------
-Road:        M23
-Direction:   northbound
-Status:      planned
-Cause:       authorityOperation
-Start:       2026-02-27T21:00:00.00Z
-End:         2027-03-01T06:00:00.00Z
-Description: M23 northbound between J10A and J10
-
---------------------------------------------------------------------------------
-RECORD 195
---------------------------------------------------------------------------------
-Road:        M23
-Direction:   northbound
-Status:      planned
-Cause:       authorityOperation
-Start:       2026-03-02T21:00:00.00Z
-End:         2027-02-26T06:00:00.00Z
-Description: M23 northbound between J10A and J10
-
---------------------------------------------------------------------------------
-RECORD 196
---------------------------------------------------------------------------------
-Road:        M62
-Direction:   eastbound
-Status:      active
-Cause:       roadMaintenance
-Start:       2025-10-02T05:00:00.00Z
-End:         2026-10-10T20:00:00.00Z
-Description: M62 eastbound between J20 and J21
-
---------------------------------------------------------------------------------
-RECORD 197
---------------------------------------------------------------------------------
-Road:        A11
-Direction:   northbound
-Status:      active
-Cause:       constructionWork
-Start:       2025-09-23T03:04:00.00Z
-End:         2027-04-01T05:00:00.00Z
-Description: A11 northbound between B1135 near Wymondham (north) and A47
-
---------------------------------------------------------------------------------
-RECORD 198
---------------------------------------------------------------------------------
-Road:        A47
-Direction:   eastbound
-Status:      active
-Cause:       constructionWork
-Start:       2025-10-30T06:00:00.00Z
-End:         2027-04-01T05:00:00.00Z
-Description: A47 eastbound between A11 and A140
-
---------------------------------------------------------------------------------
-RECORD 199
---------------------------------------------------------------------------------
-Road:        A47
-Direction:   eastbound
-Status:      active
-Cause:       constructionWork
-Start:       2025-10-30T06:00:00.00Z
-End:         2027-04-01T05:00:00.00Z
-Description: A47 eastbound between A11 and A140
-
---------------------------------------------------------------------------------
-RECORD 200
---------------------------------------------------------------------------------
-Road:        A627
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A627(M) southbound between A664 near Royton and A663/A627
-
---------------------------------------------------------------------------------
-RECORD 201
---------------------------------------------------------------------------------
-Road:        M3
-Direction:   eastbound
-Status:      planned
-Cause:       authorityOperation
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M3 J3 eastbound exit
-
---------------------------------------------------------------------------------
-RECORD 202
---------------------------------------------------------------------------------
-Road:        M3
-Direction:   westbound
-Status:      planned
-Cause:       authorityOperation
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M3 J3 westbound exit
-
---------------------------------------------------------------------------------
-RECORD 203
---------------------------------------------------------------------------------
-Road:        M4
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M4 eastbound between J8 and J7
-
---------------------------------------------------------------------------------
-RECORD 204
---------------------------------------------------------------------------------
-Road:        A404
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A404(M) southbound within J9A
-
---------------------------------------------------------------------------------
-RECORD 205
---------------------------------------------------------------------------------
-Road:        A5036
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: A5036 northbound between A5207 and M57/M58
-
---------------------------------------------------------------------------------
-RECORD 206
---------------------------------------------------------------------------------
-Road:        A4
-Direction:   eastbound
-Status:      planned
-Cause:       authorityOperation
-Start:       2026-07-27T06:00:00.00Z
-End:         2026-10-16T17:00:00.00Z
-Description: A4 eastbound between B4054 and A4162
-
---------------------------------------------------------------------------------
-RECORD 207
---------------------------------------------------------------------------------
-Road:        M1
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M1 northbound between J20 and J21
-
---------------------------------------------------------------------------------
-RECORD 208
---------------------------------------------------------------------------------
-Road:        M69
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M69 northbound between J2 and M1
-
---------------------------------------------------------------------------------
-RECORD 209
---------------------------------------------------------------------------------
-Road:        A55
-Direction:   eastbound
-Status:      active
-Cause:       constructionWork
-Start:       2026-08-11T18:33:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: A55 eastbound between Welsh border and A483
-
---------------------------------------------------------------------------------
-RECORD 210
---------------------------------------------------------------------------------
-Road:        M62
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M62 eastbound between J34 and J35
-
---------------------------------------------------------------------------------
-RECORD 211
---------------------------------------------------------------------------------
-Road:        A38
-Direction:   westbound
-Status:      active
-Cause:       roadMaintenance
-Start:       2026-07-14T06:00:00.00Z
-End:         2026-08-14T22:00:00.00Z
-Description: A38 westbound exit for A384
-
---------------------------------------------------------------------------------
-RECORD 212
---------------------------------------------------------------------------------
-Road:        M40
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-09T06:00:00.00Z
-End:         2026-08-11T22:59:00.00Z
-Description: M40 southbound between J7 and J6
-
---------------------------------------------------------------------------------
-RECORD 213
---------------------------------------------------------------------------------
-Road:        M25
-Direction:   MISSING
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T04:30:00.00Z
-Description: M25 anti-clockwise between J30 and J29
-
---------------------------------------------------------------------------------
-RECORD 214
---------------------------------------------------------------------------------
-Road:        A46
-Direction:   northbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: A46 northbound between A6006 and A606
-
---------------------------------------------------------------------------------
-RECORD 215
---------------------------------------------------------------------------------
-Road:        M20
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M20 J5 eastbound exit to distributor
-
---------------------------------------------------------------------------------
-RECORD 216
---------------------------------------------------------------------------------
-Road:        M25
-Direction:   MISSING
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T04:30:00.00Z
-Description: M25 J24 clockwise exit
-
---------------------------------------------------------------------------------
-RECORD 217
---------------------------------------------------------------------------------
-Road:        A43
-Direction:   northbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A43 northbound between A422 near Brackley (south) and A422 near Brackley (east)
-
---------------------------------------------------------------------------------
-RECORD 218
---------------------------------------------------------------------------------
-Road:        A1
-Direction:   southbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A1(M) southbound between J63 and J62
-
---------------------------------------------------------------------------------
-RECORD 219
---------------------------------------------------------------------------------
-Road:        A1
-Direction:   southbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A1(M) southbound between J63 and J62
-
---------------------------------------------------------------------------------
-RECORD 220
---------------------------------------------------------------------------------
-Road:        M4
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M4 J15 eastbound exit
-
---------------------------------------------------------------------------------
-RECORD 221
---------------------------------------------------------------------------------
-Road:        A1
-Direction:   southbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T04:30:00.00Z
-Description: A1(M) J4 southbound exit
-
---------------------------------------------------------------------------------
-RECORD 222
---------------------------------------------------------------------------------
-Road:        A421
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: A421 northbound within the A603 junction
-
---------------------------------------------------------------------------------
-RECORD 223
---------------------------------------------------------------------------------
-Road:        M40
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M40 southbound between J12 and J11
-
---------------------------------------------------------------------------------
-RECORD 224
---------------------------------------------------------------------------------
-Road:        M25
-Direction:   MISSING
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T04:30:00.00Z
-Description: M25 clockwise between J5 and J6
-
---------------------------------------------------------------------------------
-RECORD 225
---------------------------------------------------------------------------------
-Road:        M11
-Direction:   northbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-06-01T20:00:00.00Z
-End:         2027-04-03T05:00:00.00Z
-Description: M11 northbound within J11
-
---------------------------------------------------------------------------------
-RECORD 226
---------------------------------------------------------------------------------
-Road:        M11
-Direction:   southbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-06-01T20:00:00.00Z
-End:         2027-04-03T05:00:00.00Z
-Description: M11 southbound within J11
-
---------------------------------------------------------------------------------
-RECORD 227
---------------------------------------------------------------------------------
-Road:        A40
-Direction:   eastbound
-Status:      active
-Cause:       roadMaintenance
-Start:       2026-07-28T02:40:00.00Z
-End:         2027-01-04T21:00:00.00Z
-Description: A40 eastbound between A48 and A417 near Gloucester (west)
-
---------------------------------------------------------------------------------
-RECORD 228
---------------------------------------------------------------------------------
-Road:        A19
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: A19 northbound between A67 and A174
-
---------------------------------------------------------------------------------
-RECORD 229
---------------------------------------------------------------------------------
-Road:        A47
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A47 eastbound between A15 near Peterborough (west) and A15 near Peterborough (east)
-
---------------------------------------------------------------------------------
-RECORD 230
---------------------------------------------------------------------------------
-Road:        M4
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M4 eastbound between J15 and J14
-
---------------------------------------------------------------------------------
-RECORD 231
---------------------------------------------------------------------------------
-Road:        M6
-Direction:   northbound
-Status:      active
-Cause:       constructionWork
-Start:       2026-07-18T19:00:00.00Z
-End:         2030-12-31T06:00:00.00Z
-Description: M6 northbound between J41 and J42
-
---------------------------------------------------------------------------------
-RECORD 232
---------------------------------------------------------------------------------
-Road:        A30
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T17:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A30 eastbound between A3047 near Camborne (east) and A3047 near Redruth (west)
-
---------------------------------------------------------------------------------
-RECORD 233
---------------------------------------------------------------------------------
-Road:        A421
-Direction:   northbound
-Status:      planned
-Cause:       constructionWork
-Start:       2025-08-18T04:00:00.00Z
-End:         2027-03-31T22:59:00.00Z
-Description: A421 northbound between A4280 and A1
-
---------------------------------------------------------------------------------
-RECORD 234
---------------------------------------------------------------------------------
-Road:        M40
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T21:15:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M40 southbound between J14 and J13
-
---------------------------------------------------------------------------------
-RECORD 235
---------------------------------------------------------------------------------
-Road:        M3
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M3 eastbound between J7 and J6
-
---------------------------------------------------------------------------------
-RECORD 236
---------------------------------------------------------------------------------
-Road:        A47
-Direction:   eastbound
-Status:      active
-Cause:       constructionWork
-Start:       2025-11-17T06:00:00.00Z
-End:         2027-04-30T22:00:00.00Z
-Description: A47 eastbound between B1110 and A1074
-
---------------------------------------------------------------------------------
-RECORD 237
---------------------------------------------------------------------------------
-Road:        A47
-Direction:   eastbound
-Status:      active
-Cause:       constructionWork
-Start:       2025-11-17T06:00:00.00Z
-End:         2027-04-30T22:00:00.00Z
-Description: A47 eastbound between B1110 and A1074
-
---------------------------------------------------------------------------------
-RECORD 238
---------------------------------------------------------------------------------
-Road:        A47
-Direction:   westbound
-Status:      active
-Cause:       constructionWork
-Start:       2026-02-16T06:00:00.00Z
-End:         2026-08-31T19:00:00.00Z
-Description: A47 westbound between A1074 and B1110
-
---------------------------------------------------------------------------------
-RECORD 239
---------------------------------------------------------------------------------
-Road:        A47
-Direction:   eastbound
-Status:      planned
-Cause:       constructionWork
-Start:       2025-11-29T06:00:00.00Z
-End:         2027-11-30T06:00:00.00Z
-Description: A47 eastbound between A11 and A140
-
---------------------------------------------------------------------------------
-RECORD 240
---------------------------------------------------------------------------------
-Road:        M25
-Direction:   MISSING
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-03T07:00:00.00Z
-End:         2027-03-31T22:59:00.00Z
-Description: M25 anti-clockwise between J30 and J29
-
---------------------------------------------------------------------------------
-RECORD 241
---------------------------------------------------------------------------------
-Road:        M25
-Direction:   MISSING
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T04:30:00.00Z
-Description: M25 anti-clockwise between J3 and J2
-
---------------------------------------------------------------------------------
-RECORD 242
---------------------------------------------------------------------------------
-Road:        M61
-Direction:   northbound
-Status:      active
-Cause:       roadMaintenance
-Start:       2025-10-16T08:42:00.00Z
-End:         2027-03-31T04:00:00.00Z
-Description: M61 northbound within J9
-
---------------------------------------------------------------------------------
-RECORD 243
---------------------------------------------------------------------------------
-Road:        M58
-Direction:   eastbound
-Status:      active
-Cause:       roadMaintenance
-Start:       2023-04-03T10:17:00.00Z
-End:         2027-03-31T04:00:00.00Z
-Description: M58 eastbound within J3
-
---------------------------------------------------------------------------------
-RECORD 244
---------------------------------------------------------------------------------
-Road:        M6
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M6 southbound within J12
-
---------------------------------------------------------------------------------
-RECORD 245
---------------------------------------------------------------------------------
-Road:        M1
-Direction:   northbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M1 northbound between J37 and J38
-
---------------------------------------------------------------------------------
-RECORD 246
---------------------------------------------------------------------------------
-Road:        A45
-Direction:   MISSING
-Status:      active
-Cause:       roadMaintenance
-Start:       2026-05-12T20:00:00.00Z
-End:         2026-11-17T06:00:00.00Z
-Description: roundabout at A45/M42 J6
-
---------------------------------------------------------------------------------
-RECORD 247
---------------------------------------------------------------------------------
-Road:        A1
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: A1 northbound between A6001 near Biggleswade (north) and A603
-
---------------------------------------------------------------------------------
-RECORD 248
---------------------------------------------------------------------------------
-Road:        A47
-Direction:   westbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A47 westbound between B1370 and A143
-
---------------------------------------------------------------------------------
-RECORD 249
---------------------------------------------------------------------------------
-Road:        M5
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M5 northbound within J15
-
---------------------------------------------------------------------------------
-RECORD 250
---------------------------------------------------------------------------------
-Road:        A45
-Direction:   MISSING
-Status:      active
-Cause:       roadMaintenance
-Start:       2026-05-12T20:00:00.00Z
-End:         2027-03-30T23:00:00.00Z
-Description: roundabout at A45/M42 J6
-
---------------------------------------------------------------------------------
-RECORD 251
---------------------------------------------------------------------------------
-Road:        A45
-Direction:   MISSING
-Status:      active
-Cause:       roadMaintenance
-Start:       2026-05-12T20:00:00.00Z
-End:         2027-03-30T23:00:00.00Z
-Description: roundabout at A45/M42 J6
-
---------------------------------------------------------------------------------
-RECORD 252
---------------------------------------------------------------------------------
-Road:        M27
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M27 eastbound between J11 and J12
-
---------------------------------------------------------------------------------
-RECORD 253
---------------------------------------------------------------------------------
-Road:        A1
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: A1(M) southbound between J8 and J7
-
---------------------------------------------------------------------------------
-RECORD 254
---------------------------------------------------------------------------------
-Road:        A1
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: A1(M) northbound between J6 and J7
-
---------------------------------------------------------------------------------
-RECORD 255
---------------------------------------------------------------------------------
-Road:        M58
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: connector on M58 eastbound between M6 J26 slips
-
---------------------------------------------------------------------------------
-RECORD 256
---------------------------------------------------------------------------------
-Road:        A453
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A453 northbound between M1/A50 and A52
-
---------------------------------------------------------------------------------
-RECORD 257
---------------------------------------------------------------------------------
-Road:        M3
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M3 eastbound within J4
-
---------------------------------------------------------------------------------
-RECORD 258
---------------------------------------------------------------------------------
-Road:        M27
-Direction:   eastbound
-Status:      active
-Cause:       constructionWork
-Start:       2025-04-01T05:18:00.00Z
-End:         2026-10-01T05:00:00.00Z
-Description: M27 eastbound between J9 and J10
-
---------------------------------------------------------------------------------
-RECORD 259
---------------------------------------------------------------------------------
-Road:        A1
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A1(M) southbound within J45
-
---------------------------------------------------------------------------------
-RECORD 260
---------------------------------------------------------------------------------
-Road:        M27
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M27 eastbound within J3
-
---------------------------------------------------------------------------------
-RECORD 261
---------------------------------------------------------------------------------
-Road:        A11
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2025-12-13T06:00:00.00Z
-End:         2027-04-01T05:00:00.00Z
-Description: A11 northbound between B1135 near Wymondham (north) and A47
-
---------------------------------------------------------------------------------
-RECORD 262
---------------------------------------------------------------------------------
-Road:        A428
-Direction:   eastbound
-Status:      active
-Cause:       constructionWork
-Start:       2025-10-06T05:00:00.00Z
-End:         2026-08-31T22:59:00.00Z
-Description: A428 eastbound between A1198 and A1303
-
---------------------------------------------------------------------------------
-RECORD 263
---------------------------------------------------------------------------------
-Road:        A428
-Direction:   eastbound
-Status:      active
-Cause:       constructionWork
-Start:       2025-10-06T05:00:00.00Z
-End:         2027-01-04T06:00:00.00Z
-Description: A428 eastbound between A1198 and A1303
-
---------------------------------------------------------------------------------
-RECORD 264
---------------------------------------------------------------------------------
-Road:        A428
-Direction:   MISSING
-Status:      active
-Cause:       constructionWork
-Start:       2025-10-06T05:00:00.00Z
-End:         2027-01-04T06:00:00.00Z
-Description: roundabout at A428/A1198
-
---------------------------------------------------------------------------------
-RECORD 265
---------------------------------------------------------------------------------
-Road:        M40
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T21:15:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M40 southbound between J11 and J10
-
---------------------------------------------------------------------------------
-RECORD 266
---------------------------------------------------------------------------------
-Road:        M11
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T04:30:00.00Z
-Description: M11 northbound between J5 and J6
-
---------------------------------------------------------------------------------
-RECORD 267
---------------------------------------------------------------------------------
-Road:        M11
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T04:30:00.00Z
-Description: link road from M11 J6 southbound to M25 J27
-
---------------------------------------------------------------------------------
-RECORD 268
---------------------------------------------------------------------------------
-Road:        M11
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T04:30:00.00Z
-Description: link road from M11 J6 northbound to M25 J27
-
---------------------------------------------------------------------------------
-RECORD 269
---------------------------------------------------------------------------------
-Road:        A1
-Direction:   southbound
-Status:      planned
-Cause:       constructionWork
-Start:       2025-12-17T03:25:00.00Z
-End:         2027-03-31T04:00:00.00Z
-Description: A1 southbound between A47 and A605
-
---------------------------------------------------------------------------------
-RECORD 270
---------------------------------------------------------------------------------
-Road:        A1
-Direction:   southbound
-Status:      planned
-Cause:       constructionWork
-Start:       2025-12-17T03:25:00.00Z
-End:         2027-03-31T04:00:00.00Z
-Description: A1 southbound between A47 and A605
-
---------------------------------------------------------------------------------
-RECORD 271
---------------------------------------------------------------------------------
-Road:        M5
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M5 southbound between J7 and J8
-
---------------------------------------------------------------------------------
-RECORD 272
---------------------------------------------------------------------------------
-Road:        M602
-Direction:   eastbound
-Status:      active
-Cause:       roadMaintenance
-Start:       2025-01-09T10:00:00.00Z
-End:         2027-01-08T16:00:00.00Z
-Description: M602 eastbound between J1 and J2
-
---------------------------------------------------------------------------------
-RECORD 273
---------------------------------------------------------------------------------
-Road:        M67
-Direction:   eastbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-06-19T04:00:00.00Z
-End:         2026-08-25T20:00:00.00Z
-Description: M67 eastbound between J1 and J1A
-
---------------------------------------------------------------------------------
-RECORD 274
---------------------------------------------------------------------------------
-Road:        M62
-Direction:   eastbound
-Status:      active
-Cause:       roadMaintenance
-Start:       2026-03-31T23:01:00.00Z
-End:         2028-03-31T22:59:00.00Z
-Description: M62 eastbound between J6 and J7
-
---------------------------------------------------------------------------------
-RECORD 275
---------------------------------------------------------------------------------
-Road:        A30
-Direction:   eastbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T04:30:00.00Z
-Description: A30 eastbound between B378 and A315
-
---------------------------------------------------------------------------------
-RECORD 276
---------------------------------------------------------------------------------
-Road:        A23
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A23 southbound between A273 and A27
-
---------------------------------------------------------------------------------
-RECORD 277
---------------------------------------------------------------------------------
-Road:        M25
-Direction:   MISSING
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: M25 J20 clockwise exit
-
---------------------------------------------------------------------------------
-RECORD 278
---------------------------------------------------------------------------------
-Road:        M23
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M23 northbound between J11 and J10A
-
---------------------------------------------------------------------------------
-RECORD 279
---------------------------------------------------------------------------------
-Road:        M50
-Direction:   eastbound
-Status:      planned
-Cause:       constructionWork
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M50 eastbound within J2
-
---------------------------------------------------------------------------------
-RECORD 280
---------------------------------------------------------------------------------
-Road:        A19
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A19 southbound between A181 and A179
-
---------------------------------------------------------------------------------
-RECORD 281
---------------------------------------------------------------------------------
-Road:        M65
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T20:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M65 J2 eastbound exit
-
---------------------------------------------------------------------------------
-RECORD 282
---------------------------------------------------------------------------------
-Road:        A3
-Direction:   southbound
-Status:      planned
-Cause:       authorityOperation
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A3 southbound between A31 and B3000
-
---------------------------------------------------------------------------------
-RECORD 283
---------------------------------------------------------------------------------
-Road:        A20
-Direction:   eastbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T21:00:00.00Z
-End:         2026-08-12T04:00:00.00Z
-Description: A20 eastbound exit for M25/M20
-
---------------------------------------------------------------------------------
-RECORD 284
---------------------------------------------------------------------------------
-Road:        A11
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A11 northbound between A1304 and A14
-
---------------------------------------------------------------------------------
-RECORD 285
---------------------------------------------------------------------------------
-Road:        A36
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-07-01T19:00:00.00Z
-End:         2026-08-17T14:00:00.00Z
-Description: A36 northbound between A360 and A3094
-
---------------------------------------------------------------------------------
-RECORD 286
---------------------------------------------------------------------------------
-Road:        A1
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: A1 southbound between A1068 and A697
-
---------------------------------------------------------------------------------
-RECORD 287
---------------------------------------------------------------------------------
-Road:        M40
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T06:00:00.00Z
-End:         2026-08-12T22:59:00.00Z
-Description: M40 northbound between J12 and J13
-
---------------------------------------------------------------------------------
-RECORD 288
---------------------------------------------------------------------------------
-Road:        M1
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M1 southbound between J37 and J36
-
---------------------------------------------------------------------------------
-RECORD 289
---------------------------------------------------------------------------------
-Road:        M1
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M1 southbound between J37 and J36
-
---------------------------------------------------------------------------------
-RECORD 290
---------------------------------------------------------------------------------
-Road:        M6
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-08-11T19:00:00.00Z
-End:         2026-08-12T05:00:00.00Z
-Description: M6 southbound between J45 and J44
-
---------------------------------------------------------------------------------
-RECORD 291
---------------------------------------------------------------------------------
-Road:        M6
-Direction:   southbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-05-01T19:00:00.00Z
-End:         2028-04-29T05:00:00.00Z
-Description: M6 southbound between J18 and J17
-
---------------------------------------------------------------------------------
-RECORD 292
---------------------------------------------------------------------------------
-Road:        M6
-Direction:   northbound
-Status:      planned
-Cause:       roadMaintenance
-Start:       2026-05-01T19:00:00.00Z
-End:         2028-04-29T05:00:00.00Z
-Description: M6 northbound between J16 and J17
-
---------------------------------------------------------------------------------
-RECORD 293
---------------------------------------------------------------------------------
-Road:        M4
-Direction:   eastbound
-Status:      active
-Cause:       roadMaintenance
-Start:       2026-08-11T04:25:00.00Z
-End:         2026-08-12T04:30:00.00Z
-Description: M4 eastbound between J5 and J4B
-
-================================================================================
-AUDIT COMPLETE
-================================================================================
-Total 'other' records audited: 293
-================================================================================
+======================================================================
+NATIONAL HIGHWAYS API TEST 4
+======================================================================
+
+DATEX II CLOSURE OVERLAP ANALYSIS
+
+THIS TEST MAKES EXACTLY ONE API REQUEST.
+NO RETRIES.
+NO SPLITTING.
+
+closureType is intentionally NOT supplied.
+
+REQUEST WINDOW
+----------------------------------------------------------------------
+Start: 2026-08-11T00:00:00
+End:   2026-08-18T23:59:59
+
+Parameters:
+{
+  "startDateTime": "2026-08-11T00:00:00",
+  "endDateTime": "2026-08-18T23:59:59"
+}
+
+Requesting API...
+
+HTTP status: 200
+
+Final URL:
+https://api.data.nationalhighways.co.uk/roads/v2.0/closures?startDateTime=2026-08-11T00%3A00%3A00&endDateTime=2026-08-18T23%3A59%3A59
+
+Response character count: 4583605
+
+======================================================================
+DATEX II STRUCTURE
+======================================================================
+
+Situations returned: 160
+
+Situation records found: 500
+
+======================================================================
+TIMESTAMP ANALYSIS
+======================================================================
+
+Earliest closure start:
+2025-01-19T19:54:00+00:00
+
+Latest closure start:
+2026-08-18T22:00:00+00:00
+
+Earliest closure end:
+2026-08-11T00:45:00+00:00
+
+Latest closure end:
+2027-12-31T06:00:00+00:00
+
+======================================================================
+WINDOW CLASSIFICATION
+======================================================================
+
+Records whose validity ended BEFORE requested window:
+0
+
+Records OVERLAPPING requested window:
+500
+
+Records starting AFTER requested window:
+0
+
+Records with missing/invalid start or end:
+0
+
+======================================================================
+TARGET ROAD ANALYSIS
+======================================================================
+
+M6: 27 total records, 27 overlapping requested window
+M57: 2 total records, 2 overlapping requested window
+M58: 0 total records, 0 overlapping requested window
+M62: 28 total records, 28 overlapping requested window
+
+======================================================================
+ALL ROADS REPRESENTED
+======================================================================
+
+A1(M): 43 total, 43 overlapping
+M53: 42 total, 42 overlapping
+M25: 34 total, 34 overlapping
+M1: 30 total, 30 overlapping
+M4: 28 total, 28 overlapping
+M62: 28 total, 28 overlapping
+M6: 27 total, 27 overlapping
+M61: 25 total, 25 overlapping
+M40: 19 total, 19 overlapping
+M56: 17 total, 17 overlapping
+A14: 15 total, 15 overlapping
+M60: 14 total, 14 overlapping
+A120: 13 total, 13 overlapping
+A66: 13 total, 13 overlapping
+A303: 12 total, 12 overlapping
+A47: 10 total, 10 overlapping
+A30: 9 total, 9 overlapping
+A34: 9 total, 9 overlapping
+M3: 9 total, 9 overlapping
+A38: 8 total, 8 overlapping
+M11: 8 total, 8 overlapping
+A36: 6 total, 6 overlapping
+M20: 6 total, 6 overlapping
+M27: 6 total, 6 overlapping
+M42: 6 total, 6 overlapping
+M65: 6 total, 6 overlapping
+A1033: 5 total, 5 overlapping
+A27: 5 total, 5 overlapping
+A59: 5 total, 5 overlapping
+M621: 5 total, 5 overlapping
+A11: 4 total, 4 overlapping
+A3: 4 total, 4 overlapping
+A43: 4 total, 4 overlapping
+A628: 4 total, 4 overlapping
+M180: 4 total, 4 overlapping
+M66: 4 total, 4 overlapping
+A19: 3 total, 3 overlapping
+A414: 3 total, 3 overlapping
+M18: 3 total, 3 overlapping
+M67: 3 total, 3 overlapping
+A160: 2 total, 2 overlapping
+A162: 2 total, 2 overlapping
+A404(M): 2 total, 2 overlapping
+A417: 2 total, 2 overlapping
+A428: 2 total, 2 overlapping
+A5036: 2 total, 2 overlapping
+A56: 2 total, 2 overlapping
+A57: 2 total, 2 overlapping
+A5758: 2 total, 2 overlapping
+A590: 2 total, 2 overlapping
+A616: 2 total, 2 overlapping
+M275: 2 total, 2 overlapping
+M32: 2 total, 2 overlapping
+M5: 2 total, 2 overlapping
+M57: 2 total, 2 overlapping
+A1: 1 total, 1 overlapping
+A12: 1 total, 1 overlapping
+A174: 1 total, 1 overlapping
+A180: 1 total, 1 overlapping
+A282: 1 total, 1 overlapping
+A31: 1 total, 1 overlapping
+A333: 1 total, 1 overlapping
+A40: 1 total, 1 overlapping
+A45: 1 total, 1 overlapping
+A49: 1 total, 1 overlapping
+A500: 1 total, 1 overlapping
+A63: 1 total, 1 overlapping
+M23: 1 total, 1 overlapping
+M271: 1 total, 1 overlapping
+M50: 1 total, 1 overlapping
+M606: 1 total, 1 overlapping
+
+======================================================================
+SAMPLE OVERLAPPING CLOSURES
+======================================================================
+
+Record 1
+--------------------------------------------------
+Situation index: 0
+Record index: 0
+Road(s): A45
+Direction(s): eastBound
+Start: 2026-08-03T08:00:00+00:00
+End: 2026-08-24T09:00:00+00:00
+Validity status: suspended
+Management type: carriagewayClosures
+Comment: A45 eastbound, East Way carriageway closure
+
+Record 2
+--------------------------------------------------
+Situation index: 1
+Record index: 0
+Road(s): M66
+Direction(s): southBound
+Start: 2026-08-10T20:00:00+00:00
+End: 2026-08-11T05:00:00+00:00
+Validity status: suspended
+Management type: carriagewayClosures
+Comment: M66 southbound jct 2 entry slip road closure 
+
+Record 3
+--------------------------------------------------
+Situation index: 1
+Record index: 1
+Road(s): M66
+Direction(s): southBound
+Start: 2026-08-11T20:00:00+00:00
+End: 2026-08-12T05:00:00+00:00
+Validity status: planned
+Management type: carriagewayClosures
+Comment: M66 southbound jct 2 entry slip road closure 
+
+Record 4
+--------------------------------------------------
+Situation index: 1
+Record index: 2
+Road(s): M66
+Direction(s): southBound
+Start: 2026-08-12T20:00:00+00:00
+End: 2026-08-13T05:00:00+00:00
+Validity status: planned
+Management type: carriagewayClosures
+Comment: M66 southbound jct 2 entry slip road closure 
+
+Record 5
+--------------------------------------------------
+Situation index: 1
+Record index: 3
+Road(s): M66
+Direction(s): southBound
+Start: 2026-08-13T20:00:00+00:00
+End: 2026-08-14T05:00:00+00:00
+Validity status: planned
+Management type: carriagewayClosures
+Comment: M66 southbound jct 2 entry slip road closure 
+
+Record 6
+--------------------------------------------------
+Situation index: 2
+Record index: 0
+Road(s): A616, A628
+Direction(s): clockwise, eastBound, westBound
+Start: 2026-08-08T05:00:00+00:00
+End: 2026-08-12T05:00:00+00:00
+Validity status: suspended
+Management type: carriagewayClosures
+Comment: A628 eastbound and westbound Flouch to Tintwistle carriageway closure
+
+Record 7
+--------------------------------------------------
+Situation index: 2
+Record index: 1
+Road(s): A628, A616
+Direction(s): eastBound, clockwise, westBound
+Start: 2026-08-08T05:00:00+00:00
+End: 2026-08-12T05:00:00+00:00
+Validity status: suspended
+Management type: carriagewayClosures
+Comment: A628 eastbound and westbound Flouch to Tintwistle carriageway closure
+
+Record 8
+--------------------------------------------------
+Situation index: 3
+Record index: 0
+Road(s): M56
+Direction(s): westBound
+Start: 2026-08-10T20:00:00+00:00
+End: 2026-08-11T04:00:00+00:00
+Validity status: suspended
+Management type: carriagewayClosures
+Comment: M56 Westbound Jct 14 entry slip road closure 
+
+Record 9
+--------------------------------------------------
+Situation index: 3
+Record index: 1
+Road(s): M56
+Direction(s): eastBound
+Start: 2026-08-10T19:00:00+00:00
+End: 2026-08-11T04:00:00+00:00
+Validity status: suspended
+Management type: other
+Comment: M56 Eastbound Lane 3 closure (MP 54/2 to 51/0) 
+
+Record 10
+--------------------------------------------------
+Situation index: 3
+Record index: 2
+Road(s): M56
+Direction(s): westBound
+Start: 2026-08-10T20:00:00+00:00
+End: 2026-08-11T04:00:00+00:00
+Validity status: suspended
+Management type: carriagewayClosures
+Comment: M56 Westbound to M53 Southbound link road closure 
+
+Record 11
+--------------------------------------------------
+Situation index: 4
+Record index: 0
+Road(s): M62
+Direction(s): eastBound
+Start: 2026-08-10T19:00:00+00:00
+End: 2026-08-11T05:00:00+00:00
+Validity status: suspended
+Management type: other
+Comment: M62 eastbound Jct 22 to Jct 23 Lane 1 closure (78/5 81/0)
+
+Record 12
+--------------------------------------------------
+Situation index: 5
+Record index: 0
+Road(s): M1
+Direction(s): southBound
+Start: 2026-08-11T21:00:00+00:00
+End: 2026-08-12T05:00:00+00:00
+Validity status: suspended
+Management type: carriagewayClosures
+Comment: M1 southbound Jct 35 to Jct 34, carriageway closure 
+
+Record 13
+--------------------------------------------------
+Situation index: 5
+Record index: 1
+Road(s): M1
+Direction(s): southBound
+Start: 2026-08-10T21:00:00+00:00
+End: 2026-08-11T05:00:00+00:00
+Validity status: suspended
+Management type: carriagewayClosures
+Comment: M1 southbound Jct 35 to Jct 34, carriageway closure 
+
+Record 14
+--------------------------------------------------
+Situation index: 5
+Record index: 2
+Road(s): M1
+Direction(s): southBound
+Start: 2026-08-11T21:00:00+00:00
+End: 2026-08-12T05:00:00+00:00
+Validity status: suspended
+Management type: carriagewayClosures
+Comment: M1 southbound Jct 35 entry slip road closure 
+
+Record 15
+--------------------------------------------------
+Situation index: 5
+Record index: 3
+Road(s): M1
+Direction(s): southBound
+Start: 2026-08-10T21:00:00+00:00
+End: 2026-08-11T05:00:00+00:00
+Validity status: suspended
+Management type: carriagewayClosures
+Comment: M1 southbound Jct 34 exit slip road closure 
+
+Record 16
+--------------------------------------------------
+Situation index: 5
+Record index: 4
+Road(s): M1
+Direction(s): southBound
+Start: 2026-08-10T21:00:00+00:00
+End: 2026-08-11T05:00:00+00:00
+Validity status: suspended
+Management type: carriagewayClosures
+Comment: M1 southbound Jct 35 entry slip road closure 
+
+Record 17
+--------------------------------------------------
+Situation index: 5
+Record index: 5
+Road(s): M1
+Direction(s): southBound
+Start: 2026-08-11T21:00:00+00:00
+End: 2026-08-12T05:00:00+00:00
+Validity status: suspended
+Management type: carriagewayClosures
+Comment: M1 southbound Jct 34 exit slip road closure 
+
+Record 18
+--------------------------------------------------
+Situation index: 5
+Record index: 6
+Road(s): M1
+Direction(s): southBound
+Start: 2026-08-11T21:00:00+00:00
+End: 2026-08-12T05:00:00+00:00
+Validity status: planned
+Management type: carriagewayClosures
+Comment: M1 southbound Jct 34 exit slip road closure 
+
+Record 19
+--------------------------------------------------
+Situation index: 5
+Record index: 7
+Road(s): M1
+Direction(s): southBound
+Start: 2026-08-10T21:00:00+00:00
+End: 2026-08-11T05:00:00+00:00
+Validity status: planned
+Management type: carriagewayClosures
+Comment: M1 southbound Jct 34 exit slip road closure 
+
+Record 20
+--------------------------------------------------
+Situation index: 6
+Record index: 0
+Road(s): A43
+Direction(s): eastBound
+Start: 2026-08-10T19:00:00+00:00
+End: 2026-08-11T05:00:00+00:00
+Validity status: suspended
+Management type: carriagewayClosures
+Comment: M1 both directions A43 roundabout to Rothersthorpe services carriageway closure
+
+======================================================================
+TARGET ROAD OVERLAPPING SAMPLES
+======================================================================
+
+M6: 27 overlapping records
+
+  Sample 1
+    Start: 2026-08-12T18:00:00+00:00
+    End: 2026-08-13T05:00:00+00:00
+    Direction: northBound
+    Comment: M6 Northbound jct 36 Lane 3 closure (401/3A to 405/0A)
+
+  Sample 2
+    Start: 2026-08-10T18:00:00+00:00
+    End: 2026-08-11T05:00:00+00:00
+    Direction: northBound
+    Comment: M6 Northbound jct 36 Lane 3 closure (MP398/6A - MP403/0A)
+
+  Sample 3
+    Start: 2026-08-11T18:00:00+00:00
+    End: 2026-08-12T05:00:00+00:00
+    Direction: northBound
+    Comment: M6 Northbound jct 36 Lane 3 closure (400/0A - MP404/0A)
+
+  Sample 4
+    Start: 2026-08-13T18:00:00+00:00
+    End: 2026-08-14T05:00:00+00:00
+    Direction: northBound
+    Comment: M6 Northbound jct 36 Lane 3 closure (402/0A to 406/0A)
+
+  Sample 5
+    Start: 2026-08-11T18:00:00+00:00
+    End: 2026-08-12T05:00:00+00:00
+    Direction: northBound
+    Comment: M6 Northbound Junction 36 to 37 lane 1 closure (413/0A to 418/1A)
+
+M57: 2 overlapping records
+
+  Sample 1
+    Start: 2026-08-13T19:00:00+00:00
+    End: 2026-08-14T04:00:00+00:00
+    Direction: northBound, westBound
+    Comment: M57 Northbound to A5036 link road closure
+
+  Sample 2
+    Start: 2026-08-14T19:00:00+00:00
+    End: 2026-08-15T04:00:00+00:00
+    Direction: northBound, westBound
+    Comment: M57 Northbound to A5036 link road closure
+
+M62: 28 overlapping records
+
+  Sample 1
+    Start: 2026-08-10T19:00:00+00:00
+    End: 2026-08-11T05:00:00+00:00
+    Direction: eastBound
+    Comment: M62 eastbound Jct 22 to Jct 23 Lane 1 closure (78/5 81/0)
+
+  Sample 2
+    Start: 2026-08-12T20:00:00+00:00
+    End: 2026-08-13T05:00:00+00:00
+    Direction: westBound
+    Comment: M62 westbound Jct 29 exit slip lane 1 closure
+
+  Sample 3
+    Start: 2026-08-13T19:00:00+00:00
+    End: 2026-08-14T05:00:00+00:00
+    Direction: eastBound
+    Comment: M62 eastbound Jct 33 exit slip lane 1 closure
+
+  Sample 4
+    Start: 2026-08-13T19:00:00+00:00
+    End: 2026-08-14T05:00:00+00:00
+    Direction: westBound
+    Comment: M62 westbound Jct 33 exit slip lane 2 closure
+
+  Sample 5
+    Start: 2026-08-12T19:00:00+00:00
+    End: 2026-08-13T05:00:00+00:00
+    Direction: eastBound
+    Comment: M62 eastbound Jct 36 to Jct 37 lane 3 and 2 closure ( 158/1 161/3)
+
+======================================================================
+RAW FIRST SITUATION RECORD
+======================================================================
+{
+  "sitRoadOrCarriagewayOrLaneManagement": {
+    "idG": "1-1784547906-35770704-bc52-4e32-822a-64a330fda8a5",
+    "versionG": "14",
+    "situationRecordCreationTime": "2026-07-19T03:29:10.10Z",
+    "situationRecordVersionTime": "2026-07-28T00:16:10.10Z",
+    "probabilityOfOccurrence": "certain",
+    "complianceOption": "mandatory",
+    "roadOrCarriagewayOrLaneManagementType": {
+      "value": "carriagewayClosures"
+    },
+    "source": {
+      "sourceIdentification": "roadworks"
+    },
+    "validity": {
+      "validityStatus": "suspended",
+      "validityTimeSpecification": {
+        "overallStartTime": "2026-08-03T08:00:00.00Z",
+        "overallEndTime": "2026-08-24T09:00:00.00Z"
+      }
+    },
+    "cause": {
+      "causeType": "constructionWork",
+      "detailedCauseType": {
+        "constructionWorkType": "roadImprovementOrUpgrading"
+      }
+    },
+    "generalPublicComment": [
+      {
+        "comment": "A45 eastbound, East Way carriageway closure"
+      }
+    ],
+    "locationReference": {
+      "locLocationGroupByList": {
+        "locationContainedInGroup": [
+          {
+            "locLinearLocation": {
+              "gmlLineString": {
+                "locGmlLineString": {
+                  "srsDimension": 2,
+                  "srsName": "EPSG::4326",
+                  "posList": "52.445727 -1.689701 52.445717 -1.68941 52.445718 -1.688906 52.445749 -1.688464 52.445794 -1.688123 52.445831 -1.687938 52.445866 -1.687858"
+                }
+              },
+              "supplementaryPositionalDescription": {
+                "locationDescription": "A45 eastbound exit for A452",
+                "carriageway": [
+                  {
+                    "carriageway": {
+                      "value": "slipRoads",
+                      "extendedValueG": ""
+                    },
+                    "carriagewayExtensionG": {
+                      "impactOnCarriageway": {
+                        "numberOfLanesRestricted": 2,
+                        "numberOfOperationalLanes": 0
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "locSingleRoadLinearLocation": {
+              "linearWithinLinearElement": [
+                {
+                  "directionOnLinearSection": "eastBound",
+                  "directionRelativeOnLinearSection": "aligned",
+                  "heightGradeOfLinearSection": {
+                    "value": "extendedG",
+                    "extendedValueG": "start1End1"
+                  },
+                  "linearElement": {
+                    "locLinearElementByCode": {
+                      "roadName": "A45",
+                      "linearElementReferenceModel": "The Network Model",
+                      "linearElementIdentifier": "{84CA1B20-E2E0-4DF7-85CD-F56B43F4A67C}",
+                      "linearElementByCodeExtensionG": {
+                        "linearElementType": "bCarriagewayExitSlip"
+                      }
+                    }
+                  },
+                  "fromPoint": {
+                    "locDistanceFromLinearElementStart": {
+                      "distanceAlong": 0.0
+                    }
+                  },
+                  "toPoint": {
+                    "locDistanceFromLinearElementStart": {
+                      "distanceAlong": 127.0
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "locLinearLocation": {
+              "gmlLineString": {
+                "locGmlLineString": {
+                  "srsDimension": 2,
+                  "srsName": "EPSG::4326",
+                  "posList": "52.445838 -1.699363 52.445951 -1.697705 52.446011 -1.696704 52.446028 -1.696336 52.446036 -1.696012 52.446036 -1.695659 52.446034 -1.695012 52.446015 -1.694526"
+                }
+              },
+              "supplementaryPositionalDescription": {
+                "locationDescription": "A45 eastbound between M42 and A452",
+                "carriageway": [
+                  {
+                    "carriageway": {
+                      "value": "extendedG",
+                      "extendedValueG": "dualCarriageway"
+                    },
+                    "carriagewayExtensionG": {
+                      "impactOnCarriageway": {
+                        "numberOfLanesRestricted": 2,
+                        "numberOfOperationalLanes": 0
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "locSingleRoadLinearLocation": {
+              "linearWithinLinearElement": [
+                {
+                  "directionOnLinearSection": "eastBound",
+                  "directionRelativeOnLinearSection": "aligned",
+                  "heightGradeOfLinearSection": {
+                    "value": "extendedG",
+                    "extendedValueG": "start2End1"
+                  },
+                  "linearElement": {
+                    "locLinearElementByCode": {
+                      "roadName": "A45",
+                      "linearElementReferenceModel": "The Network Model",
+                      "linearElementIdentifier": "{E8E9191F-1783-4CD5-AA40-2A1865FA3390}",
+                      "linearElementByCodeExtensionG": {
+                        "linearElementType": "bCarriageway"
+                      }
+                    }
+                  },
+                  "fromPoint": {
+                    "locDistanceFromLinearElementStart": {
+                      "distanceAlong": 0.0
+                    }
+                  },
+                  "toPoint": {
+                    "locDistanceFromLinearElementStart": {
+                      "distanceAlong": 329.0
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "locLinearLocation": {
+              "gmlLineString": {
+                "locGmlLineString": {
+                  "srsDimension": 2,
+                  "srsName": "EPSG::4326",
+                  "posList": "52.446015 -1.694526 52.446002 -1.693261 52.445955 -1.692452 52.445817 -1.691202 52.445773 -1.69066"
+                }
+              },
+              "supplementaryPositionalDescription": {
+                "locationDescription": "A45 eastbound exit for A452",
+                "carriageway": [
+                  {
+                    "carriageway": {
+                      "value": "slipRoads",
+                      "extendedValueG": ""
+                    },
+                    "carriagewayExtensionG": {
+                      "impactOnCarriageway": {
+                        "numberOfLanesRestricted": 2,
+                        "numberOfOperationalLanes": 0
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "locSingleRoadLinearLocation": {
+              "linearWithinLinearElement": [
+                {
+                  "directionOnLinearSection": "eastBound",
+                  "directionRelativeOnLinearSection": "aligned",
+                  "heightGradeOfLinearSection": {
+                    "value": "extendedG",
+                    "extendedValueG": "start1End1"
+                  },
+                  "linearElement": {
+                    "locLinearElementByCode": {
+                      "roadName": "A45",
+                      "linearElementReferenceModel": "The Network Model",
+                      "linearElementIdentifier": "{2073AA5F-4012-4C2F-ACF6-E8ED99C61423}",
+                      "linearElementByCodeExtensionG": {
+                        "linearElementType": "bCarriagewayExitSlip"
+                      }
+                    }
+                  },
+                  "fromPoint": {
+                    "locDistanceFromLinearElementStart": {
+                      "distanceAlong": 0.0
+                    }
+                  },
+                  "toPoint": {
+                    "locDistanceFromLinearElementStart": {
+                      "distanceAlong": 264.0
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "locLinearLocation": {
+              "gmlLineString": {
+                "locGmlLineString": {
+                  "srsDimension": 2,
+                  "srsName": "EPSG::4326",
+                  "posList": "52.446015 -1.694514 52.446002 -1.693261 52.445955 -1.692452 52.445817 -1.691202 52.445771 -1.690629 52.445743 -1.690188"
+                }
+              },
+              "supplementaryPositionalDescription": {
+                "locationDescription": "A45 eastbound exit for A452",
+                "carriageway": [
+                  {
+                    "carriageway": {
+                      "value": "slipRoads",
+                      "extendedValueG": ""
+                    },
+                    "carriagewayExtensionG": {
+                      "impactOnCarriageway": {
+                        "numberOfLanesRestricted": 2,
+                        "numberOfOperationalLanes": 0
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "locSingleRoadLinearLocation": {
+              "linearWithinLinearElement": [
+                {
+                  "directionOnLinearSection": "eastBound",
+                  "directionRelativeOnLinearSection": "aligned",
+                  "heightGradeOfLinearSection": {
+                    "value": "extendedG",
+                    "extendedValueG": "start1End1"
+                  },
+                  "linearElement": {
+                    "locLinearElementByCode": {
+                      "roadName": "A45",
+                      "linearElementReferenceModel": "The Network Model",
+                      "linearElementIdentifier": "{2073AA5F-4012-4C2F-ACF6-E8ED99C61423}",
+                      "linearElementByCodeExtensionG": {
+                        "linearElementType": "bCarriagewayExitSlip"
+                      }
+                    }
+                  },
+                  "fromPoint": {
+                    "locDistanceFromLinearElementStart": {
+                      "distanceAlong": 0.0
+                    }
+                  },
+                  "toPoint": {
+                    "locDistanceFromLinearElementStart": {
+                      "distanceAlong": 297.0
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "locLinearLocation": {
+              "gmlLineString": {
+                "locGmlLineString": {
+                  "srsDimension": 2,
+                  "srsName": "EPSG::4326",
+                  "posList": "52.445743 -1.690188 52.445729 -1.689774 52.445727 -1.689701"
+                }
+              },
+              "supplementaryPositionalDescription": {
+                "locationDescription": "A45 eastbound exit for A452",
+                "carriageway": [
+                  {
+                    "carriageway": {
+                      "value": "slipRoads",
+                      "extendedValueG": ""
+                    },
+                    "carriagewayExtensionG": {
+                      "impactOnCarriageway": {
+                        "numberOfLanesRestricted": 2,
+                        "numberOfOperationalLanes": 0
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "locSingleRoadLinearLocation": {
+              "linearWithinLinearElement": [
+                {
+                  "directionOnLinearSection": "eastBound",
+                  "directionRelativeOnLinearSection": "aligned",
+                  "heightGradeOfLinearSection": {
+                    "value": "extendedG",
+                    "extendedValueG": "start1End1"
+                  },
+                  "linearElement": {
+                    "locLinearElementByCode": {
+                      "roadName": "A45",
+                      "linearElementReferenceModel": "The Network Model",
+                      "linearElementIdentifier": "{618BD5BD-E08B-4485-97E1-BF5BC86CCA74}",
+                      "linearElementByCodeExtensionG": {
+                        "linearElementType": "bCarriagewayExitSlip"
+                      }
+                    }
+                  },
+                  "fromPoint": {
+                    "locDistanceFromLinearElementStart": {
+                      "distanceAlong": 0.0
+                    }
+                  },
+                  "toPoint": {
+                    "locDistanceFromLinearElementStart": {
+                      "distanceAlong": 33.0
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "locLinearLocation": {
+              "gmlLineString": {
+                "locGmlLineString": {
+                  "srsDimension": 2,
+                  "srsName": "EPSG::4326",
+                  "posList": "52.445691 -1.701983 52.445706 -1.701666"
+                }
+              },
+              "supplementaryPositionalDescription": {
+                "locationDescription": "A45 eastbound access from M42 J6",
+                "carriageway": [
+                  {
+                    "carriageway": {
+                      "value": "slipRoads",
+                      "extendedValueG": ""
+                    },
+                    "carriagewayExtensionG": {
+                      "impactOnCarriageway": {
+                        "numberOfLanesRestricted": 1,
+                        "numberOfOperationalLanes": 0
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            "locSingleRoadLinearLocation": {
+              "linearWithinLinearElement": [
+                {
+                  "directionOnLinearSection": "eastBound",
+                  "directionRelativeOnLinearSection": "aligned",
+                  "heightGradeOfLinearSection": {
+                    "value": "extendedG",
+                    "extendedValueG": "start1End1"
+                  },
+                  "linearElement": {
+                    "locLinearElementByCode": {
+                      "roadName": "A45",
+                      "linearElementReferenceModel": "The Network Model",
+                      "linearElementIdentifier": "{A8346EB0-E06B-6B88-4A84-62A3898250F4}",
+                      "linearElementByCodeExtensionG": {
+                        "linearElementType": "bCarriagewayEntrySlip"
+                      }
+                    }
+                  },
+                  "fromPoint": {
+                    "locDistanceFromLinearElementStart": {
+                      "distanceAlong": 167.0
+                    }
+                  },
+                  "toPoint": {
+                    "locDistanceFromLinearElementStart": {
+                      "distanceAlong": 189.0
+                    }
+                  }
+                }
+              ]
+            }
+          },
+          {
+            "locLinearLocation": {
+              "gmlLineString": {
+ 
+
+======================================================================
+TEST 4 RESULT
+======================================================================
+
+HTTP 200 records parsed: 500
+Records overlapping requested window: 500
+
+RESULT: OVERLAPPING CLOSURES WERE FOUND.
+
+The National Highways response contains closures whose validity period intersects the requested window.
+
+This supports using validity-period overlap rather than simply requiring overallStartTime to fall inside the requested window.
+
+======================================================================
+TEST COMPLETE
+======================================================================
