@@ -49,9 +49,14 @@ jobs:
 
           api_key = os.environ["NATIONAL_HIGHWAYS_API_KEY"]
 
+          if not api_key:
+              raise RuntimeError(
+                  "NATIONAL_HIGHWAYS_API_KEY is not configured."
+              )
+
           url = (
-              "https://api.data.nationalhighways.co.uk/"
-              "roads/v2.0/closures"
+              "https://api.data.nationalhighways.co.uk"
+              "/roads/v2.0/closures"
           )
 
           params = {
@@ -59,10 +64,23 @@ jobs:
               "endDateTime": END,
           }
 
+          # Use the exact authentication and DATEX II headers
+          # used by the existing working National Highways parser.
           headers = {
-              "x-api-key": api_key,
-              "Accept": "application/json",
+              "Ocp-Apim-Subscription-Key": api_key,
+              "X-Response-MediaType": "application/json",
+              "X-Data-Format": "DATEXII",
           }
+
+          print("Request URL:")
+          print(url)
+          print()
+
+          print("Request parameters:")
+          pprint(params)
+          print()
+
+          print("Sending request...")
 
           response = requests.get(
               url,
@@ -71,8 +89,17 @@ jobs:
               timeout=60,
           )
 
+          print()
           print("HTTP STATUS:", response.status_code)
           print()
+
+          if response.status_code != 200:
+              print("RESPONSE HEADERS:")
+              pprint(dict(response.headers))
+              print()
+              print("RESPONSE BODY:")
+              print(response.text[:5000])
+              print()
 
           response.raise_for_status()
 
@@ -106,13 +133,21 @@ jobs:
                   "D2Payload is not a dictionary."
               )
 
+          print("D2Payload keys:")
+          pprint(list(d2_payload.keys()))
+          print()
+
           situations = d2_payload.get(
               "situation",
               []
           )
 
+          print("Situation type:")
+          print(type(situations).__name__)
+
           print("Situation count:")
           print(len(situations))
+
           print()
 
           if not isinstance(situations, list):
@@ -121,8 +156,7 @@ jobs:
               )
 
           # ------------------------------------------------------------
-          # Inspect the first three situations and first three records
-          # from each situation.
+          # Inspect the first three situations.
           # ------------------------------------------------------------
 
           for situation_number, situation in enumerate(
@@ -131,9 +165,7 @@ jobs:
           ):
 
               print("=" * 70)
-              print(
-                  f"SITUATION {situation_number}"
-              )
+              print(f"SITUATION {situation_number}")
               print("=" * 70)
 
               if not isinstance(situation, dict):
@@ -145,10 +177,7 @@ jobs:
                   continue
 
               print("Situation keys:")
-              pprint(
-                  list(situation.keys())
-              )
-
+              pprint(list(situation.keys()))
               print()
 
               records = situation.get(
@@ -156,10 +185,11 @@ jobs:
                   []
               )
 
-              print(
-                  "situationRecord count:",
-                  len(records),
-              )
+              print("situationRecord type:")
+              print(type(records).__name__)
+
+              print("situationRecord count:")
+              print(len(records))
 
               print()
 
@@ -171,6 +201,10 @@ jobs:
                   print()
                   continue
 
+              # --------------------------------------------------------
+              # Inspect the first three records from each situation.
+              # --------------------------------------------------------
+
               for record_number, record in enumerate(
                   records[:3],
                   start=1,
@@ -178,8 +212,7 @@ jobs:
 
                   print("-" * 70)
                   print(
-                      f"RAW situationRecord "
-                      f"{record_number}"
+                      f"RAW situationRecord {record_number}"
                   )
                   print("-" * 70)
 
@@ -192,19 +225,20 @@ jobs:
                       continue
 
                   print("Record keys:")
-                  pprint(
-                      list(record.keys())
-                  )
-
+                  pprint(list(record.keys()))
                   print()
+
                   print("FULL RAW RECORD:")
                   pprint(
                       record,
                       sort_dicts=False,
                       width=160,
                   )
-
                   print()
+
+                  # ----------------------------------------------------
+                  # Inspect the structure expected by data_processor.py
+                  # ----------------------------------------------------
 
                   management = record.get(
                       "sitRoadOrCarriagewayOrLaneManagement",
@@ -212,10 +246,7 @@ jobs:
                   )
 
                   print("MANAGEMENT TYPE:")
-                  print(
-                      type(management).__name__
-                  )
-
+                  print(type(management).__name__)
                   print()
 
                   if not isinstance(
@@ -229,11 +260,12 @@ jobs:
                       continue
 
                   print("MANAGEMENT KEYS:")
-                  pprint(
-                      list(management.keys())
-                  )
-
+                  pprint(list(management.keys()))
                   print()
+
+                  # ----------------------------------------------------
+                  # VALIDITY
+                  # ----------------------------------------------------
 
                   validity = management.get(
                       "validity",
@@ -246,7 +278,6 @@ jobs:
                       sort_dicts=False,
                       width=160,
                   )
-
                   print()
 
                   if isinstance(
@@ -268,8 +299,11 @@ jobs:
                       sort_dicts=False,
                       width=160,
                   )
-
                   print()
+
+                  # ----------------------------------------------------
+                  # LOCATION
+                  # ----------------------------------------------------
 
                   location_reference = management.get(
                       "locationReference",
@@ -282,58 +316,72 @@ jobs:
                       sort_dicts=False,
                       width=160,
                   )
-
                   print()
-
-                  # Explicitly inspect the location structures that
-                  # data_processor.py currently expects.
-
-                  print(
-                      "EXPECTED LOCATION PATHS:"
-                  )
 
                   if isinstance(
                       location_reference,
                       dict,
                   ):
 
-                      single = location_reference.get(
-                          "locLinearLocation"
+                      print(
+                          "LOCATION REFERENCE KEYS:"
                       )
-
-                      grouped = (
-                          location_reference
-                          .get(
-                              "locLocationGroupByList",
-                              {},
+                      pprint(
+                          list(
+                              location_reference.keys()
                           )
                       )
+                      print()
 
                       print(
                           "locLinearLocation:"
                       )
                       pprint(
-                          single,
+                          location_reference.get(
+                              "locLinearLocation"
+                          ),
                           sort_dicts=False,
                           width=160,
                       )
-
                       print()
 
                       print(
                           "locLocationGroupByList:"
                       )
                       pprint(
-                          grouped,
+                          location_reference.get(
+                              "locLocationGroupByList"
+                          ),
                           sort_dicts=False,
                           width=160,
                       )
+                      print()
 
-                  else:
-                      print(
-                          "locationReference is not "
-                          "a dictionary."
-                      )
+                  # ----------------------------------------------------
+                  # OTHER POTENTIALLY IMPORTANT FIELDS
+                  # ----------------------------------------------------
+
+                  print(
+                      "TOP-LEVEL RECORD IDENTIFIERS:"
+                  )
+
+                  for field in (
+                      "situationRecordType",
+                      "id",
+                      "recordVersion",
+                      "recordVersionTime",
+                      "situationRecordCreationTime",
+                      "situationRecordObservationTime",
+                  ):
+                      if field in record:
+                          print(
+                              f"{field}:"
+                          )
+                          pprint(
+                              record[field],
+                              sort_dicts=False,
+                              width=160,
+                          )
 
                   print()
 
