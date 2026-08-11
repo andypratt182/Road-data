@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from datetime import datetime, timedelta
 from typing import Any
 
@@ -13,39 +14,62 @@ class NationalHighwaysRateLimitError(Exception):
     """Raised when the National Highways API rate limit is reached."""
 
 
-# National Highways appears to cap closure responses at 500 records.
-# Treat 500 as potentially truncated and split the requested window.
+# ============================================================
+# CONFIGURATION
+# ============================================================
+
+# The API returns a maximum of 500 records per request.
 MAX_RECORDS_PER_REQUEST = 500
 
-# Default collection window when the caller does not provide dates.
-DEFAULT_WINDOW_DAYS = 7
+# Normal production collection window.
+#
+# We deliberately use 24 hours rather than 7 days because the
+# API has a 500-record response limit and the API rate limit
+# means that repeatedly splitting large windows is undesirable.
+DEFAULT_WINDOW_HOURS = 24
 
-# Do not recursively split below this duration.
-MIN_WINDOW_MINUTES = 15
+# If a 24-hour window returns 500 records, split it into
+# smaller windows.
+MIN_WINDOW_MINUTES = 60
 
-# API timeout for an individual request.
+# Delay between successful API requests.
+#
+# This helps avoid repeatedly triggering the API rate limiter.
+REQUEST_DELAY_SECONDS = 5
+
+# Individual HTTP request timeout.
 REQUEST_TIMEOUT = 60
 
 
+# ============================================================
+# DATE HELPERS
+# ============================================================
+
 def _format_api_datetime(value: datetime) -> str:
     """
-    Format a datetime exactly as required by the National Highways API.
+    Format a datetime for the National Highways API.
 
-    Required format:
+    The API requires:
+
         YYYY-MM-DDThh:mm:ss
 
-    The API rejects the trailing 'Z'.
+    Do NOT append Z.
     """
 
-    return value.strftime("%Y-%m-%dT%H:%M:%S")
+    return value.strftime(
+        "%Y-%m-%dT%H:%M:%S"
+    )
 
 
 def _parse_api_datetime(value: str) -> datetime:
     """
-    Parse an API date string into a naive datetime.
+    Parse a National Highways API datetime.
 
-    National Highways date-window parameters use UTC values without
-    a timezone suffix, so the returned datetime is intentionally naive.
+    Accepts both:
+
+        YYYY-MM-DDThh:mm:ss
+
+    and timestamps ending in Z.
     """
 
     value = str(value).strip()
@@ -58,6 +82,10 @@ def _parse_api_datetime(value: str) -> datetime:
 
     return datetime.fromisoformat(value)
 
+
+# ============================================================
+# API HELPERS
+# ============================================================
 
 def _build_headers() -> dict[str, str]:
     """Build the standard National Highways API headers."""
@@ -76,10 +104,8 @@ def _request_closures(
     modified_since: str | None = None,
 ) -> list[dict[str, Any]]:
     """
-    Make one request to the National Highways closures endpoint.
-
-    This function deliberately performs only ONE API request.
-    Window splitting is handled by fetch_closures().
+    Perform exactly one request to the National Highways
+    closures endpoint.
     """
 
     url = f"{API_BASE_URL}/closures"
@@ -111,7 +137,7 @@ def _request_closures(
         )
 
         raise NationalHighwaysRateLimitError(
-            f"National Highways API rate limit reached "
+            "National Highways API rate limit reached "
             f"for {closure_type} closures. "
             f"Retry-After: "
             f"{retry_after or 'not specified'}"
@@ -124,37 +150,18 @@ def _request_closures(
     return process_payload(payload)
 
 
-def _deduplicate(
-    records: list[dict[str, Any]],
-) -> list[dict[str, Any]]:
-    """
-    Remove duplicate closure records while preserving order.
-    """
-
-    seen: set[str] = set()
-    unique: list[dict[str, Any]] = []
-
-    for record in records:
-
-        key = _record_key(record)
-
-        if key in seen:
-            continue
-
-        seen.add(key)
-        unique.append(record)
-
-    return unique
-
+# ============================================================
+# DEDUPLICATION
+# ============================================================
 
 def _record_key(
     record: dict[str, Any],
 ) -> str:
     """
-    Generate a stable identifier for a closure record.
+    Generate a stable key for a closure.
 
-    Prefer known identifiers when available. Fall back to a
-    deterministic representation of the record.
+    Prefer an API identifier where available.
+    Otherwise use the main closure fields.
     """
 
     for field in (
@@ -174,7 +181,6 @@ def _record_key(
 
             return f"{field}:{value}"
 
-    # Stable fallback using the most useful closure fields.
     parts = (
         record.get("road"),
         record.get("direction"),
@@ -191,23 +197,52 @@ def _record_key(
     )
 
 
-def _fetch_window_recursive(
+def _deduplicate(
+    records: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """
+    Remove duplicate records while preserving order.
+    """
+
+    seen: set[str] = set()
+    unique: list[dict[str, Any]] = []
+
+    for record in records:
+
+        key = _record_key(record)
+
+        if key in seen:
+            continue
+
+        seen.add(key)
+        unique.append(record)
+
+    return unique
+
+
+# ============================================================
+# CONTROLLED WINDOW FETCH
+# ============================================================
+
+def _fetch_window(
     closure_type: str,
     start: datetime,
     end: datetime,
-    depth: int = 0,
 ) -> list[dict[str, Any]]:
     """
-    Fetch one time window.
+    Fetch a bounded time window.
 
-    If the API returns MAX_RECORDS_PER_REQUEST or more records,
-    split the window into two halves and fetch each half recursively.
+    If the API returns fewer than 500 records, the response
+    is considered complete.
 
-    This protects us against the API's 500-record response cap.
+    If exactly 500 records are returned, the window is split
+    into two smaller windows.
+
+    This continues until either:
+
+    - each window returns fewer than 500 records, or
+    - the minimum window size is reached.
     """
-
-    if end <= start:
-        return []
 
     start_string = _format_api_datetime(start)
     end_string = _format_api_datetime(end)
@@ -223,15 +258,15 @@ def _fetch_window_recursive(
         end_datetime=end_string,
     )
 
-    record_count = len(records)
+    count = len(records)
 
     print(
-        f"Returned {record_count} records "
-        f"for {closure_type} window."
+        f"Returned {count} records."
     )
 
-    # Below the cap means the response is safe to keep.
-    if record_count < MAX_RECORDS_PER_REQUEST:
+    # Safe response.
+    if count < MAX_RECORDS_PER_REQUEST:
+
         return records
 
     duration = end - start
@@ -240,20 +275,17 @@ def _fetch_window_recursive(
         minutes=MIN_WINDOW_MINUTES
     )
 
-    # Safety stop. If the API is still returning 500 records
-    # at the minimum window size, we cannot safely split further.
+    # We cannot safely subdivide any further.
     if duration <= minimum_duration:
 
         print(
             "WARNING: Window reached the minimum "
             f"size of {MIN_WINDOW_MINUTES} minutes "
-            f"but still returned "
-            f"{record_count} records."
+            f"while still returning {count} records."
         )
 
         print(
-            "Keeping the response because the "
-            "window cannot safely be split further."
+            "Keeping this response."
         )
 
         return records
@@ -262,33 +294,38 @@ def _fetch_window_recursive(
         duration / 2
     )
 
-    # Make sure rounding never produces an empty window.
     if midpoint <= start or midpoint >= end:
 
         print(
-            "WARNING: Unable to split window further. "
-            "Keeping current response."
+            "WARNING: Unable to split this window."
         )
 
         return records
 
     print(
-        f"Response reached {record_count} records. "
-        "Splitting window..."
+        f"Window returned {count} records. "
+        "Splitting into two smaller windows."
     )
 
-    first_records = _fetch_window_recursive(
+    # Respect the API rate limit before making another request.
+    time.sleep(
+        REQUEST_DELAY_SECONDS
+    )
+
+    first_records = _fetch_window(
         closure_type=closure_type,
         start=start,
         end=midpoint,
-        depth=depth + 1,
     )
 
-    second_records = _fetch_window_recursive(
+    time.sleep(
+        REQUEST_DELAY_SECONDS
+    )
+
+    second_records = _fetch_window(
         closure_type=closure_type,
         start=midpoint,
         end=end,
-        depth=depth + 1,
     )
 
     combined = (
@@ -296,7 +333,9 @@ def _fetch_window_recursive(
         + second_records
     )
 
-    unique = _deduplicate(combined)
+    unique = _deduplicate(
+        combined
+    )
 
     print(
         f"Combined split windows: "
@@ -306,6 +345,10 @@ def _fetch_window_recursive(
 
     return unique
 
+
+# ============================================================
+# MAIN PUBLIC FUNCTION
+# ============================================================
 
 def fetch_closures(
     closure_type: str = "planned",
@@ -318,21 +361,26 @@ def fetch_closures(
 
     Behaviour:
 
-    1. If an explicit start/end window is supplied, fetch that window.
-    2. If no dates are supplied, automatically fetch the previous/current
-       7-day collection window.
-    3. Any response containing 500 or more records is automatically split
-       into smaller windows.
-    4. Split results are combined and deduplicated.
-    5. HTTP 429 is raised as NationalHighwaysRateLimitError.
+    1. Explicit start/end dates:
+       Fetch that requested window.
+
+    2. No dates supplied:
+       Fetch the previous/current 24-hour production window.
+
+    3. If a window returns 500 records:
+       Automatically split the window.
+
+    4. Split records are deduplicated.
+
+    5. modified_since requests retain the existing behaviour.
+
+    6. HTTP 429 raises NationalHighwaysRateLimitError.
     """
 
-    # ------------------------------------------------------------
-    # MODIFIED-SINCE REQUESTS
-    # ------------------------------------------------------------
+    # --------------------------------------------------------
+    # MODIFIED-SINCE MODE
+    # --------------------------------------------------------
 
-    # modifiedSinceDateTime is a different API query mode and should
-    # not be combined with automatic time-window splitting.
     if modified_since:
 
         return _request_closures(
@@ -342,16 +390,14 @@ def fetch_closures(
             modified_since=modified_since,
         )
 
-    # ------------------------------------------------------------
+    # --------------------------------------------------------
     # EXPLICIT DATE WINDOW
-    # ------------------------------------------------------------
+    # --------------------------------------------------------
 
     if start_datetime or end_datetime:
 
         if not start_datetime or not end_datetime:
 
-            # Preserve the existing behaviour for callers that
-            # deliberately provide only one boundary.
             return _request_closures(
                 closure_type=closure_type,
                 start_datetime=start_datetime,
@@ -373,18 +419,16 @@ def fetch_closures(
                 "start_datetime."
             )
 
-        return _fetch_window_recursive(
+        return _fetch_window(
             closure_type=closure_type,
             start=start,
             end=end,
         )
 
-    # ------------------------------------------------------------
-    # DEFAULT 7-DAY WINDOW
-    # ------------------------------------------------------------
+    # --------------------------------------------------------
+    # DEFAULT PRODUCTION WINDOW
+    # --------------------------------------------------------
 
-    # Use UTC for the API window. The API expects the date values
-    # without a timezone suffix.
     now = datetime.utcnow().replace(
         microsecond=0
     )
@@ -392,12 +436,15 @@ def fetch_closures(
     start = now
 
     end = now + timedelta(
-        days=DEFAULT_WINDOW_DAYS
+        hours=DEFAULT_WINDOW_HOURS
     )
 
     print(
-        f"No date window supplied. "
-        f"Using {DEFAULT_WINDOW_DAYS}-day window:"
+        "No date window supplied."
+    )
+
+    print(
+        f"Using {DEFAULT_WINDOW_HOURS}-hour window:"
     )
 
     print(
@@ -406,7 +453,7 @@ def fetch_closures(
         f"{_format_api_datetime(end)}"
     )
 
-    return _fetch_window_recursive(
+    return _fetch_window(
         closure_type=closure_type,
         start=start,
         end=end,
