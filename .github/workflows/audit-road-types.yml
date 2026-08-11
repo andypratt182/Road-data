@@ -166,4 +166,3 @@ jobs:
           print(f"Total 'other' records audited: {len(other_records)}")
           print("=" * 80)
           PY
-```
