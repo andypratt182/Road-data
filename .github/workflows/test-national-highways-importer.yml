@@ -3,6 +3,9 @@ name: Test National Highways Importer
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   test-national-highways-importer:
     runs-on: ubuntu-latest
@@ -10,6 +13,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -21,11 +26,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests python-dotenv
 
-      - name: Run National Highways Test 5 - raw payload inspection
+      - name: Run National Highways Test 5
         env:
           NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
         run: |
-          python - <<'PY'
+          python - <<'PY' > auditlog_test5.txt 2>&1
           from pprint import pprint
           import os
           import requests
@@ -64,8 +69,6 @@ jobs:
               "endDateTime": END,
           }
 
-          # Use the exact authentication and DATEX II headers
-          # used by the existing working National Highways parser.
           headers = {
               "Ocp-Apim-Subscription-Key": api_key,
               "X-Response-MediaType": "application/json",
@@ -81,6 +84,7 @@ jobs:
           print()
 
           print("Sending request...")
+          print()
 
           response = requests.get(
               url,
@@ -89,7 +93,6 @@ jobs:
               timeout=60,
           )
 
-          print()
           print("HTTP STATUS:", response.status_code)
           print()
 
@@ -155,10 +158,6 @@ jobs:
                   "D2Payload.situation is not a list."
               )
 
-          # ------------------------------------------------------------
-          # Inspect the first three situations.
-          # ------------------------------------------------------------
-
           for situation_number, situation in enumerate(
               situations[:3],
               start=1,
@@ -201,10 +200,6 @@ jobs:
                   print()
                   continue
 
-              # --------------------------------------------------------
-              # Inspect the first three records from each situation.
-              # --------------------------------------------------------
-
               for record_number, record in enumerate(
                   records[:3],
                   start=1,
@@ -236,10 +231,6 @@ jobs:
                   )
                   print()
 
-                  # ----------------------------------------------------
-                  # Inspect the structure expected by data_processor.py
-                  # ----------------------------------------------------
-
                   management = record.get(
                       "sitRoadOrCarriagewayOrLaneManagement",
                       {},
@@ -249,10 +240,7 @@ jobs:
                   print(type(management).__name__)
                   print()
 
-                  if not isinstance(
-                      management,
-                      dict,
-                  ):
+                  if not isinstance(management, dict):
                       print(
                           "Unexpected management structure."
                       )
@@ -262,10 +250,6 @@ jobs:
                   print("MANAGEMENT KEYS:")
                   pprint(list(management.keys()))
                   print()
-
-                  # ----------------------------------------------------
-                  # VALIDITY
-                  # ----------------------------------------------------
 
                   validity = management.get(
                       "validity",
@@ -280,10 +264,7 @@ jobs:
                   )
                   print()
 
-                  if isinstance(
-                      validity,
-                      dict,
-                  ):
+                  if isinstance(validity, dict):
                       validity_spec = validity.get(
                           "validityTimeSpecification",
                           {},
@@ -291,19 +272,13 @@ jobs:
                   else:
                       validity_spec = {}
 
-                  print(
-                      "VALIDITY TIME SPECIFICATION:"
-                  )
+                  print("VALIDITY TIME SPECIFICATION:")
                   pprint(
                       validity_spec,
                       sort_dicts=False,
                       width=160,
                   )
                   print()
-
-                  # ----------------------------------------------------
-                  # LOCATION
-                  # ----------------------------------------------------
 
                   location_reference = management.get(
                       "locationReference",
@@ -318,24 +293,13 @@ jobs:
                   )
                   print()
 
-                  if isinstance(
-                      location_reference,
-                      dict,
-                  ):
+                  if isinstance(location_reference, dict):
 
-                      print(
-                          "LOCATION REFERENCE KEYS:"
-                      )
-                      pprint(
-                          list(
-                              location_reference.keys()
-                          )
-                      )
+                      print("LOCATION REFERENCE KEYS:")
+                      pprint(list(location_reference.keys()))
                       print()
 
-                      print(
-                          "locLinearLocation:"
-                      )
+                      print("locLinearLocation:")
                       pprint(
                           location_reference.get(
                               "locLinearLocation"
@@ -345,9 +309,7 @@ jobs:
                       )
                       print()
 
-                      print(
-                          "locLocationGroupByList:"
-                      )
+                      print("locLocationGroupByList:")
                       pprint(
                           location_reference.get(
                               "locLocationGroupByList"
@@ -357,13 +319,7 @@ jobs:
                       )
                       print()
 
-                  # ----------------------------------------------------
-                  # OTHER POTENTIALLY IMPORTANT FIELDS
-                  # ----------------------------------------------------
-
-                  print(
-                      "TOP-LEVEL RECORD IDENTIFIERS:"
-                  )
+                  print("TOP-LEVEL RECORD IDENTIFIERS:")
 
                   for field in (
                       "situationRecordType",
@@ -374,9 +330,7 @@ jobs:
                       "situationRecordObservationTime",
                   ):
                       if field in record:
-                          print(
-                              f"{field}:"
-                          )
+                          print(f"{field}:")
                           pprint(
                               record[field],
                               sort_dicts=False,
@@ -389,18 +343,28 @@ jobs:
           print("TEST 5 COMPLETE")
           print("=" * 70)
           print()
-          print(
-              "Raw API structure inspected directly."
-          )
-          print(
-              "No data_processor.py processing performed."
-          )
-          print(
-              "No production importer modification performed."
-          )
-          print(
-              "No database writes performed."
-          )
+          print("Raw API structure inspected directly.")
+          print("No data_processor.py processing performed.")
+          print("No production importer modification performed.")
+          print("No database writes performed.")
           print("=" * 70)
 
           PY
+
+      - name: Display Test 5 output
+        run: |
+          cat auditlog_test5.txt
+
+      - name: Commit Test 5 audit log to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add auditlog_test5.txt
+
+          if git diff --cached --quiet; then
+            echo "No changes to auditlog_test5.txt"
+          else
+            git commit -m "Update National Highways Test 5 audit log"
+            git push origin HEAD:main
+          fi
