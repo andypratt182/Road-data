@@ -1,24 +1,25 @@
-name: Test API Full Pagination
+name: Test API Rate Limit
 
 on:
   workflow_dispatch:
 
 jobs:
-  test-api-full-pagination:
+  test-api-rate-limit:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Run controlled full-pagination audit
+      - name: Run controlled rate-limit diagnostic
         env:
           NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
         run: |
           python - <<'PY'
           import json
           import os
-          from collections import Counter
+          import time
+          from datetime import datetime, timezone
 
           import requests
 
@@ -37,7 +38,7 @@ jobs:
           start_string = "2026-08-11T00:00:00"
           end_string = "2026-08-18T23:59:59"
 
-          initial_params = {
+          params = {
               "startDateTime": start_string,
               "endDateTime": end_string,
           }
@@ -48,414 +49,201 @@ jobs:
               "X-Data-Format": "DATEXII",
           }
 
-          TARGET_ROADS = {
-              "M6",
-              "M57",
-              "M58",
-              "M62",
-          }
+          # --------------------------------------------------
+          # TEST SETTINGS
+          # --------------------------------------------------
+
+          REQUEST_LIMIT = 6
+
+          # Deliberately do NOT follow x-next.
+          #
+          # Each request is made against the SAME initial
+          # endpoint so that this test measures request
+          # throttling rather than pagination behaviour.
+          #
+          # No retry is ever attempted.
+          #
+          # A small delay is used between requests so that
+          # we can observe whether the API exposes useful
+          # rate-limit information without deliberately
+          # hammering the service.
+          DELAY_BETWEEN_REQUESTS = 5
 
           print("=" * 70)
-          print("NATIONAL HIGHWAYS TEST 7")
-          print("CONTROLLED FULL PAGINATION AUDIT")
+          print("NATIONAL HIGHWAYS TEST 8")
+          print("CONTROLLED RATE-LIMIT DIAGNOSTIC")
           print("=" * 70)
           print()
           print("PURPOSE:")
           print(
-              "Follow the official x-next pagination chain until "
-              "the API returns no further x-next URL."
+              "Determine how the National Highways API exposes "
+              "rate-limit behaviour."
           )
           print()
           print("IMPORTANT:")
-          print("closureType is intentionally NOT supplied.")
-          print("pageCursor is NEVER manually constructed.")
-          print(
-              "Every subsequent request uses the exact x-next "
-              "URL supplied by the previous response."
-          )
+          print("closureType is NOT supplied.")
+          print("x-next will NOT be followed.")
+          print("pageCursor will NOT be supplied.")
+          print("No request will be retried.")
           print()
-          print("NO RETRIES.")
-          print("NO MANUAL PAGE-CURSOR GENERATION.")
-          print("NO REQUEST SPLITTING.")
-          print("PRODUCTION WORKFLOW WILL NOT BE MODIFIED.")
+          print(
+              f"Maximum requests: {REQUEST_LIMIT}"
+          )
+          print(
+              f"Delay between requests: "
+              f"{DELAY_BETWEEN_REQUESTS} seconds"
+          )
           print()
           print("REQUEST WINDOW")
           print("-" * 70)
-          print(f"Start: {start_string}")
-          print(f"End:   {end_string}")
+          print(
+              f"Start: {start_string}"
+          )
+          print(
+              f"End:   {end_string}"
+          )
           print()
-          print("Initial parameters:")
+          print(
+              "Parameters:"
+          )
           print(
               json.dumps(
-                  initial_params,
+                  params,
                   indent=2,
               )
           )
           print()
 
           # --------------------------------------------------
-          # REQUEST COUNTER
+          # SESSION
           # --------------------------------------------------
-
-          request_count = 0
 
           session = requests.Session()
 
-          # --------------------------------------------------
-          # GLOBAL AUDIT STATE
-          # --------------------------------------------------
-
-          total_records = 0
-          total_situations = 0
-          total_response_characters = 0
-
-          page_sizes = []
-
-          all_record_ids = set()
-          duplicate_record_ids = set()
-
-          records_without_ids = 0
-
-          road_counts = Counter()
-
-          page_summaries = []
+          results = []
 
           # --------------------------------------------------
-          # DATEX II RECORD EXTRACTION
+          # HELPER
           # --------------------------------------------------
 
-          def extract_records(payload):
+          def utc_now():
 
-              records = []
-
-              if not isinstance(
-                  payload,
-                  dict,
-              ):
-                  return records
-
-              d2payload = payload.get(
-                  "D2Payload"
-              )
-
-              if not isinstance(
-                  d2payload,
-                  dict,
-              ):
-                  return records
-
-              situations = d2payload.get(
-                  "situation",
-                  [],
-              )
-
-              if not isinstance(
-                  situations,
-                  list,
-              ):
-                  return records
-
-              for situation in situations:
-
-                  if not isinstance(
-                      situation,
-                      dict,
-                  ):
-                      continue
-
-                  situation_records = situation.get(
-                      "situationRecord",
-                      [],
-                  )
-
-                  if not isinstance(
-                      situation_records,
-                      list,
-                  ):
-                      continue
-
-                  records.extend(
-                      situation_records
-                  )
-
-              return records
+              return datetime.now(
+                  timezone.utc
+              ).isoformat()
 
           # --------------------------------------------------
-          # SITUATION COUNT
+          # REQUEST LOOP
           # --------------------------------------------------
 
-          def extract_situation_count(
-              payload,
+          for request_number in range(
+              1,
+              REQUEST_LIMIT + 1,
           ):
-
-              if not isinstance(
-                  payload,
-                  dict,
-              ):
-                  return 0
-
-              d2payload = payload.get(
-                  "D2Payload"
-              )
-
-              if not isinstance(
-                  d2payload,
-                  dict,
-              ):
-                  return 0
-
-              situations = d2payload.get(
-                  "situation",
-                  [],
-              )
-
-              if isinstance(
-                  situations,
-                  list,
-              ):
-                  return len(
-                      situations
-                  )
-
-              return 0
-
-          # --------------------------------------------------
-          # CORRECT DATEX II RECORD ID
-          # --------------------------------------------------
-
-          def get_record_id(
-              record,
-          ):
-
-              if not isinstance(
-                  record,
-                  dict,
-              ):
-                  return None
-
-              # The actual ID observed in the
-              # National Highways DATEX II payload
-              # is nested inside the management object.
-
-              management = record.get(
-                  "sitRoadOrCarriagewayOrLaneManagement"
-              )
-
-              if isinstance(
-                  management,
-                  dict,
-              ):
-
-                  value = management.get(
-                      "idG"
-                  )
-
-                  if value:
-                      return str(
-                          value
-                      )
-
-              # Additional fallbacks are retained
-              # for diagnostic purposes only.
-
-              for key in (
-                  "idG",
-                  "id",
-                  "recordId",
-                  "situationRecordId",
-              ):
-
-                  value = record.get(
-                      key
-                  )
-
-                  if value:
-                      return str(
-                          value
-                      )
-
-              return None
-
-          # --------------------------------------------------
-          # ROAD EXTRACTION
-          # --------------------------------------------------
-
-          def extract_roads(
-              record,
-          ):
-
-              found = set()
-
-              if not isinstance(
-                  record,
-                  dict,
-              ):
-                  return found
-
-              def walk(
-                  obj,
-              ):
-
-                  if isinstance(
-                      obj,
-                      dict,
-                  ):
-
-                      for key, value in obj.items():
-
-                          key_lower = str(
-                              key
-                          ).lower()
-
-                          if key_lower in {
-                              "roadname",
-                              "roadnumber",
-                          }:
-
-                              if value:
-
-                                  text = str(
-                                      value
-                                  ).strip().upper()
-
-                                  text = text.replace(
-                                      " ",
-                                      "",
-                                  )
-
-                                  found.add(
-                                      text
-                                  )
-
-                          walk(
-                              value
-                          )
-
-                  elif isinstance(
-                      obj,
-                      list,
-                  ):
-
-                      for item in obj:
-
-                          walk(
-                              item
-                          )
-
-              walk(
-                  record
-              )
-
-              return found
-
-          # --------------------------------------------------
-          # PROCESS PAGE
-          # --------------------------------------------------
-
-          def process_page(
-              page_number,
-              response,
-              payload,
-          ):
-
-              global total_records
-              global total_situations
-              global total_response_characters
-              global records_without_ids
-
-              records = extract_records(
-                  payload
-              )
-
-              situation_count = (
-                  extract_situation_count(
-                      payload
-                  )
-              )
-
-              record_count = len(
-                  records
-              )
-
-              response_characters = len(
-                  response.text
-              )
-
-              total_records += (
-                  record_count
-              )
-
-              total_situations += (
-                  situation_count
-              )
-
-              total_response_characters += (
-                  response_characters
-              )
-
-              page_sizes.append(
-                  record_count
-              )
-
-              page_new_ids = 0
-              page_duplicate_ids = 0
-
-              page_target_counts = Counter()
-
-              for record in records:
-
-                  record_id = get_record_id(
-                      record
-                  )
-
-                  if record_id:
-
-                      if record_id in all_record_ids:
-
-                          duplicate_record_ids.add(
-                              record_id
-                          )
-
-                          page_duplicate_ids += 1
-
-                      else:
-
-                          all_record_ids.add(
-                              record_id
-                          )
-
-                          page_new_ids += 1
-
-                  else:
-
-                      records_without_ids += 1
-
-                  roads = extract_roads(
-                      record
-                  )
-
-                  for road in roads:
-
-                      if road in TARGET_ROADS:
-
-                          road_counts[
-                              road
-                          ] += 1
-
-                          page_target_counts[
-                              road
-                          ] += 1
-
-              next_url = response.headers.get(
-                  "x-next"
-              )
 
               print("=" * 70)
               print(
-                  f"PAGE {page_number}"
+                  f"REQUEST {request_number}"
               )
               print("=" * 70)
               print()
+
+              print(
+                  "Request URL:"
+              )
+
+              print(
+                  API_URL
+              )
+
+              print()
+
+              request_started = time.monotonic()
+
+              request_time = utc_now()
+
+              try:
+
+                  response = session.get(
+                      API_URL,
+                      params=params,
+                      headers=headers,
+                      timeout=60,
+                  )
+
+              except Exception as exc:
+
+                  elapsed = (
+                      time.monotonic()
+                      - request_started
+                  )
+
+                  print(
+                      "REQUEST EXCEPTION"
+                  )
+
+                  print(
+                      str(exc)
+                  )
+
+                  print(
+                      f"Elapsed: "
+                      f"{elapsed:.3f} seconds"
+                  )
+
+                  print()
+
+                  print(
+                      "NO RETRY WILL BE PERFORMED."
+                  )
+
+                  raise SystemExit(1)
+
+              elapsed = (
+                  time.monotonic()
+                  - request_started
+              )
+
+              # --------------------------------------------------
+              # HEADERS
+              # --------------------------------------------------
+
+              retry_after = response.headers.get(
+                  "Retry-After"
+              )
+
+              x_next = response.headers.get(
+                  "x-next"
+              )
+
+              content_type = response.headers.get(
+                  "Content-Type"
+              )
+
+              # Collect every header whose name may
+              # contain useful rate-limit information.
+
+              rate_headers = {}
+
+              for key, value in response.headers.items():
+
+                  lower_key = key.lower()
+
+                  if (
+                      "rate" in lower_key
+                      or "limit" in lower_key
+                      or "remaining" in lower_key
+                      or "retry" in lower_key
+                      or "quota" in lower_key
+                      or "reset" in lower_key
+                  ):
+
+                      rate_headers[key] = value
+
+              print(
+                  f"Timestamp: "
+                  f"{request_time}"
+              )
 
               print(
                   f"HTTP status: "
@@ -463,53 +251,34 @@ jobs:
               )
 
               print(
+                  f"Elapsed: "
+                  f"{elapsed:.3f} seconds"
+              )
+
+              print(
                   f"Response characters: "
-                  f"{response_characters}"
-              )
-
-              print(
-                  f"Situations: "
-                  f"{situation_count}"
-              )
-
-              print(
-                  f"Situation records: "
-                  f"{record_count}"
-              )
-
-              print(
-                  f"Records with usable IDs: "
-                  f"{page_new_ids}"
-              )
-
-              print(
-                  f"Duplicate IDs on this page: "
-                  f"{page_duplicate_ids}"
+                  f"{len(response.text)}"
               )
 
               print()
 
               print(
-                  "TARGET ROADS ON THIS PAGE"
+                  "Content-Type:"
               )
-              print("-" * 70)
 
-              if page_target_counts:
+              print(
+                  content_type or "not supplied"
+              )
 
-                  for road, count in sorted(
-                      page_target_counts.items()
-                  ):
+              print()
 
-                      print(
-                          f"{road}: {count}"
-                      )
+              print(
+                  "Retry-After:"
+              )
 
-              else:
-
-                  print(
-                      "No M6/M57/M58/M62 "
-                      "road fields identified."
-                  )
+              print(
+                  retry_after or "not supplied"
+              )
 
               print()
 
@@ -517,10 +286,10 @@ jobs:
                   "x-next:"
               )
 
-              if next_url:
+              if x_next:
 
                   print(
-                      next_url
+                      x_next
                   )
 
               else:
@@ -531,85 +300,53 @@ jobs:
 
               print()
 
-              page_summaries.append(
-                  {
-                      "page": page_number,
-                      "records": record_count,
-                      "situations": situation_count,
-                      "characters": response_characters,
-                      "new_ids": page_new_ids,
-                      "duplicate_ids": page_duplicate_ids,
-                      "target_roads": dict(
-                          page_target_counts
-                      ),
-                      "has_next": bool(
-                          next_url
-                      ),
-                  }
+              print(
+                  "RATE-LIMIT RELATED HEADERS"
               )
+              print("-" * 70)
 
-              return next_url
+              if rate_headers:
 
-          # ==================================================
-          # PAGINATION LOOP
-          # ==================================================
+                  for key, value in sorted(
+                      rate_headers.items()
+                  ):
 
-          next_url = None
-          page_number = 1
-
-          while True:
-
-              # --------------------------------------------------
-              # REQUEST URL
-              # --------------------------------------------------
-
-              if page_number == 1:
-
-                  request_url = API_URL
-                  request_kwargs = {
-                      "params": initial_params,
-                  }
+                      print(
+                          f"{key}: {value}"
+                      )
 
               else:
 
-                  # IMPORTANT:
-                  # Use the exact URL returned by x-next.
-                  # Do not reconstruct the cursor.
-
-                  request_url = next_url
-                  request_kwargs = {}
-
-              print("=" * 70)
-              print(
-                  f"REQUEST {request_count + 1}"
-              )
-              print("=" * 70)
-              print()
-
-              print(
-                  "Request URL:"
-              )
-              print(
-                  request_url
-              )
+                  print(
+                      "No rate-limit-specific "
+                      "headers identified."
+                  )
 
               print()
 
-              request_count += 1
+              # --------------------------------------------------
+              # SAVE RESULT
+              # --------------------------------------------------
 
-              response = session.get(
-                  request_url,
-                  headers=headers,
-                  timeout=60,
-                  **request_kwargs,
+              results.append(
+                  {
+                      "request": request_number,
+                      "timestamp": request_time,
+                      "status": response.status_code,
+                      "elapsed_seconds": round(
+                          elapsed,
+                          3,
+                      ),
+                      "response_characters": len(
+                          response.text
+                      ),
+                      "retry_after": retry_after,
+                      "x_next": bool(
+                          x_next
+                      ),
+                      "rate_headers": rate_headers,
+                  }
               )
-
-              print(
-                  f"Request count: "
-                  f"{request_count}"
-              )
-
-              print()
 
               # --------------------------------------------------
               # RATE LIMIT
@@ -618,8 +355,14 @@ jobs:
               if response.status_code == 429:
 
                   print("=" * 70)
-                  print("RATE LIMIT RECEIVED")
+                  print("RATE LIMIT DETECTED")
                   print("=" * 70)
+                  print()
+
+                  print(
+                      "The API returned HTTP 429."
+                  )
+
                   print()
 
                   print(
@@ -627,26 +370,23 @@ jobs:
                   )
 
                   print(
-                      response.headers.get(
-                          "Retry-After",
-                          "not supplied",
-                      )
+                      retry_after or "not supplied"
                   )
 
                   print()
 
                   print(
-                      "NO RETRY WILL BE PERFORMED."
+                      "The request will NOT be retried."
                   )
 
                   print(
-                      "Pagination audit stopped."
+                      "The diagnostic will stop immediately."
                   )
 
-                  raise SystemExit(1)
+                  break
 
               # --------------------------------------------------
-              # HTTP ERROR
+              # OTHER HTTP ERROR
               # --------------------------------------------------
 
               if response.status_code != 200:
@@ -655,17 +395,6 @@ jobs:
                   print("HTTP ERROR")
                   print("=" * 70)
                   print()
-
-                  print(
-                      f"Status: "
-                      f"{response.status_code}"
-                  )
-
-                  print()
-
-                  print(
-                      "Response:"
-                  )
 
                   print(
                       response.text[:5000]
@@ -677,350 +406,327 @@ jobs:
                       "NO RETRY WILL BE PERFORMED."
                   )
 
-                  print(
-                      "Pagination audit stopped."
-                  )
-
-                  raise SystemExit(1)
+                  break
 
               # --------------------------------------------------
-              # JSON PARSE
+              # OPTIONAL RESPONSE VALIDATION
               # --------------------------------------------------
 
               try:
 
                   payload = response.json()
 
-              except Exception as exc:
+                  d2payload = (
+                      payload.get(
+                          "D2Payload"
+                      )
+                      if isinstance(
+                          payload,
+                          dict,
+                      )
+                      else None
+                  )
 
-                  print("=" * 70)
-                  print("JSON PARSE ERROR")
-                  print("=" * 70)
-                  print()
+                  if isinstance(
+                      d2payload,
+                      dict,
+                  ):
+
+                      situations = (
+                          d2payload.get(
+                              "situation",
+                              [],
+                          )
+                      )
+
+                      if isinstance(
+                          situations,
+                          list,
+                      ):
+
+                          record_count = 0
+
+                          for situation in situations:
+
+                              if not isinstance(
+                                  situation,
+                                  dict,
+                              ):
+                                  continue
+
+                              records = (
+                                  situation.get(
+                                      "situationRecord",
+                                      [],
+                                  )
+                              )
+
+                              if isinstance(
+                                  records,
+                                  list,
+                              ):
+
+                                  record_count += len(
+                                      records
+                                  )
+
+                          print(
+                              f"Situation records: "
+                              f"{record_count}"
+                          )
+
+                          print()
+
+              except Exception:
 
                   print(
-                      exc
+                      "Response JSON could not "
+                      "be structurally inspected."
                   )
 
                   print()
 
+              # --------------------------------------------------
+              # DELAY
+              # --------------------------------------------------
+
+              if request_number < REQUEST_LIMIT:
+
                   print(
-                      "NO RETRY WILL BE PERFORMED."
+                      f"Waiting "
+                      f"{DELAY_BETWEEN_REQUESTS} "
+                      "seconds before next request..."
                   )
 
-                  raise SystemExit(1)
+                  print()
 
-              # --------------------------------------------------
-              # PROCESS PAGE
-              # --------------------------------------------------
-
-              next_url = process_page(
-                  page_number,
-                  response,
-                  payload,
-              )
-
-              # --------------------------------------------------
-              # STOP WHEN NO x-next
-              # --------------------------------------------------
-
-              if not next_url:
-
-                  break
-
-              page_number += 1
+                  time.sleep(
+                      DELAY_BETWEEN_REQUESTS
+                  )
 
           # ==================================================
-          # FINAL AUDIT
+          # FINAL SUMMARY
           # ==================================================
 
           print("=" * 70)
-          print("FULL PAGINATION AUDIT RESULT")
+          print("TEST 8 RESULT")
           print("=" * 70)
           print()
 
           print(
-              f"Pages retrieved: "
-              f"{len(page_summaries)}"
-          )
-
-          print(
-              f"API requests made: "
-              f"{request_count}"
-          )
-
-          print(
-              f"Total situations: "
-              f"{total_situations}"
-          )
-
-          print(
-              f"Total situation records: "
-              f"{total_records}"
-          )
-
-          print(
-              f"Total response characters: "
-              f"{total_response_characters}"
+              f"Requests attempted: "
+              f"{len(results)}"
           )
 
           print()
 
-          # --------------------------------------------------
-          # PAGE SIZE SUMMARY
-          # --------------------------------------------------
-
           print(
-              "PAGE SIZES"
+              "REQUEST SUMMARY"
           )
           print("-" * 70)
 
-          for index, size in enumerate(
-              page_sizes,
-              start=1,
-          ):
+          for result in results:
 
               print(
-                  f"Page {index}: "
-                  f"{size}"
-              )
-
-          print()
-
-          if page_sizes:
-
-              full_500_pages = sum(
-                  1
-                  for size in page_sizes
-                  if size == 500
-              )
-
-              final_page_size = page_sizes[-1]
-
-              print(
-                  f"Pages containing exactly "
-                  f"500 records: "
-                  f"{full_500_pages}"
-              )
-
-              print(
-                  f"Final page size: "
-                  f"{final_page_size}"
-              )
-
-          print()
-
-          # --------------------------------------------------
-          # ID AUDIT
-          # --------------------------------------------------
-
-          print(
-              "RECORD ID AUDIT"
-          )
-          print("-" * 70)
-
-          print(
-              f"Unique record IDs: "
-              f"{len(all_record_ids)}"
-          )
-
-          print(
-              f"Records without usable IDs: "
-              f"{records_without_ids}"
-          )
-
-          print(
-              f"Duplicate IDs across pages: "
-              f"{len(duplicate_record_ids)}"
-          )
-
-          if duplicate_record_ids:
-
-              print()
-
-              print(
-                  "First duplicate IDs:"
-              )
-
-              for record_id in sorted(
-                  duplicate_record_ids
-              )[:25]:
-
-                  print(
-                      f"- {record_id}"
-                  )
-
-          print()
-
-          # --------------------------------------------------
-          # TARGET ROAD SUMMARY
-          # --------------------------------------------------
-
-          print(
-              "TARGET ROAD SUMMARY"
-          )
-          print("-" * 70)
-
-          for road in sorted(
-              TARGET_ROADS
-          ):
-
-              print(
-                  f"{road}: "
-                  f"{road_counts.get(road, 0)}"
-              )
-
-          print()
-
-          # --------------------------------------------------
-          # PAGE SUMMARY TABLE
-          # --------------------------------------------------
-
-          print(
-              "PAGE SUMMARY"
-          )
-          print("-" * 70)
-
-          for summary in page_summaries:
-
-              roads = summary[
-                  "target_roads"
-              ]
-
-              road_text = ", ".join(
-                  f"{road}={count}"
-                  for road, count
-                  in sorted(
-                      roads.items()
-                  )
-              )
-
-              if not road_text:
-
-                  road_text = "none"
-
-              print(
-                  f"Page {summary['page']}: "
-                  f"{summary['records']} records, "
-                  f"{summary['new_ids']} new IDs, "
-                  f"{summary['duplicate_ids']} duplicates, "
-                  f"targets={road_text}, "
+                  f"Request {result['request']}: "
+                  f"HTTP {result['status']}, "
+                  f"{result['elapsed_seconds']:.3f}s, "
+                  f"{result['response_characters']} chars, "
+                  f"Retry-After="
+                  f"{result['retry_after'] or 'none'}, "
                   f"x-next="
-                  f"{summary['has_next']}"
+                  f"{'YES' if result['x_next'] else 'NO'}"
               )
 
           print()
 
-          # ==================================================
-          # FINAL CONCLUSION
-          # ==================================================
+          # --------------------------------------------------
+          # RETRY-AFTER SUMMARY
+          # --------------------------------------------------
 
-          print("=" * 70)
-          print("TEST 7 CONCLUSION")
-          print("=" * 70)
-          print()
+          retry_values = [
+              result["retry_after"]
+              for result in results
+              if result["retry_after"]
+          ]
 
-          if (
-              len(page_summaries) > 1
-              and not duplicate_record_ids
-          ):
+          print(
+              "RETRY-AFTER VALUES OBSERVED"
+          )
+          print("-" * 70)
 
-              print(
-                  "RESULT: FULL PAGINATION "
-                  "CHAIN SUCCESSFULLY TRAVERSED."
-              )
+          if retry_values:
 
-              print()
+              for value in retry_values:
 
-              print(
-                  "The API returned multiple pages "
-                  "and each subsequent page was obtained "
-                  "from the x-next URL supplied by the "
-                  "previous page."
-              )
-
-              print()
-
-              print(
-                  "No duplicate record IDs were detected "
-                  "across the retrieved pages."
-              )
-
-          elif len(page_summaries) == 1:
-
-              print(
-                  "RESULT: ONLY ONE PAGE WAS RETURNED."
-              )
-
-              print(
-                  "No x-next continuation was supplied."
-              )
+                  print(
+                      value
+                  )
 
           else:
 
               print(
-                  "RESULT: PAGINATION COMPLETED "
-                  "BUT DUPLICATE RECORD IDs WERE "
-                  "DETECTED."
+                  "None observed."
+              )
+
+          print()
+
+          # --------------------------------------------------
+          # RATE HEADER SUMMARY
+          # --------------------------------------------------
+
+          print(
+              "RATE-LIMIT HEADERS OBSERVED"
+          )
+          print("-" * 70)
+
+          combined_headers = {}
+
+          for result in results:
+
+              for key, value in result[
+                  "rate_headers"
+              ].items():
+
+                  combined_headers.setdefault(
+                      key,
+                      set(),
+                  ).add(
+                      value
+                  )
+
+          if combined_headers:
+
+              for key in sorted(
+                  combined_headers
+              ):
+
+                  values = sorted(
+                      combined_headers[key]
+                  )
+
+                  print(
+                      f"{key}:"
+                  )
+
+                  for value in values:
+
+                      print(
+                          f"  {value}"
+                      )
+
+          else:
+
+              print(
+                  "No dedicated rate-limit "
+                  "headers observed."
+              )
+
+          print()
+
+          # --------------------------------------------------
+          # CONCLUSION
+          # --------------------------------------------------
+
+          print("=" * 70)
+          print("TEST 8 CONCLUSION")
+          print("=" * 70)
+          print()
+
+          rate_limited = any(
+              result["status"] == 429
+              for result in results
+          )
+
+          if rate_limited:
+
+              print(
+                  "RESULT: RATE LIMIT CONFIRMED."
+              )
+
+              print()
+
+              print(
+                  "The API returned HTTP 429 "
+                  "during the controlled request sequence."
+              )
+
+              print()
+
+              if retry_values:
+
+                  print(
+                      "The API supplied Retry-After "
+                      "information."
+                  )
+
+                  print(
+                      "Production pagination should "
+                      "honour that value rather than "
+                      "using an arbitrary retry delay."
+                  )
+
+              else:
+
+                  print(
+                      "No Retry-After value was "
+                      "observed in this sequence."
+                  )
+
+          else:
+
+              print(
+                  "RESULT: RATE LIMIT NOT REACHED "
+                  "WITHIN THIS CONTROLLED TEST."
+              )
+
+              print()
+
+              print(
+                  f"{len(results)} requests completed "
+                  "without HTTP 429."
               )
 
               print(
-                  "Further investigation is required "
-                  "before production pagination is enabled."
+                  "This does NOT prove that pagination "
+                  "has no rate limit."
+              )
+
+              print(
+                  "It only establishes that the "
+                  "controlled request pattern did not "
+                  "trigger one."
               )
 
           print()
 
           print(
-              "PAGINATION RULE CONFIRMED:"
+              "IMPORTANT:"
           )
 
           print(
-              "1. First request uses the normal "
-              "/closures endpoint."
+              "x-next was deliberately NOT followed."
           )
 
           print(
-              "2. Read x-next from the response headers."
+              "pageCursor was NOT supplied."
           )
 
           print(
-              "3. Follow the exact x-next URL."
+              "No retries were performed."
           )
 
           print(
-              "4. Repeat until x-next is absent."
+              "No request splitting was performed."
           )
 
           print(
-              "5. Never manually construct pageCursor."
-          )
-
-          print()
-
-          print(
-              f"TOTAL API REQUESTS: "
-              f"{request_count}"
-          )
-
-          print(
-              "NO RETRIES."
-          )
-
-          print(
-              "NO MANUAL PAGE-CURSOR GENERATION."
-          )
-
-          print(
-              "NO REQUEST SPLITTING."
-          )
-
-          print(
-              "PRODUCTION WORKFLOW WAS NOT MODIFIED."
+              "Production workflow was not modified."
           )
 
           print()
+
           print(
-              "TEST 7 COMPLETE."
+              "TEST 8 COMPLETE."
           )
           PY
