@@ -2,7 +2,7 @@ name: Update Road Data
 
 on:
   schedule:
-    - cron: "*/10 * * * *"
+    - cron: "0 * * * *"
   workflow_dispatch:
 
 permissions:
@@ -27,6 +27,8 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Fetch road data
+        id: fetch
+        continue-on-error: true
         env:
           NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
         run: |
@@ -34,43 +36,65 @@ jobs:
           import json
           from datetime import datetime, timezone
 
-          from fetch_closures import fetch_closures
+          from fetch_closures import (
+              fetch_closures,
+              NationalHighwaysRateLimitError,
+          )
 
-          planned = fetch_closures(closure_type="planned")
-          unplanned = fetch_closures(closure_type="unplanned")
-
-          closures = planned + unplanned
-
-          output = {
-              "updated": datetime.now(timezone.utc).isoformat(),
-              "closures": closures,
-          }
-
-          with open("data/road_data.json", "w", encoding="utf-8") as file:
-              json.dump(
-                  output,
-                  file,
-                  indent=2,
-                  ensure_ascii=False,
+          try:
+              print("Fetching planned closures...")
+              planned = fetch_closures(
+                  closure_type="planned"
               )
 
-          print(f"Written {len(closures)} closures")
-          print(f"Updated: {output['updated']}")
+              print("Fetching unplanned closures...")
+              unplanned = fetch_closures(
+                  closure_type="unplanned"
+              )
+
+              closures = planned + unplanned
+
+              output = {
+                  "updated": datetime.now(
+                      timezone.utc
+                  ).isoformat(),
+                  "closures": closures,
+              }
+
+              with open(
+                  "data/road_data.json",
+                  "w",
+                  encoding="utf-8",
+              ) as file:
+                  json.dump(
+                      output,
+                      file,
+                      indent=2,
+                      ensure_ascii=False,
+                  )
+
+              print(
+                  f"Written {len(closures)} closures"
+              )
+              print(
+                  f"Planned: {len(planned)}"
+              )
+              print(
+                  f"Unplanned: {len(unplanned)}"
+              )
+
+          except NationalHighwaysRateLimitError as exc:
+              print(f"WARNING: {exc}")
+              print(
+                  "Keeping the existing road data."
+              )
+
           PY
 
       - name: Generate website
         run: python build_site.py
-      
-      - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: site
 
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-      - name: Commit updated road data
+      - name: Commit updated data and website
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -83,3 +107,12 @@ jobs:
             git commit -m "Update road closure data"
             git push
           fi
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
