@@ -1,4 +1,4 @@
-name: Test National Highways API Window Limits
+name: Diagnose National Highways API Date Filters
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 jobs:
-  compare-windows:
+  diagnose-api:
     runs-on: ubuntu-latest
 
     steps:
@@ -24,219 +24,308 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Compare 7-day and two 3.5-day windows
+      - name: Test API date parameters
         env:
           NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
         run: |
           python - <<'PY'
+          import os
           import json
           from datetime import datetime, timedelta, timezone
 
-          from fetch_closures import fetch_closures
+          import requests
 
-          UTC = timezone.utc
+          API_BASE_URL = (
+              "https://api.data.nationalhighways.co.uk"
+              "/roads/v2.0"
+          )
 
-          now = datetime.now(UTC).replace(microsecond=0)
-          seven_days = now + timedelta(days=7)
-          midpoint = now + timedelta(days=3, hours=12)
+          API_KEY = os.environ["NATIONAL_HIGHWAYS_API_KEY"]
 
-          def iso(dt):
-              return dt.isoformat().replace("+00:00", "Z")
-
-          def fingerprint(record):
-              return json.dumps(
-                  record,
-                  sort_keys=True,
-                  ensure_ascii=False,
-              )
-
-          windows = {
-              "7-day": (now, seven_days),
-              "first-3.5-day": (now, midpoint),
-              "second-3.5-day": (midpoint, seven_days),
+          headers = {
+              "Ocp-Apim-Subscription-Key": API_KEY,
+              "X-Response-MediaType": "application/json",
+              "X-Data-Format": "DATEXII",
           }
 
-          results = {}
+          now = datetime.now(
+              timezone.utc
+          ).replace(microsecond=0)
 
-          for closure_type in ("planned", "unplanned"):
+          seven_days = now + timedelta(days=7)
+
+          def iso(dt):
+              return dt.isoformat().replace(
+                  "+00:00",
+                  "Z",
+              )
+
+          start = iso(now)
+          end = iso(seven_days)
+
+          tests = [
+              (
+                  "1 - Planned only",
+                  {
+                      "closureType": "planned",
+                  },
+              ),
+              (
+                  "2 - Unplanned only",
+                  {
+                      "closureType": "unplanned",
+                  },
+              ),
+              (
+                  "3 - Planned + startDateTime",
+                  {
+                      "closureType": "planned",
+                      "startDateTime": start,
+                  },
+              ),
+              (
+                  "4 - Planned + endDateTime",
+                  {
+                      "closureType": "planned",
+                      "endDateTime": end,
+                  },
+              ),
+              (
+                  "5 - Planned + start + end",
+                  {
+                      "closureType": "planned",
+                      "startDateTime": start,
+                      "endDateTime": end,
+                  },
+              ),
+              (
+                  "6 - Unplanned + start + end",
+                  {
+                      "closureType": "unplanned",
+                      "startDateTime": start,
+                      "endDateTime": end,
+                  },
+              ),
+          ]
+
+          print("=" * 80)
+          print("NATIONAL HIGHWAYS API DATE FILTER DIAGNOSTIC")
+          print("=" * 80)
+
+          print()
+          print(f"Test start: {start}")
+          print(f"Seven days: {end}")
+          print()
+
+          results = []
+
+          for name, params in tests:
+
+              print("=" * 80)
+              print(name)
+              print("=" * 80)
 
               print()
-              print("=" * 70)
-              print(f"CLOSURE TYPE: {closure_type.upper()}")
-              print("=" * 70)
+              print("Parameters:")
+              print(
+                  json.dumps(
+                      params,
+                      indent=2,
+                  )
+              )
 
-              for name, (start, end) in windows.items():
+              try:
+
+                  response = requests.get(
+                      f"{API_BASE_URL}/closures",
+                      params=params,
+                      headers=headers,
+                      timeout=60,
+                  )
 
                   print()
-                  print(name)
-                  print(f"  Start: {iso(start)}")
-                  print(f"  End:   {iso(end)}")
-
-                  records = fetch_closures(
-                      closure_type=closure_type,
-                      start_datetime=iso(start),
-                      end_datetime=iso(end),
+                  print(
+                      f"HTTP status: "
+                      f"{response.status_code}"
                   )
 
-                  results[
-                      (closure_type, name)
-                  ] = records
-
+                  print()
                   print(
-                      f"  Records returned: {len(records)}"
-                  )
-
-              full = results[
-                  (closure_type, "7-day")
-              ]
-
-              first = results[
-                  (closure_type, "first-3.5-day")
-              ]
-
-              second = results[
-                  (closure_type, "second-3.5-day")
-              ]
-
-              full_set = {
-                  fingerprint(record)
-                  for record in full
-              }
-
-              first_set = {
-                  fingerprint(record)
-                  for record in first
-              }
-
-              second_set = {
-                  fingerprint(record)
-                  for record in second
-              }
-
-              split_union = (
-                  first_set | second_set
-              )
-
-              overlap = (
-                  first_set & second_set
-              )
-
-              only_in_full = (
-                  full_set - split_union
-              )
-
-              only_in_split = (
-                  split_union - full_set
-              )
-
-              print()
-              print("COMPARISON")
-              print("-" * 70)
-
-              print(
-                  f"  7-day result:           {len(full_set)}"
-              )
-
-              print(
-                  f"  First 3.5-day result:   {len(first_set)}"
-              )
-
-              print(
-                  f"  Second 3.5-day result:  {len(second_set)}"
-              )
-
-              print(
-                  f"  Split union:             {len(split_union)}"
-              )
-
-              print(
-                  f"  Split overlap:           {len(overlap)}"
-              )
-
-              print(
-                  f"  Split total:             "
-                  f"{len(first_set) + len(second_set)}"
-              )
-
-              print(
-                  f"  Only in 7-day request:   "
-                  f"{len(only_in_full)}"
-              )
-
-              print(
-                  f"  Only in split requests:  "
-                  f"{len(only_in_split)}"
-              )
-
-              print()
-
-              if (
-                  len(full_set) == 500
-                  and len(split_union) > 500
-              ):
-                  print(
-                      "RESULT: STRONG EVIDENCE OF A "
-                      "500-RECORD CAP."
+                      f"Final URL:"
                   )
 
                   print(
-                      "The 7-day request reached exactly "
-                      "500 records, while the split "
-                      "requests retrieved more unique "
-                      "records."
+                      response.url
                   )
 
-              elif len(full_set) < 500:
-
+                  print()
                   print(
-                      "RESULT: 7-day request did not "
-                      "hit 500 records."
+                      "Response headers:"
+                  )
+
+                  for key, value in response.headers.items():
+
+                      if key.lower() in {
+                          "content-type",
+                          "retry-after",
+                          "x-ratelimit-limit",
+                          "x-ratelimit-remaining",
+                          "x-ratelimit-reset",
+                      }:
+
+                          print(
+                              f"  {key}: {value}"
+                          )
+
+                  print()
+                  print(
+                      "Response body:"
+                  )
+
+                  body = response.text
+
+                  if len(body) > 5000:
+                      body = (
+                          body[:5000]
+                          + "\n...[truncated]"
+                      )
+
+                  print(body)
+
+                  record_count = None
+
+                  if response.ok:
+
+                      try:
+
+                          payload = (
+                              response.json()
+                          )
+
+                          if isinstance(
+                              payload,
+                              list,
+                          ):
+                              record_count = (
+                                  len(payload)
+                              )
+
+                          elif isinstance(
+                              payload,
+                              dict,
+                          ):
+
+                              for key in (
+                                  "closures",
+                                  "results",
+                                  "items",
+                                  "value",
+                                  "data",
+                              ):
+
+                                  value = (
+                                      payload.get(
+                                          key
+                                      )
+                                  )
+
+                                  if isinstance(
+                                      value,
+                                      list,
+                                  ):
+
+                                      record_count = (
+                                          len(value)
+                                      )
+
+                                      break
+
+                          if record_count is not None:
+
+                              print()
+                              print(
+                                  "Records returned: "
+                                  f"{record_count}"
+                              )
+
+                      except Exception as exc:
+
+                          print()
+                          print(
+                              "Could not determine "
+                              "record count:"
+                          )
+
+                          print(exc)
+
+                  results.append(
+                      {
+                          "name": name,
+                          "status": response.status_code,
+                          "url": response.url,
+                          "record_count": record_count,
+                      }
+                  )
+
+              except Exception as exc:
+
+                  print()
+                  print(
+                      "REQUEST ERROR:"
                   )
 
                   print(
-                      "No 500-record cap was demonstrated "
-                      "for this closure type."
+                      repr(exc)
                   )
 
-              elif (
-                  len(full_set) == len(split_union)
-                  and full_set == split_union
-              ):
-
-                  print(
-                      "RESULT: 7-day and split requests "
-                      "returned the same records."
-                  )
-
-                  print(
-                      "No evidence of record loss from "
-                      "the 7-day request."
-                  )
-
-              else:
-
-                  print(
-                      "RESULT: DIFFERENCE DETECTED."
-                  )
-
-                  print(
-                      "The split requests returned a "
-                      "different record set from the "
-                      "single 7-day request."
+                  results.append(
+                      {
+                          "name": name,
+                          "status": "request-error",
+                          "error": repr(exc),
+                      }
                   )
 
           print()
-          print("=" * 70)
-          print("TEST COMPLETE")
-          print("=" * 70)
+          print()
+          print("=" * 80)
+          print("SUMMARY")
+          print("=" * 80)
+
+          for result in results:
+
+              print()
+
+              print(
+                  f"{result['name']}"
+              )
+
+              print(
+                  f"  HTTP status: "
+                  f"{result['status']}"
+              )
+
+              if result.get(
+                  "record_count"
+              ) is not None:
+
+                  print(
+                      f"  Records: "
+                      f"{result['record_count']}"
+                  )
+
+          print()
+          print("=" * 80)
+          print("DIAGNOSTIC COMPLETE")
+          print("=" * 80)
+
           print()
           print(
-              "The production update-road-data workflow "
-              "was not modified."
+              "This workflow is diagnostic only."
           )
+
           print(
-              "This workflow only runs when manually "
-              "dispatched."
+              "The production road-data workflow "
+              "has not been modified."
           )
           PY
-          
