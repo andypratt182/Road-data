@@ -21,8 +21,6 @@ class NationalHighwaysRateLimitError(Exception):
 
 DEFAULT_WINDOW_HOURS = 24
 
-MIN_WINDOW_MINUTES = 60
-
 # Delay between successful paginated requests.
 REQUEST_DELAY_SECONDS = 5
 
@@ -59,6 +57,53 @@ def _parse_api_datetime(value: str) -> datetime:
         value = value[:-6]
 
     return datetime.fromisoformat(value)
+
+
+# ============================================================
+# JSON-SAFE OUTPUT
+# ============================================================
+
+def _make_json_safe(value: Any) -> Any:
+    """
+    Convert datetime values contained in processed records
+    into JSON-safe ISO-8601 strings.
+
+    Other values and the existing record structure are preserved.
+    """
+
+    if isinstance(value, datetime):
+        return value.isoformat()
+
+    if isinstance(value, dict):
+        return {
+            key: _make_json_safe(item)
+            for key, item in value.items()
+        }
+
+    if isinstance(value, list):
+        return [
+            _make_json_safe(item)
+            for item in value
+        ]
+
+    if isinstance(value, tuple):
+        return [
+            _make_json_safe(item)
+            for item in value
+        ]
+
+    return value
+
+
+def _make_records_json_safe(
+    records: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Make processed records safe for JSON serialization."""
+
+    return [
+        _make_json_safe(record)
+        for record in records
+    ]
 
 
 # ============================================================
@@ -153,7 +198,7 @@ def _request_closures(
         #
         # IMPORTANT:
         # We do NOT advance to the next page when a 429 occurs.
-        # We retry the exact same URL.
+        # We retry the exact same page.
         # ----------------------------------------------------
 
         rate_limit_retry = 0
@@ -240,7 +285,7 @@ def _request_closures(
         # ----------------------------------------------------
         # EXISTING PRODUCTION PARSER.
         #
-        # Do not alter the payload or replace the parser.
+        # Every page continues through process_payload().
         # ----------------------------------------------------
 
         page_records = process_payload(
@@ -310,6 +355,14 @@ def _request_closures(
 
     unique_records = _deduplicate(
         all_records
+    )
+
+    # ========================================================
+    # JSON-SAFE CONVERSION
+    # ========================================================
+
+    unique_records = _make_records_json_safe(
+        unique_records
     )
 
     print(
@@ -423,7 +476,10 @@ def _fetch_window(
     """
     Fetch a bounded time window.
 
-    If the API returns 500 records, split the window.
+    Pagination through x-next is responsible for retrieving
+    all records within the requested window.
+
+    No date-window splitting is performed.
     """
 
     start_string = _format_api_datetime(
@@ -445,89 +501,11 @@ def _fetch_window(
         end_datetime=end_string,
     )
 
-    count = len(
-        records
-    )
-
     print(
-        f"Returned {count} records."
+        f"Returned {len(records)} records."
     )
 
     return records
-
-    duration = end - start
-
-    minimum_duration = timedelta(
-        minutes=MIN_WINDOW_MINUTES
-    )
-
-    if duration <= minimum_duration:
-
-        print(
-            "WARNING: Window reached the minimum "
-            f"size of {MIN_WINDOW_MINUTES} minutes "
-            f"while still returning {count} records."
-        )
-
-        print(
-            "Keeping this response."
-        )
-
-        return records
-
-    midpoint = start + (
-        duration / 2
-    )
-
-    if midpoint <= start or midpoint >= end:
-
-        print(
-            "WARNING: Unable to split this window."
-        )
-
-        return records
-
-    print(
-        f"Window returned {count} records. "
-        "Splitting into two smaller windows."
-    )
-
-    time.sleep(
-        REQUEST_DELAY_SECONDS
-    )
-
-    first_records = _fetch_window(
-        closure_type=closure_type,
-        start=start,
-        end=midpoint,
-    )
-
-    time.sleep(
-        REQUEST_DELAY_SECONDS
-    )
-
-    second_records = _fetch_window(
-        closure_type=closure_type,
-        start=midpoint,
-        end=end,
-    )
-
-    combined = (
-        first_records
-        + second_records
-    )
-
-    unique = _deduplicate(
-        combined
-    )
-
-    print(
-        f"Combined split windows: "
-        f"{len(combined)} records, "
-        f"{len(unique)} unique."
-    )
-
-    return unique
 
 
 # ============================================================
