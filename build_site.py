@@ -465,35 +465,10 @@ def build_page(data):
     # --------------------------------------------------------
 
     direction_options = """
-        <div class="direction-buttons">
-
-            <button
-                type="button"
-                class="direction-button active"
-                data-direction=""
-            >
-            
-                ALL DIRECTIONS
-        </button>
-
-        <button
-            type="button"
-            class="direction-button"
-            data-direction="Northbound"
-        >
-            NORTHBOUND
-        </button>
-
-        <button
-            type="button"
-            class="direction-button"
-            data-direction="Southbound"
-        >
-            SOUTHBOUND
-        </button>
-
-    </div>
-"""
+        <option value="">All directions</option>
+        <option value="Northbound">Northbound</option>
+        <option value="Southbound">Southbound</option>
+    """
 
     # --------------------------------------------------------
     # Status options
@@ -1079,12 +1054,10 @@ const routeButtons =
         ".route-button"
     );
 
-const directionButtons =
-    Array.from(
-        document.querySelectorALL(
-            "direction"
+const directionSelect =
+    document.getElementById(
+        "direction"
     );
-let selectedDirection = "";
 
 const statusSelect =
     document.getElementById(
@@ -1114,7 +1087,8 @@ const empty =
 
 function updateFilters() {{
 
-    const direction = seectedDirection;
+    const direction =
+        directionSelect.value;
 
     const status =
         statusSelect.value;
@@ -1234,6 +1208,11 @@ routeButtons.forEach(button => {{
 
 }});
 
+
+directionSelect.addEventListener(
+    "change",
+    updateFilters
+);
 
 statusSelect.addEventListener(
     "change",
