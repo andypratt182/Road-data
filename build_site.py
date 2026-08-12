@@ -260,8 +260,7 @@ def closure_matches_route(
     ).lower().strip()
 
     description = get_description(closure)
-    )
-
+    
     junctions = extract_junctions(
         description
     )
@@ -376,8 +375,7 @@ def get_route_sort_value(
     road = get_road(closure)
 
     description = get_description(closure)
-    )
-
+    
     junctions = extract_junctions(
         description
     )
@@ -519,10 +517,7 @@ def build_page(data):
             or "Unknown"
         )
 
-        description_raw = str(
-            closure.get("description")
-            or ""
-        )
+        description_raw = get_description(closure)
 
         raw_type = str(
             closure.get("type")
