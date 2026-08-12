@@ -6,12 +6,12 @@ on:
       start_datetime:
         description: "Start datetime (ISO 8601 UTC)"
         required: true
-        default: "2026-08-11T00:00:00Z"
+        default: "2026-08-11T00:00:00"
 
       end_datetime:
         description: "End datetime (ISO 8601 UTC)"
         required: true
-        default: "2026-08-18T23:59:59Z"
+        default: "2026-08-18T23:59:59"
 
 jobs:
   validate-paginator:
