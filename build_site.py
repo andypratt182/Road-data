@@ -53,6 +53,40 @@ def load_data():
     with DATA_FILE.open("r", encoding="utf-8") as file:
         return json.load(file)
 
+def get_road(closure):
+    """Return the road name from the current processed record."""
+
+    return str(
+        closure.get("road_name")
+        or closure.get("road")
+        or ""
+    ).strip().upper()
+
+
+def get_description(closure):
+    """
+    Return searchable closure text.
+
+    The current processed National Highways structure stores
+    descriptive information in comment and location_description.
+    """
+
+    parts = []
+
+    for field in (
+        "comment",
+        "location_description",
+        "description",
+    ):
+        value = closure.get(field)
+
+        if value:
+            text = str(value).strip()
+
+            if text and text not in parts:
+                parts.append(text)
+
+    return " | ".join(parts)
 
 # ============================================================
 # TIME FORMATTING
@@ -219,16 +253,13 @@ def closure_matches_route(
     if not sections:
         return False
 
-    road = str(
-        closure.get("road") or ""
-    ).upper().strip()
+    road = get_road(closure)
 
     closure_direction = str(
         closure.get("direction") or ""
     ).lower().strip()
 
-    description = str(
-        closure.get("description") or ""
+    description = get_description(closure)
     )
 
     junctions = extract_junctions(
@@ -342,12 +373,9 @@ def get_route_sort_value(
         J45
     """
 
-    road = str(
-        closure.get("road") or ""
-    ).upper().strip()
+    road = get_road(closure)
 
-    description = str(
-        closure.get("description") or ""
+    description = get_description(closure)
     )
 
     junctions = extract_junctions(
@@ -478,14 +506,12 @@ def build_page(data):
         closures
     ):
 
-        road_raw = str(
-            closure.get("road")
+        road_raw = (
+            get_road(closure)
             or "Unknown"
         )
 
-        direction_raw = str(
-            closure.get("direction")
-            or ""
+        direction_raw = get_description(closure)
         )
 
         status_raw = str(
