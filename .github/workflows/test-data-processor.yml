@@ -35,14 +35,10 @@ jobs:
           print("PARSER COMPARISON TEST")
           print("=" * 80)
 
-          # ------------------------------------------------------------
-          # Controlled Test 5 API request
-          #
-          # IMPORTANT:
-          # closureType is deliberately NOT supplied.
-          # ------------------------------------------------------------
-
-          API_URL = "https://api.data.nationalhighways.co.uk/roads/v2.0/closures"
+          API_URL = (
+              "https://api.data.nationalhighways.co.uk"
+              "/roads/v2.0/closures"
+          )
 
           START = "2026-08-11T00:00:00"
           END = "2026-08-18T23:59:59"
@@ -58,24 +54,30 @@ jobs:
               "endDateTime": END,
           }
 
+          # These are the headers used by the successful
+          # controlled National Highways API test.
+          headers = {
+              "Ocp-Apim-Subscription-Key": API_KEY,
+              "X-Response-MediaType": "application/json",
+              "X-Data-Format": "DATEXII",
+          }
+
           print(f"Start: {START}")
           print(f"End:   {END}")
           print("closureType: NOT supplied")
           print("Pagination: NOT followed")
+          print("Requests: 1")
           print()
 
-          # ------------------------------------------------------------
-          # Make exactly one raw API request.
-          # ------------------------------------------------------------
+          # ============================================================
+          # ONE API REQUEST
+          # ============================================================
 
           try:
               response = requests.get(
                   API_URL,
                   params=params,
-                  headers={
-                      "Ocp-Apim-Subscription-Key": API_KEY,
-                      "Accept": "application/json",
-                  },
+                  headers=headers,
                   timeout=60,
               )
           except Exception as exc:
@@ -83,6 +85,17 @@ jobs:
               sys.exit(1)
 
           print(f"HTTP status: {response.status_code}")
+          print(f"Response characters: {len(response.text)}")
+          print(f"Content-Type: {response.headers.get('Content-Type', '')}")
+
+          if response.status_code == 429:
+              print()
+              print("ERROR: RATE LIMIT RECEIVED.")
+              print(
+                  "Retry-After:",
+                  response.headers.get("Retry-After", "not supplied"),
+              )
+              sys.exit(1)
 
           if response.status_code != 200:
               print()
@@ -90,50 +103,61 @@ jobs:
               print(response.text[:2000])
               sys.exit(1)
 
-          # ------------------------------------------------------------
-          # Decode the raw D2 payload.
-          # ------------------------------------------------------------
+          # ============================================================
+          # JSON DECODE
+          # ============================================================
 
           try:
               payload = response.json()
           except Exception as exc:
-              print(f"ERROR: Could not decode JSON: {exc}")
+              print()
+              print("=" * 80)
+              print("ERROR: API RESPONSE IS NOT VALID JSON")
+              print("=" * 80)
+              print(f"{type(exc).__name__}: {exc}")
+              print()
+              print("Content-Type:")
+              print(response.headers.get("Content-Type", ""))
+              print()
+              print("First 1000 response characters:")
+              print(repr(response.text[:1000]))
+              print()
+              print("This normally indicates the API media/format")
+              print("headers were not honoured by the endpoint.")
               sys.exit(1)
 
           print("Raw JSON decoded successfully.")
-          print(f"Raw payload type: {type(payload).__name__}")
+          print(f"Top-level payload type: {type(payload).__name__}")
 
           if not isinstance(payload, dict):
-              print("ERROR: Expected D2 payload to be a dictionary.")
+              print("ERROR: Expected a JSON object.")
               sys.exit(1)
 
-          # ------------------------------------------------------------
-          # Inspect the raw record count without dumping the payload.
-          # ------------------------------------------------------------
+          # ============================================================
+          # RAW D2 RECORD EXTRACTION
+          # ============================================================
 
           try:
               raw_records = data_processor.extract_raw_records(payload)
           except Exception as exc:
-              print(f"ERROR: extract_raw_records() failed: {exc}")
+              print()
+              print("ERROR: extract_raw_records() failed.")
+              print(f"{type(exc).__name__}: {exc}")
               sys.exit(1)
 
-          print(f"Raw records identified: {len(raw_records)}")
+          print(f"Raw D2 situation records: {len(raw_records)}")
 
           if not raw_records:
-              print("ERROR: No raw records were found.")
+              print()
+              print("ERROR: No D2 situation records were found.")
+              print()
+              print("Top-level keys:")
+              print(list(payload.keys()))
               sys.exit(1)
 
-          # ------------------------------------------------------------
-          # Run the ACTUAL production parser.
-          #
-          # This is the important part:
-          #
-          # process_data(payload)
-          #
-          # No API-loading function is required because the API request
-          # is performed here and the raw D2 payload is passed directly
-          # to the production parser.
-          # ------------------------------------------------------------
+          # ============================================================
+          # PRODUCTION PARSER
+          # ============================================================
 
           print()
           print("Calling data_processor.process_data(payload)...")
@@ -158,193 +182,182 @@ jobs:
               )
               sys.exit(1)
 
-          print(
-              f"Parser returned {len(parsed_records)} parsed records."
-          )
+          print(f"Parsed records returned: {len(parsed_records)}")
 
-          # ------------------------------------------------------------
-          # Compact parsed-record output.
-          # ------------------------------------------------------------
+          # ============================================================
+          # COMPACT RECORD OUTPUT
+          # ============================================================
 
           print()
           print("=" * 80)
           print("COMPACT PARSED RECORDS")
           print("=" * 80)
 
-          def first(record, *names):
-              for name in names:
-                  value = record.get(name)
-                  if value not in (None, ""):
-                      return value
-              return ""
-
-          expected_fields = [
-              "id",
-              "record_id",
-              "idG",
-              "road",
-              "road_name",
-              "roadName",
-              "direction",
-              "start",
-              "start_datetime",
-              "end",
-              "end_datetime",
-              "comment",
-              "location",
-              "location_description",
-          ]
-
-          field_counts = {
-              field: 0
-              for field in expected_fields
-          }
-
           for index, record in enumerate(parsed_records, start=1):
 
               if not isinstance(record, dict):
                   print(
-                      f"RECORD {index}: "
-                      f"INVALID TYPE {type(record).__name__}"
+                      f"RECORD {index}: INVALID "
+                      f"TYPE={type(record).__name__}"
                   )
                   continue
 
-              record_id = first(
-                  record,
-                  "id",
-                  "record_id",
-                  "idG",
-              )
+              record_id = record.get("idG", "")
+              road = record.get("road_name", "")
+              direction = record.get("direction", "")
+              management = record.get("management_type", "")
+              validity = record.get("validity_status", "")
+              start = record.get("start", "")
+              end = record.get("end", "")
+              comment = record.get("comment", "")
 
-              road = first(
-                  record,
-                  "road",
-                  "road_name",
-                  "roadName",
-              )
-
-              direction = first(
-                  record,
-                  "direction",
-              )
-
-              start = first(
-                  record,
-                  "start",
-                  "start_datetime",
-              )
-
-              end = first(
-                  record,
-                  "end",
-                  "end_datetime",
-              )
-
-              comment = first(
-                  record,
-                  "comment",
-                  "location_description",
-                  "location",
-              )
+              locations = record.get("locations", [])
 
               print(
                   f"RECORD {index}: "
                   f"id={record_id} | "
-                  f"road={road} | "
-                  f"direction={direction} | "
-                  f"start={start} | "
-                  f"end={end} | "
+                  f"road={road or '<MISSING>'} | "
+                  f"direction={direction or '<MISSING>'} | "
+                  f"type={management or '<MISSING>'} | "
+                  f"status={validity or '<MISSING>'} | "
+                  f"start={start or '<MISSING>'} | "
+                  f"end={end or '<MISSING>'} | "
+                  f"locations={len(locations)} | "
                   f"comment={str(comment)[:100]}"
               )
 
-              for field in expected_fields:
-                  if record.get(field) not in (None, ""):
-                      field_counts[field] += 1
+          # ============================================================
+          # FIELD COMPLETENESS
+          # ============================================================
 
-          # ------------------------------------------------------------
-          # Missing-field report.
-          # ------------------------------------------------------------
+          fields = [
+              "idG",
+              "versionG",
+              "management_type",
+              "validity_status",
+              "start",
+              "end",
+              "probability",
+              "compliance",
+              "source",
+              "cause_type",
+              "comment",
+              "road_name",
+              "direction",
+              "direction_relative",
+              "linear_element_type",
+              "from_distance",
+              "to_distance",
+              "location_description",
+              "carriageway",
+              "carriageway_extended",
+              "lanes_restricted",
+              "lanes_operational",
+              "locations",
+          ]
 
           print()
           print("=" * 80)
           print("MISSING-FIELD REPORT")
           print("=" * 80)
 
-          if parsed_records:
-
-              for field in expected_fields:
-                  present = field_counts[field]
-                  missing = len(parsed_records) - present
-
-                  if missing:
-                      print(
-                          f"{field}: "
-                          f"present={present}, "
-                          f"missing={missing}"
-                      )
-
-          else:
+          if not parsed_records:
               print("No parsed records available.")
 
-          # ------------------------------------------------------------
-          # Combined semantic checks.
-          # ------------------------------------------------------------
+          else:
+              for field in fields:
+                  present = 0
+                  missing = 0
 
-          valid_id = 0
-          valid_road = 0
-          valid_direction = 0
-          valid_start_end = 0
+                  for record in parsed_records:
+                      if not isinstance(record, dict):
+                          missing += 1
+                          continue
+
+                      value = record.get(field)
+
+                      if value is None or value == "":
+                          missing += 1
+                      elif field == "locations" and not value:
+                          missing += 1
+                      else:
+                          present += 1
+
+                  print(
+                      f"{field}: "
+                      f"present={present}, "
+                      f"missing={missing}"
+                  )
+
+          # ============================================================
+          # SEMANTIC COUNTS
+          # ============================================================
+
+          records_with_id = 0
+          records_with_road = 0
+          records_with_direction = 0
+          records_with_start_end = 0
+          records_with_locations = 0
 
           for record in parsed_records:
 
               if not isinstance(record, dict):
                   continue
 
-              if (
-                  record.get("id")
-                  or record.get("record_id")
-                  or record.get("idG")
-              ):
-                  valid_id += 1
+              if record.get("idG"):
+                  records_with_id += 1
 
-              if (
-                  record.get("road")
-                  or record.get("road_name")
-                  or record.get("roadName")
-              ):
-                  valid_road += 1
+              if record.get("road_name"):
+                  records_with_road += 1
 
               if record.get("direction"):
-                  valid_direction += 1
+                  records_with_direction += 1
 
-              has_start = bool(
-                  record.get("start")
-                  or record.get("start_datetime")
-              )
+              if (
+                  record.get("start_datetime") is not None
+                  and record.get("end_datetime") is not None
+              ):
+                  records_with_start_end += 1
 
-              has_end = bool(
-                  record.get("end")
-                  or record.get("end_datetime")
-              )
+              if record.get("locations"):
+                  records_with_locations += 1
 
-              if has_start and has_end:
-                  valid_start_end += 1
-
-          # ------------------------------------------------------------
-          # Final totals.
-          # ------------------------------------------------------------
+          # ============================================================
+          # FINAL TOTALS
+          # ============================================================
 
           print()
           print("=" * 80)
           print("FINAL TOTALS")
           print("=" * 80)
 
-          print(f"Raw API records:              {len(raw_records)}")
-          print(f"Parsed records:               {len(parsed_records)}")
-          print(f"Records with ID:              {valid_id}")
-          print(f"Records with road:            {valid_road}")
-          print(f"Records with direction:       {valid_direction}")
-          print(f"Records with valid start/end: {valid_start_end}")
+          print(
+              f"Raw API records:              {len(raw_records)}"
+          )
+
+          print(
+              f"Parsed records:               {len(parsed_records)}"
+          )
+
+          print(
+              f"Records with ID:              {records_with_id}"
+          )
+
+          print(
+              f"Records with road:            {records_with_road}"
+          )
+
+          print(
+              f"Records with direction:       {records_with_direction}"
+          )
+
+          print(
+              f"Records with valid start/end: {records_with_start_end}"
+          )
+
+          print(
+              f"Records with locations:       {records_with_locations}"
+          )
 
           print()
           print("=" * 80)
@@ -352,6 +365,7 @@ jobs:
           print("=" * 80)
 
           print("Successful API request: YES")
+          print("HTTP status: 200")
           print("closureType supplied: NO")
           print("Pagination followed: NO")
           print("Production importer modified: NO")
@@ -362,20 +376,28 @@ jobs:
           print("PARSER COMPARISON COMPLETE")
           print("=" * 80)
 
-          # ------------------------------------------------------------
-          # Failure condition.
-          #
-          # The parser must not silently return zero records when the
-          # API supplied records.
-          # ------------------------------------------------------------
+          # ============================================================
+          # FAILURE CONDITIONS
+          # ============================================================
 
           if len(raw_records) > 0 and len(parsed_records) == 0:
               print()
               print(
                   "ERROR: API returned records but "
-                  "process_data() returned zero parsed records."
+                  "the production parser returned zero records."
               )
               sys.exit(1)
 
+          if len(parsed_records) != len(raw_records):
+              print()
+              print(
+                  "WARNING: Raw and parsed record counts differ."
+              )
+              print(
+                  f"Raw={len(raw_records)}, "
+                  f"Parsed={len(parsed_records)}"
+              )
+
+          print()
           print("TEST PASSED")
           PY
