@@ -509,7 +509,9 @@ def build_page(data):
             or "Unknown"
         )
 
-        direction_raw = get_description(closure)
+        direction_raw = str(
+            closure.get("direction")
+            or ""
         )
 
         status_raw = str(
@@ -517,7 +519,9 @@ def build_page(data):
             or "Unknown"
         )
 
-        description_raw = get_description(closure)
+        description_raw = get_description(
+            closure
+        )
 
         raw_type = str(
             closure.get("type")
