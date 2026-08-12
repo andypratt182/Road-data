@@ -465,10 +465,35 @@ def build_page(data):
     # --------------------------------------------------------
 
     direction_options = """
-        <option value="">All directions</option>
-        <option value="Northbound">Northbound</option>
-        <option value="Southbound">Southbound</option>
-    """
+        <div class="direction-buttons">
+
+            <button
+                type="button"
+                class="direction-button active"
+                data-direction=""
+            >
+            
+                ALL DIRECTIONS
+        </button>
+
+        <button
+            type="button"
+            class="direction-button"
+            data-direction="Northbound"
+        >
+            NORTHBOUND
+        </button>
+
+        <button
+            type="button"
+            class="direction-button"
+            data-direction="Southbound"
+        >
+            SOUTHBOUND
+        </button>
+
+    </div>
+"""
 
     # --------------------------------------------------------
     # Status options
