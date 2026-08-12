@@ -149,7 +149,7 @@ def _is_target_road(
 ) -> bool:
     """Return True when the closure belongs to a target road."""
 
-    road = closure.get("road")
+    road = closure.get("road_name")
 
     if not road:
         return False
@@ -495,7 +495,7 @@ def group_by_road(
     for closure in closures:
 
         road = str(
-            closure.get("road") or ""
+            closure.get("road_name") or ""
         ).strip().upper()
 
         if road in grouped:
