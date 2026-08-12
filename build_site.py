@@ -1079,10 +1079,12 @@ const routeButtons =
         ".route-button"
     );
 
-const directionSelect =
-    document.getElementById(
-        "direction"
+const directionButtons =
+    Array.from(
+        document.querySelectorALL(
+            "direction"
     );
+let selectedDirection = "";
 
 const statusSelect =
     document.getElementById(
@@ -1112,8 +1114,7 @@ const empty =
 
 function updateFilters() {{
 
-    const direction =
-        directionSelect.value;
+    const direction = seectedDirection;
 
     const status =
         statusSelect.value;
@@ -1233,11 +1234,6 @@ routeButtons.forEach(button => {{
 
 }});
 
-
-directionSelect.addEventListener(
-    "change",
-    updateFilters
-);
 
 statusSelect.addEventListener(
     "change",
