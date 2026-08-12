@@ -3,6 +3,7 @@ from __future__ import annotations
 import time
 from datetime import datetime, timedelta
 from typing import Any
+from urllib.parse import urljoin
 
 import requests
 
@@ -104,11 +105,17 @@ def _request_closures(
     modified_since: str | None = None,
 ) -> list[dict[str, Any]]:
     """
-    Perform exactly one request to the National Highways
-    closures endpoint.
+    Fetch National Highways closures, following the API's
+    x-next pagination links.
+
+    Every individual API response is passed through the
+    existing process_payload() function.
+
+    The pagination layer does not modify the payload structure
+    or the records returned by process_payload().
     """
 
-    url = f"{API_BASE_URL}/closures"
+    first_url = f"{API_BASE_URL}/closures"
 
     params: dict[str, str] = {
         "closureType": closure_type,
@@ -123,31 +130,182 @@ def _request_closures(
     if modified_since:
         params["modifiedSinceDateTime"] = modified_since
 
-    response = requests.get(
-        url,
-        params=params,
-        headers=_build_headers(),
-        timeout=REQUEST_TIMEOUT,
+    headers = _build_headers()
+
+    all_records: list[dict[str, Any]] = []
+
+    next_url: str | None = first_url
+    next_params: dict[str, str] | None = params
+
+    page_number = 0
+    request_count = 0
+
+    seen_urls: set[str] = set()
+
+    while next_url:
+
+        page_number += 1
+        request_count += 1
+
+        # ----------------------------------------------------
+        # Protect against a broken/repeating x-next link.
+        # ----------------------------------------------------
+
+        if next_url in seen_urls:
+            raise RuntimeError(
+                "National Highways API returned a repeated "
+                f"x-next URL on page {page_number}: {next_url}"
+            )
+
+        seen_urls.add(next_url)
+
+        print(
+            f"National Highways request {request_count}"
+        )
+
+        print(
+            f"Page: {page_number}"
+        )
+
+        print(
+            f"URL: {next_url}"
+        )
+
+        # ----------------------------------------------------
+        # Perform request.
+        #
+        # Only the first request receives the original query
+        # parameters. Subsequent requests follow x-next exactly.
+        # ----------------------------------------------------
+
+        response = requests.get(
+            next_url,
+            params=next_params,
+            headers=headers,
+            timeout=REQUEST_TIMEOUT,
+        )
+
+        if response.status_code == 429:
+
+            retry_after = response.headers.get(
+                "Retry-After"
+            )
+
+            raise NationalHighwaysRateLimitError(
+                "National Highways API rate limit reached "
+                f"for {closure_type} closures. "
+                f"Retry-After: "
+                f"{retry_after or 'not specified'}"
+            )
+
+        response.raise_for_status()
+
+        payload = response.json()
+
+        # ----------------------------------------------------
+        # IMPORTANT:
+        #
+        # Keep the existing parser completely intact.
+        # Each page is independently passed through the same
+        # process_payload() used by the production collector.
+        # ----------------------------------------------------
+
+        page_records = process_payload(
+            payload
+        )
+
+        page_count = len(page_records)
+
+        print(
+            f"Page {page_number}: "
+            f"{page_count} processed records"
+        )
+
+        all_records.extend(
+            page_records
+        )
+
+        # ----------------------------------------------------
+        # Follow the National Highways x-next header.
+        #
+        # The API may return either an absolute URL or a
+        # relative URL such as /closures?... .
+        #
+        # urljoin() handles both safely.
+        # ----------------------------------------------------
+
+        x_next = response.headers.get(
+            "x-next"
+        )
+
+        if x_next:
+            x_next = x_next.strip()
+
+        if not x_next:
+            next_url = None
+            next_params = None
+
+            print(
+                f"Pagination complete after "
+                f"{page_number} page(s)."
+            )
+
+            break
+
+        next_url = urljoin(
+            response.url,
+            x_next,
+        )
+
+        # Do not send the original query parameters again.
+        # x-next already contains the API's continuation state.
+        next_params = None
+
+        print(
+            f"x-next found: continuing to page "
+            f"{page_number + 1}"
+        )
+
+        # ----------------------------------------------------
+        # Respect the existing API rate-limit protection.
+        #
+        # Do not sleep after the final page.
+        # ----------------------------------------------------
+
+        time.sleep(
+            REQUEST_DELAY_SECONDS
+        )
+
+    # --------------------------------------------------------
+    # Deduplicate records returned across pages.
+    # --------------------------------------------------------
+
+    unique_records = _deduplicate(
+        all_records
     )
 
-    if response.status_code == 429:
+    print(
+        "National Highways collection complete."
+    )
 
-        retry_after = response.headers.get(
-            "Retry-After"
-        )
+    print(
+        f"Pages retrieved: {page_number}"
+    )
 
-        raise NationalHighwaysRateLimitError(
-            "National Highways API rate limit reached "
-            f"for {closure_type} closures. "
-            f"Retry-After: "
-            f"{retry_after or 'not specified'}"
-        )
+    print(
+        f"Requests made: {request_count}"
+    )
 
-    response.raise_for_status()
+    print(
+        f"All processed records: {len(all_records)}"
+    )
 
-    payload = response.json()
+    print(
+        f"Unique processed records: "
+        f"{len(unique_records)}"
+    )
 
-    return process_payload(payload)
+    return unique_records
 
 
 # ============================================================
@@ -209,7 +367,9 @@ def _deduplicate(
 
     for record in records:
 
-        key = _record_key(record)
+        key = _record_key(
+            record
+        )
 
         if key in seen:
             continue
@@ -244,8 +404,13 @@ def _fetch_window(
     - the minimum window size is reached.
     """
 
-    start_string = _format_api_datetime(start)
-    end_string = _format_api_datetime(end)
+    start_string = _format_api_datetime(
+        start
+    )
+
+    end_string = _format_api_datetime(
+        end
+    )
 
     print(
         f"Fetching {closure_type} closures: "
@@ -370,11 +535,13 @@ def fetch_closures(
     3. If a window returns 500 records:
        Automatically split the window.
 
-    4. Split records are deduplicated.
+    4. API x-next pagination is followed automatically.
 
-    5. modified_since requests retain the existing behaviour.
+    5. Split/page records are deduplicated.
 
-    6. HTTP 429 raises NationalHighwaysRateLimitError.
+    6. modified_since requests retain the existing behaviour.
+
+    7. HTTP 429 raises NationalHighwaysRateLimitError.
     """
 
     # --------------------------------------------------------
