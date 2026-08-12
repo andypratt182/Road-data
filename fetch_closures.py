@@ -19,8 +19,6 @@ class NationalHighwaysRateLimitError(Exception):
 # CONFIGURATION
 # ============================================================
 
-MAX_RECORDS_PER_REQUEST = 500
-
 DEFAULT_WINDOW_HOURS = 24
 
 MIN_WINDOW_MINUTES = 60
@@ -455,8 +453,7 @@ def _fetch_window(
         f"Returned {count} records."
     )
 
-    if count < MAX_RECORDS_PER_REQUEST:
-        return records
+    return records
 
     duration = end - start
 
