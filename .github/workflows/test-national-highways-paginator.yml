@@ -7,14 +7,15 @@ on:
         description: "Start datetime (ISO 8601 UTC)"
         required: true
         default: "2026-08-11T00:00:00Z"
+
       end_datetime:
         description: "End datetime (ISO 8601 UTC)"
         required: true
         default: "2026-08-18T23:59:59Z"
 
 jobs:
-  test-national-highways-paginator:
-    name: Validate x-next pagination
+  validate-paginator:
+    name: Validate current National Highways collector
     runs-on: ubuntu-latest
 
     steps:
@@ -31,10 +32,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests python-dotenv
 
-      - name: Run paginator validation
+      - name: Validate current collector
         env:
           NATIONAL_HIGHWAYS_API_KEY: ${{ secrets.NATIONAL_HIGHWAYS_API_KEY }}
-          NATIONAL_HIGHWAYS_API_BASE_URL: ${{ vars.NATIONAL_HIGHWAYS_API_BASE_URL }}
           TEST_START: ${{ inputs.start_datetime }}
           TEST_END: ${{ inputs.end_datetime }}
         run: |
@@ -42,7 +42,10 @@ jobs:
           import os
           from collections import Counter
 
-          from sources.national_highways import fetch_national_highways
+          from config import API_BASE_URL
+          from sources.national_highways import (
+              fetch_national_highways,
+          )
 
           start = os.environ["TEST_START"]
           end = os.environ["TEST_END"]
@@ -50,16 +53,19 @@ jobs:
           print("=" * 72)
           print("NATIONAL HIGHWAYS PAGINATION VALIDATION")
           print("=" * 72)
+
+          print(f"API base URL: {API_BASE_URL}")
           print(f"Window start: {start}")
           print(f"Window end:   {end}")
-          print("closureType:  NOT supplied by collector")
-          print("pagination:   x-next handled by current collector")
-          print("production importer/database: NOT touched")
+          print("closureType:  NOT supplied")
+          print("Collector:    sources/national_highways.py")
+          print("Database:     NOT touched")
+          print("Production workflow: NOT touched")
           print("=" * 72)
           print()
 
           try:
-              closures = fetch_national_highways(
+              records = fetch_national_highways(
                   start_datetime=start,
                   end_datetime=end,
               )
@@ -73,76 +79,89 @@ jobs:
 
           print()
           print("=" * 72)
-          print("COMPACT RESULT SUMMARY")
+          print("FINAL COLLECTOR OUTPUT")
           print("=" * 72)
 
-          print(f"Final returned records: {len(closures)}")
+          print(f"Returned records: {len(records)}")
 
           roads = Counter(
-              str(record.get("road") or "").strip().upper()
-              for record in closures
+              str(record.get("road") or "")
+              .strip()
+              .upper()
+              for record in records
           )
 
-          print("Records by road:")
+          print()
+          print("Records by target road:")
+
           for road in ("M6", "M57", "M58", "M62"):
-              print(f"  {road}: {roads.get(road, 0)}")
+              print(
+                  f"  {road}: {roads.get(road, 0)}"
+              )
 
-          total = len(closures)
-
-          with_start = sum(
-              bool(record.get("start"))
-              for record in closures
-          )
-
-          with_end = sum(
-              bool(record.get("end"))
-              for record in closures
-          )
-
-          with_id = sum(
-              bool(record.get("id"))
-              for record in closures
-          )
-
-          with_description = sum(
-              bool(record.get("description"))
-              for record in closures
-          )
-
+          print()
           print("Output field coverage:")
-          print(f"  id:          {with_id}/{total}")
-          print(f"  start:       {with_start}/{total}")
-          print(f"  end:         {with_end}/{total}")
-          print(f"  description: {with_description}/{total}")
+
+          total = len(records)
+
+          fields = (
+              "id",
+              "road",
+              "start",
+              "end",
+              "description",
+          )
+
+          for field in fields:
+              present = sum(
+                  1
+                  for record in records
+                  if record.get(field)
+              )
+
+              print(
+                  f"  {field}: "
+                  f"{present}/{total}"
+              )
+
+          ids = [
+              record.get("id")
+              for record in records
+              if record.get("id")
+          ]
+
+          duplicate_ids = (
+              len(ids) - len(set(ids))
+          )
+
+          print()
+          print(
+              f"Duplicate IDs: {duplicate_ids}"
+          )
 
           starts = [
               str(record.get("start"))
-              for record in closures
+              for record in records
               if record.get("start")
           ]
 
           ends = [
               str(record.get("end"))
-              for record in closures
+              for record in records
               if record.get("end")
           ]
 
           if starts:
-              print(f"Earliest start: {min(starts)}")
+              print(
+                  f"Earliest start: {min(starts)}"
+              )
 
           if ends:
-              print(f"Latest end:     {max(ends)}")
+              print(
+                  f"Latest end:   {max(ends)}"
+              )
 
-          ids = [
-              record.get("id")
-              for record in closures
-              if record.get("id")
-          ]
-
-          duplicate_ids = len(ids) - len(set(ids))
-
-          print(f"Duplicate output IDs: {duplicate_ids}")
-
+          print()
           print("=" * 72)
           print("VALIDATION PASSED")
           print("=" * 72)
