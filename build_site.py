@@ -53,6 +53,7 @@ def load_data():
     with DATA_FILE.open("r", encoding="utf-8") as file:
         return json.load(file)
 
+
 def get_road(closure):
     """Return the road name from the current processed record."""
 
@@ -88,6 +89,7 @@ def get_description(closure):
 
     return " | ".join(parts)
 
+
 # ============================================================
 # TIME FORMATTING
 # ============================================================
@@ -95,10 +97,6 @@ def get_description(closure):
 def format_datetime(value):
     """
     Convert an API ISO timestamp into a user-friendly UK time.
-
-    Example:
-        2026-08-11T14:54:52.52Z
-        -> 11 Aug 2026, 15:54
     """
 
     if not value:
@@ -136,9 +134,6 @@ def extract_junctions(description):
         J21
         J21A
         J29a
-
-    Returns a list of tuples:
-        [(21, ""), (21, "A")]
     """
 
     if not description:
@@ -172,8 +167,6 @@ def junction_value(junction):
 
     J21  -> 21.0
     J21A -> 21.1
-
-    This means J21 comes before J21A.
     """
 
     number, suffix = junction
@@ -192,8 +185,6 @@ def get_restriction_type(closure):
     """
     Convert National Highways API type/cause values into
     user-friendly terminology.
-
-    Raw API values remain available separately.
     """
 
     raw_type = str(
@@ -235,16 +226,6 @@ def closure_matches_route(
     """
     Determine whether a closure belongs to a specific
     Omega/Axis directional route.
-
-    A closure is included when:
-
-    1. The road matches the route.
-    2. The direction matches the configured direction.
-    3. Its junction information falls inside the configured
-       route boundary.
-
-    For entire-road sections such as M58, the direction must
-    still match.
     """
 
     route = ROUTES.get(route_name, {})
@@ -260,10 +241,8 @@ def closure_matches_route(
     ).lower().strip()
 
     description = get_description(closure)
-    
-    junctions = extract_junctions(
-        description
-    )
+
+    junctions = extract_junctions(description)
 
     for section_road, start, end in sections:
 
@@ -275,6 +254,7 @@ def closure_matches_route(
         # ----------------------------------------------------
 
         if start == "entire":
+
             if direction_name == "Southbound":
                 return closure_direction == "westbound"
 
@@ -330,9 +310,7 @@ def closure_matches_route(
 
         for junction in junctions:
 
-            value = junction_value(
-                junction
-            )
+            value = junction_value(junction)
 
             if lower <= value <= upper:
                 return True
@@ -350,68 +328,149 @@ def get_route_sort_value(
     direction_name,
 ):
     """
-    Return the junction position used to order closures
-    along the selected route.
+    Return a sortable position along the complete selected route.
 
-    The ordering follows the actual direction of travel.
+    The route sections are already stored in travel order.
 
-    Example:
+    For example:
 
-        Omega Southbound M6 J45 -> J21
+        Omega Southbound:
+            M6 J45 -> J21
+            then M62 J10 -> J8
 
-        J45
-        J40
-        J30
-        J21
+        Omega Northbound:
+            M62 J8 -> J10
+            then M6 J21 -> J45
 
-    Omega Northbound M6 J21 -> J45
+    A section offset ensures that junction numbers on different
+    motorways are never compared directly.
 
-        J21
-        J30
-        J40
-        J45
+    A closure without a usable route position is placed last.
     """
 
     road = get_road(closure)
 
+    closure_direction = str(
+        closure.get("direction") or ""
+    ).lower().strip()
+
     description = get_description(closure)
-    
-    junctions = extract_junctions(
-        description
-    )
 
-    if not junctions:
-        return 9999
+    junctions = extract_junctions(description)
 
-    values = [
-        junction_value(junction)
-        for junction in junctions
-    ]
+    route = ROUTES.get(route_name, {})
+    sections = route.get(direction_name, [])
 
-    route = ROUTES.get(
-        route_name,
-        {}
-    )
+    if not sections:
+        return 999999
 
-    sections = route.get(
-        direction_name,
-        []
-    )
-
-    for section_road, start, end in sections:
+    for section_index, (
+        section_road,
+        start,
+        end,
+    ) in enumerate(sections):
 
         if road != section_road:
             continue
 
+        # ----------------------------------------------------
+        # Entire-road sections, such as M58
+        # ----------------------------------------------------
+
         if start == "entire":
-            return 5000
+
+            if (
+                direction_name == "Southbound"
+                and closure_direction == "westbound"
+            ):
+                return section_index * 1000 + 500
+
+            if (
+                direction_name == "Northbound"
+                and closure_direction == "eastbound"
+            ):
+                return section_index * 1000 + 500
+
+            return 999999
+
+        # ----------------------------------------------------
+        # National Highways direction mapping
+        # ----------------------------------------------------
+
+        expected_direction = None
 
         if direction_name == "Southbound":
-            return -max(values)
 
-        return min(values)
+            if section_road == "M6":
+                expected_direction = "southbound"
 
-    return 9999
+            elif section_road == "M62":
+                expected_direction = "westbound"
+
+            elif section_road == "M57":
+                expected_direction = "southbound"
+
+        elif direction_name == "Northbound":
+
+            if section_road == "M6":
+                expected_direction = "northbound"
+
+            elif section_road == "M62":
+                expected_direction = "eastbound"
+
+            elif section_road == "M57":
+                expected_direction = "northbound"
+
+        if (
+            expected_direction
+            and closure_direction != expected_direction
+        ):
+            return 999999
+
+        if not junctions:
+            return 999999
+
+        lower = min(
+            float(start),
+            float(end),
+        )
+
+        upper = max(
+            float(start),
+            float(end),
+        )
+
+        valid_values = [
+            junction_value(junction)
+            for junction in junctions
+            if lower <= junction_value(junction) <= upper
+        ]
+
+        if not valid_values:
+            return 999999
+
+        # ----------------------------------------------------
+        # Position within this motorway section
+        # ----------------------------------------------------
+
+        if direction_name == "Southbound":
+            position = -max(valid_values)
+        else:
+            position = min(valid_values)
+
+        # ----------------------------------------------------
+        # Section offset
+        #
+        # This is the important part.
+        #
+        # M6 and M62 junction numbers must not be compared
+        # directly. The offset keeps the motorway sections in
+        # the order defined in ROUTES.
+        # ----------------------------------------------------
+
+        return section_index * 1000 + position
+
+    return 999999
 
 
 # ============================================================
@@ -594,6 +653,43 @@ def build_page(data):
             route_membership[index]
         )
 
+        # ----------------------------------------------------
+        # Calculate and store the route position.
+        #
+        # This is generated once by Python. The browser does
+        # not need to understand motorway/junction logic.
+        # ----------------------------------------------------
+
+        route_sort_values = {}
+
+        for route_membership_value in route_membership[index]:
+
+            route_parts = route_membership_value.split(
+                ":",
+                1
+            )
+
+            if len(route_parts) != 2:
+                continue
+
+            member_route = route_parts[0]
+            member_direction = route_parts[1]
+
+            route_sort_values[
+                route_membership_value
+            ] = get_route_sort_value(
+                closure,
+                member_route,
+                member_direction,
+            )
+
+        route_sort_json = escape(
+            json.dumps(
+                route_sort_values,
+                separators=(",", ":")
+            )
+        )
+
         closure_cards.append(
             f"""
             <article
@@ -603,6 +699,7 @@ def build_page(data):
                 data-direction="{direction}"
                 data-status="{status}"
                 data-routes="{escape(route_attributes)}"
+                data-route-sort='{route_sort_json}'
             >
 
                 <div class="closure-header">
@@ -664,6 +761,28 @@ def build_page(data):
             </article>
             """
         )
+
+    # --------------------------------------------------------
+    # Counts
+    # --------------------------------------------------------
+
+    omega_count = sum(
+        1
+        for routes in route_membership.values()
+        if any(
+            route.startswith("Omega:")
+            for route in routes
+        )
+    )
+
+    axis_count = sum(
+        1
+        for routes in route_membership.values()
+        if any(
+            route.startswith("Axis:")
+            for route in routes
+        )
+    )
 
     # --------------------------------------------------------
     # HTML
@@ -897,7 +1016,7 @@ select {{
 <p>Omega & Axis route monitoring dashboard</p>
 
 <div class="updated">
-Last updated: {escape(updated_display := format_datetime(updated))}
+Last updated: {escape(format_datetime(updated))}
 </div>
 
 </div>
@@ -983,14 +1102,7 @@ Total closures
 Omega
 
 <strong id="omega-count">
-{sum(
-    1
-    for routes in route_membership.values()
-    if any(
-        r.startswith("Omega:")
-        for r in routes
-    )
-)}
+{omega_count}
 </strong>
 
 </div>
@@ -1000,14 +1112,7 @@ Omega
 Axis
 
 <strong id="axis-count">
-{sum(
-    1
-    for routes in route_membership.values()
-    if any(
-        r.startswith("Axis:")
-        for r in routes
-    )
-)}
+{axis_count}
 </strong>
 
 </div>
@@ -1102,15 +1207,15 @@ function updateFilters() {{
                 .split(",")
                 .filter(Boolean);
 
-        const roadDirection =
+        const routeKey =
             direction
                 ? selectedRoute + ":" + direction
                 : null;
 
         const routeMatch =
-            roadDirection
+            routeKey
                 ? routes.includes(
-                    roadDirection
+                    routeKey
                   )
                 : routes.some(
                     route =>
@@ -1137,24 +1242,105 @@ function updateFilters() {{
     }});
 
     // --------------------------------------------------------
-    // Sort visible records by route order
+    // Sort by actual route position.
+    //
+    // Python calculated the position and stored it in
+    // data-route-sort, so the browser does not need to know
+    // anything about motorway junction logic.
     // --------------------------------------------------------
+
+    const sortKey =
+        direction
+            ? selectedRoute + ":" + direction
+            : null;
 
     visible.sort((a, b) => {{
 
-        const aIndex =
-            parseInt(
-                a.dataset.index,
-                10
+        const aPositions =
+            JSON.parse(
+                a.dataset.routeSort || "{{}}"
             );
 
-        const bIndex =
-            parseInt(
-                b.dataset.index,
-                10
+        const bPositions =
+            JSON.parse(
+                b.dataset.routeSort || "{{}}"
             );
 
-        return aIndex - bIndex;
+        let aValue;
+        let bValue;
+
+        if (sortKey) {{
+
+            aValue =
+                aPositions[sortKey];
+
+            bValue =
+                bPositions[sortKey];
+
+        }} else {{
+
+            const prefix =
+                selectedRoute + ":";
+
+            const aValues =
+                Object.entries(
+                    aPositions
+                )
+                .filter(
+                    ([key]) =>
+                        key.startsWith(prefix)
+                )
+                .map(
+                    ([, value]) => value
+                );
+
+            const bValues =
+                Object.entries(
+                    bPositions
+                )
+                .filter(
+                    ([key]) =>
+                        key.startsWith(prefix)
+                )
+                .map(
+                    ([, value]) => value
+                );
+
+            aValue =
+                aValues.length
+                    ? Math.min(...aValues)
+                    : 999999;
+
+            bValue =
+                bValues.length
+                    ? Math.min(...bValues)
+                    : 999999;
+        }}
+
+        if (
+            aValue === undefined ||
+            aValue === null
+        ) {{
+            aValue = 999999;
+        }}
+
+        if (
+            bValue === undefined ||
+            bValue === null
+        ) {{
+            bValue = 999999;
+        }}
+
+        if (aValue !== bValue) {{
+            return aValue - bValue;
+        }}
+
+        // Preserve original order when two records have
+        // the same calculated route position.
+        return (
+            parseInt(a.dataset.index, 10) -
+            parseInt(b.dataset.index, 10)
+        );
 
     }});
 
@@ -1213,6 +1399,7 @@ directionSelect.addEventListener(
     "change",
     updateFilters
 );
+
 
 statusSelect.addEventListener(
     "change",
